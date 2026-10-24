@@ -1,3 +1,4 @@
+import SubmitButton from "./SubmitButton";
 import Link from "next/link";
 import { displayName, getPerson } from "@/lib/auth";
 import { IconBuilding, IconCalendarCheck, IconDashboard, IconHome, IconLogin, IconLogout, IconShield } from "./Icons";
@@ -39,9 +40,9 @@ export default async function Navbar() {
                 {displayName(person)} · <span className="capitalize">{person.role}</span>
               </span>
               <form action="/auth/signout" method="post">
-                <button className="inline-flex items-center gap-1.5 rounded-lg border border-white/25 px-3 py-1.5 hover:bg-white/10">
+                <SubmitButton className="inline-flex items-center gap-1.5 rounded-lg border border-white/25 px-3 py-1.5 hover:bg-white/10" pendingText="Logging out…">
                   <IconLogout className="h-4 w-4" /> Log out
-                </button>
+                </SubmitButton>
               </form>
             </>
           ) : (

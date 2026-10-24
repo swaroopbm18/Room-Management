@@ -45,8 +45,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className={`${rubik.variable} font-sans`}>
         <Navbar />
         <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
-        <footer className="mx-auto max-w-7xl px-4 pb-8 text-xs text-neutral-500 sm:px-6 dark:text-neutral-400">
-          Department of Machine Learning, BMSCE ·{" "}
+        <footer className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-brand-100 px-4 py-5 text-xs text-neutral-500 sm:px-6 dark:border-brand-900/60 dark:text-neutral-400">
+          <span>
+            Developed by <strong className="font-medium text-brand-700 dark:text-brand-300">Prof. Swaroop BM</strong>, Assistant Professor, Dept. of Machine
+            Learning, BMSCE
+          </span>
           <Link href="/privacy" className="underline hover:text-brand-600">
             Privacy policy
           </Link>

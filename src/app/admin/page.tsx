@@ -1,3 +1,4 @@
+import SubmitButton from "@/components/SubmitButton";
 import Flash from "@/components/Flash";
 import { IconCalendarCheck, IconCheck, IconChevronDown, IconChevronUp, IconFile, IconInbox, IconUsers, IconX } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
@@ -123,12 +124,14 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
                                         <form key={b.dir} action={moveRequest}>
                                           <input type="hidden" name="id" value={g.group_id} />
                                           <input type="hidden" name="dir" value={b.dir} />
-                                          <button
+                                          <SubmitButton
+                                            pendingText=""
+                                            message="Changing priority…"
                                             className="rounded p-0.5 text-brand-600 hover:bg-brand-100 hover:text-brand-900 dark:text-brand-400 dark:hover:bg-brand-900"
                                             aria-label={b.dir < 0 ? "Move up" : "Move down"}
                                           >
                                             {b.label}
-                                          </button>
+                                          </SubmitButton>
                                         </form>
                                       ) : (
                                         <span key={b.dir} className="h-[18px]" />
@@ -167,16 +170,16 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
                               <div className="flex flex-col items-end gap-2">
                                 <form action={approveRequest}>
                                   <input type="hidden" name="id" value={g.group_id} />
-                                  <button className="btn-primary py-1.5">
+                                  <SubmitButton className="btn-primary py-1.5" pendingText="Approving…" message="Approving the request…">
                                     <IconCheck className="h-4 w-4" /> Approve
-                                  </button>
+                                  </SubmitButton>
                                 </form>
                                 <form action={rejectRequest} className="flex gap-2">
                                   <input type="hidden" name="id" value={g.group_id} />
                                   <input name="note" placeholder="Reason (optional)" className="input w-40 py-1.5" />
-                                  <button className="btn-danger py-1.5">
+                                  <SubmitButton className="btn-danger py-1.5" pendingText="Rejecting…" message="Rejecting the request…">
                                     <IconX className="h-4 w-4" /> Reject
-                                  </button>
+                                  </SubmitButton>
                                 </form>
                               </div>
                             </td>

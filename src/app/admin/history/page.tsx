@@ -1,3 +1,4 @@
+import GetForm from "@/components/GetForm";
 import PageHeader from "@/components/PageHeader";
 import { getRooms, getSlots } from "@/lib/data";
 import { groupRequests } from "@/lib/requests";
@@ -91,7 +92,7 @@ export default async function History({ searchParams }: { searchParams: Promise<
         title="Allotment history"
         subtitle="Every change to the timetable and every rejected request, newest first. This record is permanent: entries cannot be edited or deleted by anyone."
       />
-      <form className="card flex flex-wrap items-end gap-3 p-4">
+      <GetForm className="card flex flex-wrap items-end gap-3 p-4" message="Loading history…">
         <div>
           <label className="label" htmlFor="show">Show</label>
           <select id="show" name="show" defaultValue={show} className="input w-auto">
@@ -119,7 +120,7 @@ export default async function History({ searchParams }: { searchParams: Promise<
         </div>
         <button className="btn-primary">Filter</button>
         <span className="muted ml-auto self-center text-sm">{entries.length === 1 ? "1 entry" : `${entries.length} entries`}</span>
-      </form>
+      </GetForm>
       <div className="card overflow-x-auto">
         <table className="w-full min-w-[900px]">
           <thead className="thead-ink">

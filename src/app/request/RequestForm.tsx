@@ -1,5 +1,7 @@
 "use client";
 
+import LoadingOverlay from "@/components/LoadingOverlay";
+import Spinner from "@/components/Spinner";
 import { useRouter } from "next/navigation";
 import { IconCheck, IconFlag, IconUpload, IconUsers } from "@/components/Icons";
 import { useState } from "react";
@@ -193,10 +195,11 @@ export default function RequestForm({
           Cancel
         </button>
         <button type="submit" className="btn-primary" disabled={busy}>
-          <IconCheck className="h-4 w-4" />
+          {busy ? <Spinner className="h-4 w-4" /> : <IconCheck className="h-4 w-4" />}
           {busy ? "Sending…" : "Send request"}
         </button>
       </div>
+      {busy && <LoadingOverlay label={type === "event" ? "Uploading the letter and sending your request…" : "Sending your request…"} />}
     </form>
   );
 }

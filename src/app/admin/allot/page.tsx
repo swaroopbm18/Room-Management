@@ -1,3 +1,4 @@
+import SubmitButton from "@/components/SubmitButton";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { IconFlag, IconMinusCircle, IconRestore } from "@/components/Icons";
 import DayGrid from "@/components/DayGrid";
@@ -85,9 +86,9 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
           <input id="reason" name="reason" required minLength={5} className="input" placeholder="Shown on the timetable" />
         </div>
         <div className="flex justify-end sm:col-span-2 lg:col-span-3">
-          <button className="btn-primary">
+          <SubmitButton pendingText="Allotting…" message="Allotting the room…">
             <IconFlag className="h-4 w-4" /> Allot room
-          </button>
+          </SubmitButton>
         </div>
       </form>
 
@@ -121,9 +122,9 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
             <input id="free-reason" name="reason" required minLength={5} className="input" placeholder="e.g. Class cancelled, faculty on leave" />
           </div>
           <div className="flex justify-end sm:col-span-2 lg:col-span-4">
-            <button className="btn-danger">
+            <SubmitButton className="btn-danger" pendingText="Freeing…" message="Freeing the room…">
               <IconMinusCircle className="h-4 w-4" /> Free room
-            </button>
+            </SubmitButton>
           </div>
         </form>
       </section>
@@ -179,9 +180,9 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
                       <input type="hidden" name="slot" value={a.slot_id} />
                       <input type="hidden" name="back" value={`/admin/allot?date=${date}`} />
                       <input name="reason" placeholder="Why (optional)" className="input w-36 py-1.5" />
-                      <button className="btn-secondary py-1.5 whitespace-nowrap">
+                      <SubmitButton className="btn-secondary py-1.5 whitespace-nowrap" pendingText="Restoring…" message="Restoring the timetable…">
                         <IconRestore className="h-4 w-4" /> Restore
-                      </button>
+                      </SubmitButton>
                     </form>
                   </td>
                 </tr>

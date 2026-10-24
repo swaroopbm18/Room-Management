@@ -1,3 +1,4 @@
+import SubmitButton from "@/components/SubmitButton";
 import Flash from "@/components/Flash";
 import { IconPlus, IconUpload } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
@@ -44,9 +45,9 @@ export default async function People({ searchParams }: { searchParams: Promise<{
         <h2 className="mb-3 font-semibold">Add a person</h2>
         <form action={upsertPerson} className="flex flex-wrap gap-2">
           <PersonFields />
-          <button className="btn-primary">
+          <SubmitButton pendingText="Adding…" message="Adding the person…">
             <IconPlus className="h-4 w-4" /> Add
-          </button>
+          </SubmitButton>
         </form>
       </section>
 
@@ -72,9 +73,9 @@ export default async function People({ searchParams }: { searchParams: Promise<{
           </div>
           <div className="muted text-xs">or paste rows below</div>
           <textarea name="csv" rows={5} className="input font-mono text-xs" placeholder={"akn@bmsce.ac.in, Anil Kumar N, AKN, Dr., faculty\nhod.ml@bmsce.ac.in, Head of Department, , Dr., admin"} />
-          <button className="btn-secondary">
+          <SubmitButton className="btn-secondary" pendingText="Importing…" message="Importing the list. This can take a few seconds…">
             <IconUpload className="h-4 w-4" /> Import
-          </button>
+          </SubmitButton>
         </form>
       </section>
 
@@ -82,7 +83,9 @@ export default async function People({ searchParams }: { searchParams: Promise<{
         {people.map((p) => (
           <form key={p.email} action={upsertPerson} className={`flex flex-wrap items-center gap-2 p-3 ${p.active ? "" : "opacity-60"}`}>
             <PersonFields p={p} />
-            <button className="btn-secondary py-1.5">Save</button>
+            <SubmitButton className="btn-secondary py-1.5" pendingText="Saving…" message="Saving changes…">
+              Save
+            </SubmitButton>
           </form>
         ))}
       </section>

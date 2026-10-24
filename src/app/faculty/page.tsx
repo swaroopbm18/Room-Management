@@ -1,3 +1,4 @@
+import SubmitButton from "@/components/SubmitButton";
 import Link from "next/link";
 import { IconCalendar, IconCalendarCheck, IconInbox, IconMinusCircle, IconPlus, IconX } from "@/components/Icons";
 import Flash from "@/components/Flash";
@@ -90,9 +91,9 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
                         <input type="hidden" name="slot" value={r.slot_id} />
                         <input type="hidden" name="back" value="/faculty" />
                         <input name="reason" required placeholder="Reason" className="input w-36 py-1.5" />
-                        <button className="btn-danger py-1.5">
+                        <SubmitButton className="btn-danger py-1.5" pendingText="Dropping…" message="Dropping the class…">
                           <IconMinusCircle className="h-4 w-4" /> Drop
-                        </button>
+                        </SubmitButton>
                       </form>
                     </td>
                   </tr>
@@ -151,9 +152,9 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
                         {r.status === "pending" && !ended && (
                           <form action={withdrawRequest}>
                             <input type="hidden" name="id" value={g.group_id} />
-                            <button className="btn-secondary py-1.5">
+                            <SubmitButton className="btn-secondary py-1.5" pendingText="Withdrawing…" message="Withdrawing your request…">
                               <IconX className="h-4 w-4" /> Withdraw
-                            </button>
+                            </SubmitButton>
                           </form>
                         )}
                       </td>
