@@ -103,16 +103,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
           tone="navy"
           icon={<IconCalendarCheck />}
         />
-        <div className="card flex flex-col justify-center divide-y divide-brand-100 px-3 sm:px-5 dark:divide-brand-900">
-          <div className="flex items-baseline justify-between gap-2 py-2 sm:py-3">
+        <div className="card flex flex-col divide-y divide-brand-100 px-3 sm:px-5 dark:divide-brand-900">
+          <div className="flex flex-1 items-center justify-between gap-2 py-2 sm:py-3">
             <span className="text-xs font-medium text-brand-700 sm:text-sm dark:text-brand-300">Rooms occupied</span>
             <span className="text-2xl font-semibold tracking-tight sm:text-3xl">{totalRooms - freeNow}</span>
           </div>
-          <div className="flex items-baseline justify-between gap-2 py-2 sm:py-3">
+          <div className="flex flex-1 items-center justify-between gap-2 py-2 sm:py-3">
             <span className="text-xs font-medium text-brand-700 sm:text-sm dark:text-brand-300">Rooms free</span>
             <span className="text-2xl font-semibold tracking-tight text-brand-600 sm:text-3xl dark:text-brand-400">{freeNow}</span>
           </div>
-          <div className="muted hidden pb-2 text-xs sm:block">In this slot · {slot.label}</div>
         </div>
         <KpiCard label="Rooms" value={totalRooms} hint="Classrooms and labs on this site" tone="ink" icon={<IconBuilding />} />
       </section>
