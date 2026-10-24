@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Rubik } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import "./globals.css";
@@ -27,6 +28,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className={`${rubik.variable} font-sans`}>
         <Navbar />
         <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+        <footer className="mx-auto max-w-7xl px-4 pb-8 text-xs text-neutral-500 sm:px-6 dark:text-neutral-400">
+          Department of Machine Learning, BMSCE ·{" "}
+          <Link href="/privacy" className="underline hover:text-brand-600">
+            Privacy policy
+          </Link>
+        </footer>
       </body>
     </html>
   );
