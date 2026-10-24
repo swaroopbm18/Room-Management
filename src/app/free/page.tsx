@@ -7,6 +7,12 @@ import { bookableDates, DATE_RE, formatDate, isSunday, todayIST, workingDay } fr
 
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "Free classrooms",
+  description: "Find free classrooms at BMSCE's Department of Machine Learning for any day and slot, and request one.",
+  alternates: { canonical: "/free" },
+};
+
 export default async function FreeSlots({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const sp = await searchParams;
   const dates = bookableDates();

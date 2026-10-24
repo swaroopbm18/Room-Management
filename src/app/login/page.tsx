@@ -6,6 +6,8 @@ import GoogleButton from "./GoogleButton";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = { title: "Faculty and admin login", robots: { index: false } };
+
 const ERRORS: Record<string, string> = {
   domain: "Please sign in with your @bmsce.ac.in college account.",
   not_registered: "Your email is not on the faculty or admin list yet. Please ask the HOD or a Time Table Officer to add you.",

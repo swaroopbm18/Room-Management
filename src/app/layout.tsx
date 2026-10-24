@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Rubik } from "next/font/google";
 import Navbar from "@/components/Navbar";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const rubik = Rubik({
@@ -12,8 +13,24 @@ const rubik = Rubik({
 });
 
 export const metadata: Metadata = {
-  title: "BMSCE Room Management",
-  description: "Classroom allotments, free slots and room requests for the Department of Machine Learning, BMSCE.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: `${SITE_NAME} · Classroom Allotment, Dept. of Machine Learning`, template: `%s · ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    "BMSCE room management",
+    "BMSCE classroom allotment",
+    "BMSCE free classrooms",
+    "BMSCE timetable",
+    "BMS College of Engineering",
+    "BMSCE Machine Learning department",
+    "room booking",
+  ],
+  alternates: { canonical: "/" },
+  openGraph: { type: "website", siteName: SITE_NAME, title: SITE_NAME, description: SITE_DESCRIPTION, url: "/", locale: "en_IN" },
+  robots: { index: true, follow: true },
+  // Set GOOGLE_SITE_VERIFICATION in Vercel to the code Google Search Console gives you.
+  verification: process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : undefined,
 };
 
 // Applies the saved theme before first paint, so dark mode does not flash.

@@ -1,6 +1,6 @@
 import PageHeader from "@/components/PageHeader";
 
-export const metadata = { title: "Privacy · BMSCE Room Management" };
+export const metadata = { title: "Privacy policy", alternates: { canonical: "/privacy" } };
 
 export default function Privacy() {
   return (

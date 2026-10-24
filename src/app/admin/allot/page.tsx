@@ -1,5 +1,5 @@
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
-import { IconFlag, IconRestore } from "@/components/Icons";
+import { IconFlag, IconMinusCircle, IconRestore } from "@/components/Icons";
 import DayGrid from "@/components/DayGrid";
 import Flash from "@/components/Flash";
 import PageHeader from "@/components/PageHeader";
@@ -7,7 +7,7 @@ import { getDaySchedule, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { AllotmentRow } from "@/lib/types";
 import { bookableDates, DATE_RE, formatDate, formatDateTime, isSunday, slotEnded, todayIST, workingDay } from "@/lib/time";
-import { adminOverride, adminRestore } from "../../actions";
+import { adminFree, adminOverride, adminRestore } from "../../actions";
 import SlotRange from "./SlotRange";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ const KIND_LABEL: Record<AllotmentRow["kind"], string> = {
   event_request: "Approved event request",
   cie: "CIE",
   event: "College event",
-  drop: "Class dropped",
+  drop: "Class dropped or removed",
   restore: "Restored",
 };
 
@@ -47,7 +47,7 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Allot a room for CIE or an event" subtitle="Pick a start and end time between 8:00 AM and 5:40 PM. This overrides the regular classes and bookings in those slots, and pending requests for them are declined." />
+      <PageHeader title="Allot or free a room" subtitle="Pick a start and end time between 8:00 AM and 5:40 PM. This overrides the regular classes and bookings in those slots, and pending requests for them are declined." />
       <Flash msg={sp.msg} error={sp.error} />
 
       <form action={adminOverride} className="card grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -90,6 +90,43 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
           </button>
         </div>
       </form>
+
+      <section>
+        <h2 className="mb-1 text-lg font-semibold">Free up a room</h2>
+        <p className="muted mb-3 text-sm">
+          Removes a regular class, an approved request or a CIE/event booking from future slots, so the room shows as free and faculty can request it.
+          Use Restore below to undo.
+        </p>
+        <form action={adminFree} className="card grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4">
+          <input type="hidden" name="back" value={`/admin/allot?date=${date}`} />
+          <div>
+            <label className="label" htmlFor="free-date">Date</label>
+            <select id="free-date" name="date" defaultValue={date} className="input">
+              {dates.map((d) => (
+                <option key={d} value={d}>{formatDate(d)}</option>
+              ))}
+            </select>
+          </div>
+          <SlotRange slots={slots} idPrefix="free-" />
+          <div>
+            <label className="label" htmlFor="free-room">Room</label>
+            <select id="free-room" name="room" className="input">
+              {rooms.map((r) => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="free-reason">Reason <span className="text-red-600">*</span></label>
+            <input id="free-reason" name="reason" required minLength={5} className="input" placeholder="e.g. Class cancelled, faculty on leave" />
+          </div>
+          <div className="flex justify-end sm:col-span-2 lg:col-span-4">
+            <button className="btn-danger">
+              <IconMinusCircle className="h-4 w-4" /> Free room
+            </button>
+          </div>
+        </form>
+      </section>
 
       <section>
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">

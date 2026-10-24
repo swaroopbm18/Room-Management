@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 
 const TABS = [
   { href: "/admin", label: "Requests", icon: <IconInbox className="h-4 w-4" /> },
-  { href: "/admin/allot", label: "Allot for CIE / Event", icon: <IconFlag className="h-4 w-4" /> },
+  { href: "/admin/allot", label: "Allot / free rooms", icon: <IconFlag className="h-4 w-4" /> },
   { href: "/admin/people", label: "Faculty & admins", icon: <IconUsers className="h-4 w-4" /> },
   { href: "/admin/history", label: "History", icon: <IconHistory className="h-4 w-4" /> },
 ];

@@ -26,7 +26,7 @@ Classroom allotment for the Department of Machine Learning, BMSCE. Students see 
 ### 1. Supabase (database and login)
 
 1. Sign up at [supabase.com](https://supabase.com) with GitHub and create a project. Pick the **Mumbai (ap-south-1)** region and save the database password somewhere safe.
-2. Open **SQL Editor** and run these files one after another, pasting the whole of each: `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_faculty_directory.sql` (full names for the timetable initials), `supabase/migrations/0003_multi_slot_requests.sql` (requests covering several slots in a row), `supabase/migrations/0004_admin_slot_range.sql` (admins allot a start-to-end range), then `supabase/seed.sql` (rooms, slots and the timetable).
+2. Open **SQL Editor** and run these files one after another, pasting the whole of each: `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_faculty_directory.sql` (full names for the timetable initials), `supabase/migrations/0003_multi_slot_requests.sql` (requests covering several slots in a row), `supabase/migrations/0004_admin_slot_range.sql` (admins allot a start-to-end range), `supabase/migrations/0005_admin_free_slots.sql` (admins free up a room), then `supabase/seed.sql` (rooms, slots and the timetable).
 3. Still in the SQL Editor, add yourself as the first admin (use your real email and name):
    ```sql
    insert into public.people (email, full_name, title, role)
@@ -70,3 +70,9 @@ cp .env.example .env.local   # fill in your Supabase values
 npm install
 npm run dev
 ```
+
+## Getting found on Google
+
+1. Open [Google Search Console](https://search.google.com/search-console), add a **URL prefix** property for your site address, and pick **HTML tag** verification.
+2. Copy only the `content="…"` value into a Vercel environment variable named `GOOGLE_SITE_VERIFICATION`, redeploy, then click **Verify**.
+3. Under **Sitemaps**, submit `sitemap.xml`. Google usually lists a new site within a few days to two weeks.

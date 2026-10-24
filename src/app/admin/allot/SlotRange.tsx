@@ -4,15 +4,15 @@ import { useState } from "react";
 import type { Slot } from "@/lib/types";
 
 /** Start and end time pickers; the end moves along so it never comes before the start. */
-export default function SlotRange({ slots }: { slots: Slot[] }) {
+export default function SlotRange({ slots, idPrefix = "" }: { slots: Slot[]; idPrefix?: string }) {
   const [from, setFrom] = useState(0);
   const [to, setTo] = useState(0);
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
-        <label className="label" htmlFor="from">Start time</label>
+        <label className="label" htmlFor={`${idPrefix}from`}>Start time</label>
         <select
-          id="from"
+          id={`${idPrefix}from`}
           name="from"
           className="input"
           value={slots[from]?.id}
@@ -28,8 +28,8 @@ export default function SlotRange({ slots }: { slots: Slot[] }) {
         </select>
       </div>
       <div>
-        <label className="label" htmlFor="to">End time</label>
-        <select id="to" name="to" className="input" value={slots[to]?.id} onChange={(e) => setTo(slots.findIndex((s) => String(s.id) === e.target.value))}>
+        <label className="label" htmlFor={`${idPrefix}to`}>End time</label>
+        <select id={`${idPrefix}to`} name="to" className="input" value={slots[to]?.id} onChange={(e) => setTo(slots.findIndex((s) => String(s.id) === e.target.value))}>
           {slots.map((s, i) => (
             <option key={s.id} value={s.id} disabled={i < from}>
               {s.label.split(" – ")[1]}

@@ -11,6 +11,15 @@ import { addDays, bookableDates, DATE_RE, formatDate, mondayOf, todayIST } from 
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const room = decodeURIComponent((await params).id);
+  return {
+    title: `Room ${room} timetable`,
+    description: `Weekly timetable and free slots for room ${room}, Department of Machine Learning, BMSCE.`,
+    alternates: { canonical: `/room/${encodeURIComponent(room)}` },
+  };
+}
+
 export default async function RoomWeek({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ week?: string }> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const roomId = decodeURIComponent(id);

@@ -58,13 +58,7 @@ export async function moveRequest(form: FormData) {
 
 export async function adminOverride(form: FormData) {
   // Every slot from the start slot to the end slot, in the day's order.
-  const slots = await getSlots();
-  const from = slots.findIndex((x) => String(x.id) === s(form, "from"));
-  const to = slots.findIndex((x) => String(x.id) === s(form, "to"));
-  if (from < 0 || to < from) {
-    redirect(withParam(back(form, "/admin/allot"), "error", "The end time must be after the start time."));
-  }
-  const picked = slots.slice(from, to + 1).map((x) => x.id);
+  const picked = await slotRange(form);
   await run(
     form,
     "/admin/allot",
@@ -79,6 +73,29 @@ export async function adminOverride(form: FormData) {
     },
     picked.length === 1 ? "Room allotted." : `Room allotted for ${picked.length} slots.`,
   );
+}
+
+async function slotRange(form: FormData): Promise<number[]> {
+  const slots = await getSlots();
+  const from = slots.findIndex((x) => String(x.id) === s(form, "from"));
+  const to = slots.findIndex((x) => String(x.id) === s(form, "to"));
+  if (from < 0 || to < from) {
+    redirect(withParam(back(form, "/admin/allot"), "error", "The end time must be after the start time."));
+  }
+  return slots.slice(from, to + 1).map((x) => x.id);
+}
+
+export async function adminFree(form: FormData) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_free_slots", {
+    p_room: s(form, "room"),
+    p_date: s(form, "date"),
+    p_slots: await slotRange(form),
+    p_reason: s(form, "reason"),
+  });
+  revalidatePath("/", "layout");
+  const to = back(form, "/admin/allot");
+  redirect(error ? withParam(to, "error", error.message) : withParam(to, "msg", data === 1 ? "Room freed for 1 slot." : `Room freed for ${data} slots.`));
 }
 
 export async function adminRestore(form: FormData) {

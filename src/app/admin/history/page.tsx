@@ -12,7 +12,7 @@ const KIND: Record<AllotmentRow["kind"], string> = {
   event_request: "Event (approved request)",
   cie: "CIE",
   event: "College event",
-  drop: "Class dropped",
+  drop: "Class dropped or removed",
   restore: "Restored to timetable",
 };
 
@@ -21,7 +21,7 @@ const SHOW = {
   approved: "Approved requests",
   rejected: "Rejected requests",
   allotted: "CIE and events allotted by admins",
-  dropped: "Dropped classes",
+  dropped: "Dropped or removed classes",
   restored: "Restored to timetable",
 } as const;
 type Show = keyof typeof SHOW;
