@@ -47,8 +47,15 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
         <footer className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-brand-100 px-4 py-5 text-xs text-neutral-500 sm:px-6 dark:border-brand-900/60 dark:text-neutral-400">
           <span>
-            Developed by <strong className="font-medium text-brand-700 dark:text-brand-300">Prof. Swaroop BM</strong>, Assistant Professor, Dept. of Machine
-            Learning, BMSCE
+            Developed by{" "}
+            <a href="https://bmsce.ac.in/home/facultyProfile/590/Swaroop-BM" target="_blank" rel="noopener" className="font-medium text-brand-700 underline-offset-2 hover:underline dark:text-brand-300">
+              Prof. Swaroop BM
+            </a>
+            , Assistant Professor, Dept. of Machine Learning, BMSCE and{" "}
+            <a href="https://www.linkedin.com/in/sinchana-b-m-aa698a32b" target="_blank" rel="noopener" className="font-medium text-brand-700 underline-offset-2 hover:underline dark:text-brand-300">
+              Sinchana B M
+            </a>
+            , Student, Computer Science and Engineering (Data Science)
           </span>
           <Link href="/privacy" className="underline hover:text-brand-600">
             Privacy policy
