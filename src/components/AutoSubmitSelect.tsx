@@ -2,18 +2,20 @@
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
-/** A select that updates one query parameter on change. */
+/** A select that updates one query parameter on change. `keep` pins other parameters to the values on screen. */
 export default function AutoSubmitSelect({
   name,
   value,
   options,
   label,
+  keep = {},
   className = "",
 }: {
   name: string;
   value: string;
   options: { value: string; label: string }[];
   label: string;
+  keep?: Record<string, string>;
   className?: string;
 }) {
   const router = useRouter();
@@ -27,6 +29,7 @@ export default function AutoSubmitSelect({
         value={value}
         onChange={(e) => {
           const next = new URLSearchParams(params.toString());
+          for (const [k, v] of Object.entries(keep)) next.set(k, v);
           next.set(name, e.target.value);
           router.push(`${pathname}?${next.toString()}`);
         }}

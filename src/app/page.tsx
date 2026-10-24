@@ -2,8 +2,9 @@ import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { IconBuilding, IconCalendarCheck, IconClock, IconDoor } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
 import StatusBadge from "@/components/StatusBadge";
+import { STATUS_CELL } from "@/lib/status";
 import { getDaySchedule, getSlots } from "@/lib/data";
-import { DATE_RE, defaultSlot, formatDate, isSunday, todayIST } from "@/lib/time";
+import { DATE_RE, defaultSlot, formatDate, isSunday, todayIST, viewableDates } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const freeToday = day.filter((r) => r.status === "free" && !r.ended).length;
   const freeNow = rows.filter((r) => r.status === "free").length;
   const totalRooms = rows.length;
+  const dates = viewableDates();
+  if (!dates.includes(date)) dates.push(date);
+  dates.sort();
 
   return (
     <div className="space-y-6">
@@ -33,12 +37,22 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             </span>
           </p>
         </div>
-        <AutoSubmitSelect
-          name="slot"
-          label="Slot"
-          value={String(slotId)}
-          options={slots.map((s) => ({ value: String(s.id), label: s.label }))}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <AutoSubmitSelect
+            name="date"
+            label="Date"
+            value={date}
+            keep={{ slot: String(slotId) }}
+            options={dates.map((d) => ({ value: d, label: d === todayIST() ? `Today, ${formatDate(d, { year: undefined })}` : formatDate(d) }))}
+          />
+          <AutoSubmitSelect
+            name="slot"
+            label="Slot"
+            value={String(slotId)}
+            keep={{ date }}
+            options={slots.map((s) => ({ value: String(s.id), label: s.label }))}
+          />
+        </div>
       </section>
 
       <section className="grid grid-cols-3 gap-2 sm:gap-4">
@@ -55,45 +69,24 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
         <KpiCard label="Rooms" value={totalRooms} hint={`${totalRooms - freeNow} in use in this slot`} tone="ink" icon={<IconBuilding />} />
       </section>
 
-      <section className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="thead-ink">
-              <tr>
-                <th className="th w-28 sm:w-40">Classroom</th>
-                <th className="th">Subject</th>
-                <th className="th">Faculty</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-brand-100 dark:divide-brand-900">
-              {rows.map((r) => (
-                <tr key={r.room_id} className="hover:bg-brand-50/50 dark:hover:bg-brand-950/40">
-                  <td className="td font-medium">{r.room_name}</td>
-                  <td className="td">
-                    {r.status === "free" ? (
-                      <span className="muted">—</span>
-                    ) : (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span>{r.subject}</span>
-                        {r.status !== "class" && <StatusBadge status={r.status} />}
-                      </div>
-                    )}
-                    {r.reason && r.status !== "free" && <div className="muted mt-0.5 text-xs">{r.reason}</div>}
-                  </td>
-                  <td className="td">
-                    {r.status === "free" ? (
-                      <StatusBadge status="free" />
-                    ) : r.status === "department" ? (
-                      <span className="muted">{r.subject} department</span>
-                    ) : (
-                      r.faculty_name ?? <span className="muted">—</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {rows.map((r) => (
+          <div key={r.room_id} className={`flex min-h-28 flex-col rounded-xl p-4 shadow-sm ${STATUS_CELL[r.status]}`}>
+            <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+              <span className="font-semibold tracking-tight whitespace-nowrap">{r.room_name}</span>
+              {r.status !== "class" && <StatusBadge status={r.status} />}
+            </div>
+            {r.status === "free" ? (
+              <div className="mt-auto pt-3 text-sm opacity-70">No class in this slot</div>
+            ) : (
+              <div className="mt-auto pt-3 text-sm">
+                <div className="font-medium">{r.status === "department" ? `${r.subject} department` : r.subject}</div>
+                {r.status !== "department" && r.faculty_name && <div className="opacity-80">{r.faculty_name}</div>}
+                {r.reason && <div className="mt-1 line-clamp-2 text-xs opacity-70">{r.reason}</div>}
+              </div>
+            )}
+          </div>
+        ))}
       </section>
     </div>
   );

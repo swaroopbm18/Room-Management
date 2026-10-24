@@ -92,4 +92,15 @@ export function bookableDates(): string[] {
   return out;
 }
 
+/** Working days a week back and four weeks ahead, for browsing the timetable. */
+export function viewableDates(): string[] {
+  const out: string[] = [];
+  const today = todayIST();
+  for (let i = -7; i <= 28; i++) {
+    const d = addDays(today, i);
+    if (!isSunday(d)) out.push(d);
+  }
+  return out;
+}
+
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
