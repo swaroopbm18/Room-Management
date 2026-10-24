@@ -6,6 +6,7 @@ import PageHeader from "@/components/PageHeader";
 import RequestStatus from "@/components/RequestStatus";
 import { displayName, requireStaff } from "@/lib/auth";
 import { getDaySchedule, getSlots } from "@/lib/data";
+import { groupRequests, slotCount } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
 import type { RequestRow } from "@/lib/types";
 import { addDays, formatDate, formatDateTime, isSunday, slotEnded, todayIST, workingDay } from "@/lib/time";
@@ -31,7 +32,12 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
   const mine = schedules.flatMap(({ date, rows }) => rows.filter((r) => r.is_mine && !r.ended).map((r) => ({ ...r, date })));
   const todayRows = schedules.find((s) => s.date === workingDay(today))?.rows ?? [];
   const freeToday = todayRows.filter((r) => r.status === "free" && !r.ended).length;
-  const pending = requests.filter((r) => r.status === "pending" && !slotEnded(r.date, slotById.get(r.slot_id)!)).length;
+  // One entry per request, however many slots it covers. A request is over once its first slot ends.
+  const groups = groupRequests(requests, slotById).map((g) => ({
+    ...g,
+    ended: slotEnded(g.first.date, slotById.get(g.first.slot_id)!),
+  }));
+  const pending = groups.filter((g) => g.first.status === "pending" && !g.ended).length;
 
   return (
     <div className="space-y-8">
@@ -101,7 +107,11 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
         <h2 className="mb-3 text-lg font-semibold">My requests</h2>
         {requests.length === 0 ? (
           <div className="card muted p-6 text-sm">
-            You haven&apos;t requested any rooms yet. <Link className="text-brand-600 underline" href="/free">Find a free slot</Link>.
+            You haven&apos;t requested any rooms yet.{" "}
+            <Link className="text-brand-600 underline" href="/free">
+              Find a free slot
+            </Link>
+            .
           </div>
         ) : (
           <div className="card overflow-x-auto">
@@ -117,13 +127,17 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-100 dark:divide-brand-900">
-                {requests.map((r) => {
-                  const ended = slotEnded(r.date, slotById.get(r.slot_id)!);
+                {groups.map((g) => {
+                  const r = g.first;
+                  const ended = g.ended;
                   return (
-                    <tr key={r.id}>
+                    <tr key={g.group_id}>
                       <td className="td whitespace-nowrap">
                         {formatDate(r.date)}
-                        <div className="muted text-xs">{slotById.get(r.slot_id)?.label}</div>
+                        <div className="muted text-xs">
+                          {g.range}
+                          {g.rows.length > 1 && <> · {slotCount(g)}</>}
+                        </div>
                       </td>
                       <td className="td font-medium">{r.room_id}</td>
                       <td className="td capitalize">{r.type}</td>
@@ -136,7 +150,7 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
                       <td className="td text-right">
                         {r.status === "pending" && !ended && (
                           <form action={withdrawRequest}>
-                            <input type="hidden" name="id" value={r.id} />
+                            <input type="hidden" name="id" value={g.group_id} />
                             <button className="btn-secondary py-1.5">
                               <IconX className="h-4 w-4" /> Withdraw
                             </button>

@@ -46,6 +46,7 @@ export type RequestRow = {
   decided_at: string | null;
   decision_note: string | null;
   created_at: string;
+  group_id: string;
 };
 
 export type AllotmentRow = {
@@ -61,4 +62,13 @@ export type AllotmentRow = {
   request_id: string | null;
   created_by: string;
   created_at: string;
+};
+
+/** All slots of one (possibly multi-slot) request. */
+export type RequestGroup = {
+  group_id: string;
+  rows: RequestRow[];
+  first: RequestRow;
+  slotIds: number[];
+  range: string; // e.g. "8:00 AM – 9:50 AM"
 };

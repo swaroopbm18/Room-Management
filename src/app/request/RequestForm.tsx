@@ -4,16 +4,54 @@ import { useRouter } from "next/navigation";
 import { IconCheck, IconFlag, IconUpload, IconUsers } from "@/components/Icons";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import type { SlotStatus } from "@/lib/types";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
-export default function RequestForm({ room, date, slot, email }: { room: string; date: string; slot: number; email: string }) {
+type RoomSlot = { id: number; label: string; status: SlotStatus; ended: boolean; subject: string | null };
+
+export default function RequestForm({
+  room,
+  date,
+  initialSlot,
+  slots,
+  email,
+}: {
+  room: string;
+  date: string;
+  initialSlot: number;
+  slots: RoomSlot[]; // this room's slots for the day, in time order
+  email: string;
+}) {
   const router = useRouter();
+  const [selected, setSelected] = useState<number[]>([initialSlot]);
   const [type, setType] = useState<"class" | "event">("class");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const pos = (id: number) => slots.findIndex((s) => s.id === id);
+  const selectable = (s: RoomSlot) => s.status === "free" && !s.ended;
+
+  // Keep the selection one unbroken run of free slots: extend at either end, shrink from
+  // either end, or start over from a slot that isn't next to it.
+  function toggle(id: number) {
+    const sel = [...selected].sort((a, b) => pos(a) - pos(b));
+    const first = pos(sel[0]);
+    const last = pos(sel[sel.length - 1]);
+    const p = pos(id);
+    if (sel.includes(id)) {
+      if (sel.length === 1) return;
+      if (p === first) setSelected(sel.slice(1));
+      else if (p === last) setSelected(sel.slice(0, -1));
+      else setSelected(sel.filter((x) => pos(x) < p));
+    } else if (p === last + 1 || p === first - 1) {
+      setSelected([...sel, id]);
+    } else {
+      setSelected([id]);
+    }
+  }
 
   function pickFile(f: File | null) {
     setError(null);
@@ -38,10 +76,10 @@ export default function RequestForm({ room, date, slot, email }: { room: string;
         return setError(`Upload failed: ${up.error.message}`);
       }
     }
-    const { error } = await supabase.rpc("create_request", {
+    const { error } = await supabase.rpc("create_group_request", {
       p_room: room,
       p_date: date,
-      p_slot: slot,
+      p_slots: [...selected].sort((a, b) => pos(a) - pos(b)),
       p_type: type,
       p_description: description,
       p_pdf_path: pdfPath,
@@ -56,6 +94,39 @@ export default function RequestForm({ room, date, slot, email }: { room: string;
 
   return (
     <form onSubmit={submit} className="card space-y-5 p-6">
+      <fieldset>
+        <legend className="label">Slots</legend>
+        <p className="muted mb-2 text-xs">
+          Pick one slot, or several in a row for a longer class or event. Selected: {selected.length}{" "}
+          {selected.length === 1 ? "slot" : "slots"}.
+        </p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {slots.map((s) => {
+            const on = selected.includes(s.id);
+            const ok = selectable(s);
+            return (
+              <button
+                key={s.id}
+                type="button"
+                disabled={!ok}
+                onClick={() => toggle(s.id)}
+                aria-pressed={on}
+                className={`rounded-lg border px-2 py-2 text-left text-xs transition-colors ${
+                  on
+                    ? "border-brand-600 bg-brand-600 text-white dark:border-brand-500 dark:bg-brand-500 dark:text-black"
+                    : ok
+                      ? "border-dashed border-brand-300 hover:border-brand-500 hover:bg-brand-50 dark:border-brand-800 dark:hover:bg-brand-950"
+                      : "cursor-not-allowed border-transparent bg-neutral-100 text-neutral-400 dark:bg-neutral-900 dark:text-neutral-600"
+                }`}
+              >
+                <div className="font-semibold">{s.label.split(" – ")[0]}</div>
+                <div className="truncate opacity-80">{ok ? (on ? "Selected" : "Free") : s.ended ? "Ended" : s.subject ?? "Taken"}</div>
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+
       <fieldset>
         <legend className="label">Request type</legend>
         <div className="grid gap-3 sm:grid-cols-2">

@@ -1,10 +1,24 @@
+import Link from "next/link";
 import { STATUS_CELL, STATUS_LABEL } from "@/lib/status";
 import type { Room, ScheduleRow, Slot, SlotStatus } from "@/lib/types";
 
 const LEGEND: SlotStatus[] = ["class", "booked", "cie", "event", "department", "free"];
 
-/** Rooms × slots for one day, with subject and faculty in each cell. Scrolls both ways. */
-export default function DayGrid({ rooms, slots, rows }: { rooms: Room[]; slots: Slot[]; rows: ScheduleRow[] }) {
+/**
+ * Rooms × slots for one day, with subject and faculty in each cell. Scrolls both ways.
+ * With `requestDate`, free cells that haven't ended link to the request form.
+ */
+export default function DayGrid({
+  rooms,
+  slots,
+  rows,
+  requestDate,
+}: {
+  rooms: Room[];
+  slots: Slot[];
+  rows: ScheduleRow[];
+  requestDate?: string;
+}) {
   const cell = new Map(rows.map((r) => [`${r.room_id}|${r.slot_id}`, r]));
   return (
     <div className="card overflow-hidden">
@@ -15,7 +29,9 @@ export default function DayGrid({ rooms, slots, rows }: { rooms: Room[]; slots: 
             {STATUS_LABEL[s]}
           </span>
         ))}
-        <span className="muted ml-auto hidden sm:inline">Scroll sideways and down to see every room and slot. Faded cells have ended.</span>
+        <span className="muted ml-auto hidden sm:inline">
+          {requestDate ? "Click a free cell to request it. " : ""}Scroll sideways and down to see every room and slot. Faded cells have ended.
+        </span>
       </div>
       <div className="max-h-[75vh] overflow-auto overscroll-contain">
         <table className="border-separate border-spacing-1.5 text-sm">
@@ -48,7 +64,15 @@ export default function DayGrid({ rooms, slots, rows }: { rooms: Room[]; slots: 
                       title={[c.subject, who, c.reason].filter(Boolean).join("\n") || "Free"}
                       className={`h-20 max-w-48 min-w-44 rounded-lg px-3 py-2 align-top ${STATUS_CELL[c.status]} ${c.ended ? "opacity-45" : ""}`}
                     >
-                      {c.status === "free" ? (
+                      {c.status === "free" && requestDate && !c.ended ? (
+                        <Link
+                          href={`/request?room=${encodeURIComponent(r.id)}&date=${requestDate}&slot=${s.id}`}
+                          className="group -mx-3 -my-2 flex h-[calc(100%+1rem)] flex-col items-center justify-center rounded-lg text-xs font-medium tracking-wide uppercase hover:bg-brand-600 hover:text-white dark:hover:bg-brand-500 dark:hover:text-black"
+                        >
+                          <span className="group-hover:hidden">Free</span>
+                          <span className="hidden items-center gap-1 group-hover:inline-flex">+ Request</span>
+                        </Link>
+                      ) : c.status === "free" ? (
                         <div className="flex h-full items-center justify-center text-xs font-medium tracking-wide uppercase">Free</div>
                       ) : (
                         <>

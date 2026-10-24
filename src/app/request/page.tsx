@@ -29,14 +29,17 @@ export default async function RequestPage({
     );
   }
 
+  const roomDay = (await getDaySchedule(date))
+    .filter((r) => r.room_id === row.room_id)
+    .map((r) => ({ id: r.slot_id, label: r.slot_label, status: r.status, ended: r.ended, subject: r.subject }));
+
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-3xl">
       <PageHeader title="Request a room" subtitle={`Requesting as ${displayName(person)} (${person.email})`} />
-      <div className="card mb-6 grid grid-cols-3 divide-x divide-brand-100 dark:divide-brand-900">
+      <div className="card mb-6 grid grid-cols-2 divide-x divide-brand-100 dark:divide-brand-900">
         {[
           ["Room", row.room_name],
           ["Date", formatDate(date)],
-          ["Slot", row.slot_label],
         ].map(([k, v]) => (
           <div key={k} className="p-4">
             <div className="muted text-xs uppercase">{k}</div>
@@ -44,7 +47,7 @@ export default async function RequestPage({
           </div>
         ))}
       </div>
-      <RequestForm room={row.room_id} date={date} slot={row.slot_id} email={person.email} />
+      <RequestForm room={row.room_id} date={date} initialSlot={row.slot_id} slots={roomDay} email={person.email} />
     </div>
   );
 }

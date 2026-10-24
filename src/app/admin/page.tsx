@@ -4,6 +4,7 @@ import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
 import RequestStatus from "@/components/RequestStatus";
 import { getDaySchedule, getSlots } from "@/lib/data";
+import { groupRequests, slotCount } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
 import type { RequestRow } from "@/lib/types";
 import { formatDate, formatDateTime, slotEnded, todayIST, workingDay } from "@/lib/time";
@@ -18,32 +19,48 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
   const [slots, todayRows, pendingRes, decidedRes] = await Promise.all([
     getSlots(),
     getDaySchedule(workingDay(today)),
-    supabase.from("requests").select("*").eq("status", "pending").gte("date", today).order("date").order("slot_id").order("room_id").order("priority").order("created_at"),
-    supabase.from("requests").select("*").neq("status", "pending").order("decided_at", { ascending: false }).limit(20),
+    supabase
+      .from("requests")
+      .select("*")
+      .eq("status", "pending")
+      .gte("date", today)
+      .order("date")
+      .order("slot_id")
+      .order("room_id")
+      .order("priority")
+      .order("created_at"),
+    supabase.from("requests").select("*").neq("status", "pending").order("decided_at", { ascending: false }).limit(80),
   ]);
   const slotById = new Map(slots.map((s) => [s.id, s]));
-  const pending = ((pendingRes.data ?? []) as RequestRow[]).filter((r) => !slotEnded(r.date, slotById.get(r.slot_id)!));
-  const decided = (decidedRes.data ?? []) as RequestRow[];
+  const pending = groupRequests((pendingRes.data ?? []) as RequestRow[], slotById)
+    .filter((g) => !slotEnded(g.first.date, slotById.get(g.first.slot_id)!))
+    .sort((a, b) => a.first.priority - b.first.priority || a.first.created_at.localeCompare(b.first.created_at));
+  const decided = groupRequests((decidedRes.data ?? []) as RequestRow[], slotById).slice(0, 20);
 
-  const paths = pending.map((r) => r.pdf_path).filter((p): p is string => !!p);
-  const signed = paths.length ? (await supabase.storage.from("letters").createSignedUrls(paths, 60 * 30)).data ?? [] : [];
+  const paths = pending.map((g) => g.first.pdf_path).filter((p): p is string => !!p);
+  const signed = paths.length ? ((await supabase.storage.from("letters").createSignedUrls(paths, 60 * 30)).data ?? []) : [];
   const urlFor = new Map(signed.map((s) => [s.path ?? "", s.signedUrl]));
 
-  // Group requests competing for the same room and slot
-  const groups = new Map<string, RequestRow[]>();
-  for (const r of pending) {
-    const k = `${r.date}|${r.slot_id}|${r.room_id}`;
-    groups.set(k, [...(groups.get(k) ?? []), r]);
+  // Requests for the same room on the same day share one priority order
+  const groups = new Map<string, typeof pending>();
+  for (const g of pending) {
+    const k = `${g.first.date}|${g.first.room_id}`;
+    groups.set(k, [...(groups.get(k) ?? []), g]);
   }
+  const sortedGroups = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const competing = sortedGroups.filter(([, gs]) => gs.some((g, i) => gs.some((h, j) => i !== j && g.slotIds.some((s) => h.slotIds.includes(s))))).length;
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Room requests" subtitle="Approve in order of priority. Approving one request declines the others for that slot." />
+      <PageHeader
+        title="Room requests"
+        subtitle="Approve in order of priority. A request covers all of its slots, and approving it declines the others that overlap."
+      />
       <Flash msg={sp.msg} error={sp.error} />
 
       <section className="grid grid-cols-3 gap-2 sm:gap-4">
         <KpiCard label="Pending requests" value={pending.length} tone="navy" icon={<IconInbox />} />
-        <KpiCard label="Slots with several requests" value={[...groups.values()].filter((g) => g.length > 1).length} icon={<IconUsers />} />
+        <KpiCard label="Rooms with competing requests" value={competing} icon={<IconUsers />} />
         <KpiCard
           label="Free slots today"
           value={todayRows.filter((r) => r.status === "free" && !r.ended).length}
@@ -58,13 +75,13 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
         <div className="card muted p-10 text-center">No pending requests.</div>
       ) : (
         <div className="space-y-4">
-          {[...groups.entries()].map(([key, reqs]) => {
-            const r0 = reqs[0];
+          {sortedGroups.map(([key, reqs]) => {
+            const r0 = reqs[0].first;
             return (
               <section key={key} className="card overflow-hidden">
                 <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-brand-100 bg-gradient-to-r from-brand-100 to-white px-5 py-3 dark:border-brand-900 dark:from-brand-950 dark:to-ink">
                   <div className="font-semibold">
-                    Room {r0.room_id} · {formatDate(r0.date)} · {slotById.get(r0.slot_id)?.label}
+                    Room {r0.room_id} · {formatDate(r0.date)}
                   </div>
                   <div className="muted text-sm">{reqs.length === 1 ? "1 request" : `${reqs.length} requests, highest priority first`}</div>
                 </div>
@@ -73,7 +90,7 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
                     <thead className="thead-ink">
                       <tr>
                         <th className="th w-16">#</th>
-                        <th className="th">Room</th>
+                        <th className="th">Slots</th>
                         <th className="th">Faculty</th>
                         <th className="th">Type</th>
                         <th className="th">Description</th>
@@ -81,69 +98,91 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-brand-100 dark:divide-brand-900">
-                      {reqs.map((r, i) => (
-                        <tr key={r.id}>
-                          <td className="td">
-                            <div className="flex items-center gap-1">
-                              <span className="w-4 font-medium">{i + 1}</span>
-                              {reqs.length > 1 && (
-                                <div className="flex flex-col">
-                                  {[
-                                    { dir: -1, label: <IconChevronUp className="h-3.5 w-3.5" />, show: i > 0 },
-                                    { dir: 1, label: <IconChevronDown className="h-3.5 w-3.5" />, show: i < reqs.length - 1 },
-                                  ].map((b) =>
-                                    b.show ? (
-                                      <form key={b.dir} action={moveRequest}>
-                                        <input type="hidden" name="id" value={r.id} />
-                                        <input type="hidden" name="dir" value={b.dir} />
-                                        <button className="rounded p-0.5 text-brand-600 hover:bg-brand-100 hover:text-brand-900 dark:text-brand-400 dark:hover:bg-brand-900" aria-label={b.dir < 0 ? "Move up" : "Move down"}>
-                                          {b.label}
-                                        </button>
-                                      </form>
-                                    ) : (
-                                      <span key={b.dir} className="h-[18px]" />
-                                    ),
-                                  )}
+                      {reqs.map((g, i) => {
+                        const r = g.first;
+                        return (
+                          <tr key={g.group_id}>
+                            <td className="td">
+                              <div className="flex items-center gap-1">
+                                <span className="w-4 font-medium">{i + 1}</span>
+                                {reqs.length > 1 && (
+                                  <div className="flex flex-col">
+                                    {[
+                                      {
+                                        dir: -1,
+                                        label: <IconChevronUp className="h-3.5 w-3.5" />,
+                                        show: i > 0,
+                                      },
+                                      {
+                                        dir: 1,
+                                        label: <IconChevronDown className="h-3.5 w-3.5" />,
+                                        show: i < reqs.length - 1,
+                                      },
+                                    ].map((b) =>
+                                      b.show ? (
+                                        <form key={b.dir} action={moveRequest}>
+                                          <input type="hidden" name="id" value={g.group_id} />
+                                          <input type="hidden" name="dir" value={b.dir} />
+                                          <button
+                                            className="rounded p-0.5 text-brand-600 hover:bg-brand-100 hover:text-brand-900 dark:text-brand-400 dark:hover:bg-brand-900"
+                                            aria-label={b.dir < 0 ? "Move up" : "Move down"}
+                                          >
+                                            {b.label}
+                                          </button>
+                                        </form>
+                                      ) : (
+                                        <span key={b.dir} className="h-[18px]" />
+                                      ),
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="td whitespace-nowrap">
+                              <span className="font-medium">{g.range}</span>
+                              <div className="muted text-xs">{slotCount(g)}</div>
+                            </td>
+                            <td className="td">
+                              {r.requester_name}
+                              <div className="muted text-xs">{r.requester_email}</div>
+                              <div className="muted text-xs">Sent {formatDateTime(r.created_at)}</div>
+                            </td>
+                            <td className="td">
+                              {r.type === "event" ? "Event" : "Class"}
+                              {r.pdf_path && urlFor.get(r.pdf_path) && (
+                                <div>
+                                  <a
+                                    href={urlFor.get(r.pdf_path) ?? undefined}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-brand-600 underline dark:text-brand-400"
+                                  >
+                                    <IconFile className="h-3.5 w-3.5" /> Approval letter (PDF)
+                                  </a>
                                 </div>
                               )}
-                            </div>
-                          </td>
-                          <td className="td font-medium">{r.room_id}</td>
-                          <td className="td">
-                            {r.requester_name}
-                            <div className="muted text-xs">{r.requester_email}</div>
-                            <div className="muted text-xs">Sent {formatDateTime(r.created_at)}</div>
-                          </td>
-                          <td className="td">
-                            {r.type === "event" ? "Event" : "Class"}
-                            {r.pdf_path && urlFor.get(r.pdf_path) && (
-                              <div>
-                                <a href={urlFor.get(r.pdf_path) ?? undefined} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-brand-600 underline dark:text-brand-400">
-                                  <IconFile className="h-3.5 w-3.5" /> Approval letter (PDF)
-                                </a>
+                            </td>
+                            <td className="td max-w-sm whitespace-pre-wrap">{r.description}</td>
+                            <td className="td">
+                              <div className="flex flex-col items-end gap-2">
+                                <form action={approveRequest}>
+                                  <input type="hidden" name="id" value={g.group_id} />
+                                  <button className="btn-primary py-1.5">
+                                    <IconCheck className="h-4 w-4" /> Approve
+                                  </button>
+                                </form>
+                                <form action={rejectRequest} className="flex gap-2">
+                                  <input type="hidden" name="id" value={g.group_id} />
+                                  <input name="note" placeholder="Reason (optional)" className="input w-40 py-1.5" />
+                                  <button className="btn-danger py-1.5">
+                                    <IconX className="h-4 w-4" /> Reject
+                                  </button>
+                                </form>
                               </div>
-                            )}
-                          </td>
-                          <td className="td max-w-sm whitespace-pre-wrap">{r.description}</td>
-                          <td className="td">
-                            <div className="flex flex-col items-end gap-2">
-                              <form action={approveRequest}>
-                                <input type="hidden" name="id" value={r.id} />
-                                <button className="btn-primary py-1.5">
-                                  <IconCheck className="h-4 w-4" /> Approve
-                                </button>
-                              </form>
-                              <form action={rejectRequest} className="flex gap-2">
-                                <input type="hidden" name="id" value={r.id} />
-                                <input name="note" placeholder="Reason (optional)" className="input w-40 py-1.5" />
-                                <button className="btn-danger py-1.5">
-                                  <IconX className="h-4 w-4" /> Reject
-                                </button>
-                              </form>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -170,28 +209,36 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
             <tbody className="divide-y divide-brand-100 dark:divide-brand-900">
               {decided.length === 0 && (
                 <tr>
-                  <td className="td muted" colSpan={6}>Nothing yet.</td>
+                  <td className="td muted" colSpan={6}>
+                    Nothing yet.
+                  </td>
                 </tr>
               )}
-              {decided.map((r) => (
-                <tr key={r.id}>
-                  <td className="td whitespace-nowrap">
-                    {formatDate(r.date)}
-                    <div className="muted text-xs">{slotById.get(r.slot_id)?.label}</div>
-                  </td>
-                  <td className="td font-medium">{r.room_id}</td>
-                  <td className="td">{r.requester_name}</td>
-                  <td className="td capitalize">{r.type}</td>
-                  <td className="td max-w-xs">{r.description}</td>
-                  <td className="td">
-                    <RequestStatus status={r.status} />
-                    <div className="muted mt-1 text-xs">
-                      {r.decided_by} {r.decided_at && `· ${formatDateTime(r.decided_at)}`}
-                    </div>
-                    {r.decision_note && <div className="muted text-xs">{r.decision_note}</div>}
-                  </td>
-                </tr>
-              ))}
+              {decided.map((g) => {
+                const r = g.first;
+                return (
+                  <tr key={g.group_id}>
+                    <td className="td whitespace-nowrap">
+                      {formatDate(r.date)}
+                      <div className="muted text-xs">
+                        {g.range}
+                        {g.rows.length > 1 && <> · {slotCount(g)}</>}
+                      </div>
+                    </td>
+                    <td className="td font-medium">{r.room_id}</td>
+                    <td className="td">{r.requester_name}</td>
+                    <td className="td capitalize">{r.type}</td>
+                    <td className="td max-w-xs">{r.description}</td>
+                    <td className="td">
+                      <RequestStatus status={r.status} />
+                      <div className="muted mt-1 text-xs">
+                        {r.decided_by} {r.decided_at && `· ${formatDateTime(r.decided_at)}`}
+                      </div>
+                      {r.decision_note && <div className="muted text-xs">{r.decision_note}</div>}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
