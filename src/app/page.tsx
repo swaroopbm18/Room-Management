@@ -6,7 +6,8 @@ import StatusBadge from "@/components/StatusBadge";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { STATUS_CELL } from "@/lib/status";
 import ClosedDay from "@/components/ClosedDay";
-import { getDaySchedule, getHolidays, getSlots } from "@/lib/data";
+import UpcomingBookings from "@/components/UpcomingBookings";
+import { getDaySchedule, getHolidays, getSlots, getUpcomingBookings } from "@/lib/data";
 import { DATE_RE, defaultSlot, formatDate, isSunday, mondayOf, nextWorkingDay, todayIST, viewableDates } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +46,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const slotId = slots.some((s) => String(s.id) === sp.slot) ? Number(sp.slot) : fallback.slotId;
   const slot = slots.find((s) => s.id === slotId)!;
 
-  const day = await getDaySchedule(date);
+  const UPCOMING_DAYS = 14;
+  const [day, upcoming] = await Promise.all([getDaySchedule(date), getUpcomingBookings(UPCOMING_DAYS)]);
   const rows = day.filter((r) => r.slot_id === slotId);
   const freeToday = day.filter((r) => r.status === "free" && !r.ended).length;
   const freeNow = rows.filter((r) => r.status === "free").length;
@@ -121,6 +123,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             </div>
             <KpiCard label="Rooms" value={totalRooms} hint="Classrooms and labs on this site" tone="ink" icon={<IconBuilding />} />
           </section>
+
+          {upcoming && <UpcomingBookings rows={upcoming} slots={slots} days={UPCOMING_DAYS} />}
 
           <section>
             <p className="muted mb-3 text-sm">Click a room to see its timetable for the whole week.</p>

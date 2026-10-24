@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { createClient } from "./supabase/server";
-import type { Room, ScheduleRow, Slot } from "./types";
+import type { Room, ScheduleRow, Slot, UpcomingRow } from "./types";
 
 // Rooms and slots are public and almost never change, so they are cached for an hour
 // instead of being fetched on every page.
@@ -26,6 +26,13 @@ export async function getDaySchedule(date: string): Promise<ScheduleRow[]> {
   const { data, error } = await supabase.rpc("get_day_schedule", { p_date: date });
   if (error) throw new Error(error.message);
   return (data ?? []) as ScheduleRow[];
+}
+
+/** Upcoming events and bookings, or null if they can't be read (e.g. before migration 0009 is run). */
+export async function getUpcomingBookings(days: number): Promise<UpcomingRow[] | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("upcoming_bookings", { p_days: days });
+  return error ? null : ((data ?? []) as UpcomingRow[]);
 }
 
 export type Holiday = { date: string; name: string };
