@@ -4,7 +4,7 @@ import DayGrid from "@/components/DayGrid";
 import PageHeader from "@/components/PageHeader";
 import { getPerson } from "@/lib/auth";
 import { getDaySchedule, getHolidays, getRooms, getSlots } from "@/lib/data";
-import { bookableDates, DATE_RE, formatDate, isSunday, nextWorkingDay, todayIST } from "@/lib/time";
+import { bookableDates, DATE_RE, formatDate, isSunday, nextWorkingDay, todayIST, workingDay } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +16,8 @@ export const metadata = {
 
 export default async function FreeSlots({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const sp = await searchParams;
-  const dates = bookableDates();
   const holidays = await getHolidays();
+  const dates = bookableDates(holidays);
   const today = todayIST();
   if (!sp.date && (isSunday(today) || holidays.has(today))) {
     const next = nextWorkingDay(today, holidays);
@@ -28,7 +28,8 @@ export default async function FreeSlots({ searchParams }: { searchParams: Promis
       </div>
     );
   }
-  const date = sp.date && DATE_RE.test(sp.date) && !isSunday(sp.date) ? sp.date : today;
+  // A holiday has nothing to show or book, so it falls back to the next working day.
+  const date = sp.date && DATE_RE.test(sp.date) && !isSunday(sp.date) && !holidays.has(sp.date) ? sp.date : workingDay(today, holidays);
   const [person, rooms, slots, day] = await Promise.all([getPerson(), getRooms(), getSlots(), getDaySchedule(date)]);
   const canRequest = !!person && dates.includes(date);
   const free = day.filter((r) => r.status === "free" && !r.ended).length;
@@ -52,7 +53,7 @@ export default async function FreeSlots({ searchParams }: { searchParams: Promis
           name="date"
           label="Date"
           value={date}
-          options={(dates.includes(date) ? dates : [date, ...dates]).map((d) => ({ value: d, label: `${formatDate(d)}${holidays.has(d) ? " · holiday" : ""}` }))}
+          options={(dates.includes(date) ? dates : [date, ...dates]).map((d) => ({ value: d, label: formatDate(d) }))}
         />
       </PageHeader>
       <DayGrid rooms={rooms} slots={slots} rows={day} requestDate={canRequest ? date : undefined} />

@@ -39,9 +39,9 @@ export function nextWorkingDay(date: string, holidays: Map<string, string> = new
   return d;
 }
 
-/** The date itself, or the next day if it is a Sunday. */
-export function workingDay(date: string): string {
-  return isSunday(date) ? addDays(date, 1) : date;
+/** The date itself, or the next day that is neither a Sunday nor a holiday. */
+export function workingDay(date: string, holidays: Map<string, string> = new Map()): string {
+  return isSunday(date) || holidays.has(date) ? nextWorkingDay(date, holidays) : date;
 }
 
 export function minutes(time: string): number {
@@ -94,24 +94,24 @@ export function formatDateTime(ts: string): string {
   });
 }
 
-/** Working days from today, up to the 4-week booking window. */
-export function bookableDates(): string[] {
+/** Working days from today, up to the 4-week booking window. Holidays are left out. */
+export function bookableDates(holidays: Map<string, string> = new Map()): string[] {
   const out: string[] = [];
   const today = todayIST();
   for (let i = 0; i <= 28; i++) {
     const d = addDays(today, i);
-    if (!isSunday(d)) out.push(d);
+    if (!isSunday(d) && !holidays.has(d)) out.push(d);
   }
   return out;
 }
 
-/** Working days a week back and four weeks ahead, for browsing the timetable. */
-export function viewableDates(): string[] {
+/** Working days a week back and four weeks ahead, for browsing the timetable. Holidays are left out. */
+export function viewableDates(holidays: Map<string, string> = new Map()): string[] {
   const out: string[] = [];
   const today = todayIST();
   for (let i = -7; i <= 28; i++) {
     const d = addDays(today, i);
-    if (!isSunday(d)) out.push(d);
+    if (!isSunday(d) && !holidays.has(d)) out.push(d);
   }
   return out;
 }
