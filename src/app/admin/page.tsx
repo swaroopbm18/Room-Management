@@ -152,6 +152,7 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
                             </td>
                             <td className="td">
                               {r.type === "event" ? "Event" : "Class"}
+                              {r.subject && <div className="font-medium">{r.subject}</div>}
                               {r.pdf_path && urlFor.get(r.pdf_path) && (
                                 <div>
                                   <a
@@ -230,7 +231,10 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
                     </td>
                     <td className="td font-medium">{r.room_id}</td>
                     <td className="td">{r.requester_name}</td>
-                    <td className="td capitalize">{r.type}</td>
+                    <td className="td">
+                      {r.type === "event" ? "Event" : "Class"}
+                      {r.subject && <div className="muted text-xs">{r.subject}</div>}
+                    </td>
                     <td className="td max-w-xs">{r.description}</td>
                     <td className="td">
                       <RequestStatus status={r.status} />

@@ -223,3 +223,10 @@ export const IconLock = (p: P) => (
     <path d="M12 15v2" />
   </Svg>
 );
+
+export const IconTag = (p: P) => (
+  <Svg {...p}>
+    <path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9Z" />
+    <path d="M7.5 7.5h.01" />
+  </Svg>
+);

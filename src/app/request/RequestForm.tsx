@@ -3,7 +3,7 @@
 import LoadingOverlay from "@/components/LoadingOverlay";
 import Spinner from "@/components/Spinner";
 import { useRouter } from "next/navigation";
-import { IconCheck, IconFlag, IconUpload, IconUsers } from "@/components/Icons";
+import { IconAlert, IconCheck, IconFlag, IconUpload, IconUsers } from "@/components/Icons";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { SlotStatus } from "@/lib/types";
@@ -18,16 +18,19 @@ export default function RequestForm({
   initialSlot,
   slots,
   email,
+  subjects,
 }: {
   room: string;
   date: string;
   initialSlot: number;
   slots: RoomSlot[]; // this room's slots for the day, in time order
   email: string;
+  subjects: string[]; // allotted to this faculty member by an admin
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<number[]>([initialSlot]);
   const [type, setType] = useState<"class" | "event">("class");
+  const [subject, setSubject] = useState<string | null>(subjects.length === 1 ? subjects[0] : null);
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +68,8 @@ export default function RequestForm({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (type === "class" && subjects.length === 0) return setError("No subjects are allotted to you yet. Ask an admin to add your subjects.");
+    if (type === "class" && !subject) return setError("Pick the subject the class is for.");
     if (description.trim().length < 5) return setError("Please describe what the room is for.");
     if (type === "event" && !file) return setError("Attach the approval letter (PDF, under 5 MB).");
     setBusy(true);
@@ -85,6 +90,7 @@ export default function RequestForm({
       p_type: type,
       p_description: description,
       p_pdf_path: pdfPath,
+      p_subject: type === "class" ? subject : null,
     });
     if (error) {
       setBusy(false);
@@ -153,6 +159,39 @@ export default function RequestForm({
         </div>
       </fieldset>
 
+      {type === "class" && (
+        <fieldset>
+          <legend className="label">
+            Subject <span className="text-red-600">*</span>
+          </legend>
+          {subjects.length === 0 ? (
+            <p className="flex gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+              <IconAlert className="mt-0.5 h-4 w-4 shrink-0" />
+              No subjects are allotted to you yet. Ask an admin to add your subjects, then request the room for a class.
+            </p>
+          ) : (
+            <>
+              <p className="muted mb-2 text-xs">Your subjects, as allotted by the admin.</p>
+              <div className="flex flex-wrap gap-2">
+                {subjects.map((sub) => (
+                  <label
+                    key={sub}
+                    className={`cursor-pointer rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                      subject === sub
+                        ? "border-brand-600 bg-brand-600 text-white dark:border-brand-500 dark:bg-brand-500 dark:text-black"
+                        : "border-brand-200 hover:border-brand-500 hover:bg-brand-50 dark:border-brand-800 dark:hover:bg-brand-950"
+                    }`}
+                  >
+                    <input type="radio" name="subject" value={sub} checked={subject === sub} onChange={() => setSubject(sub)} className="sr-only" />
+                    {sub}
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
+        </fieldset>
+      )}
+
       <div>
         <label className="label" htmlFor="description">
           Description <span className="text-red-600">*</span>
@@ -164,7 +203,7 @@ export default function RequestForm({
           maxLength={500}
           rows={4}
           className="input"
-          placeholder={type === "class" ? "e.g. Make-up class for DBMS-3B, unit 4" : "e.g. IEEE student branch workshop on LLMs"}
+          placeholder={type === "class" ? "e.g. Make-up class, unit 4" : "e.g. IEEE student branch workshop on LLMs"}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
@@ -194,7 +233,7 @@ export default function RequestForm({
         <button type="button" className="btn-secondary" onClick={() => router.back()}>
           Cancel
         </button>
-        <button type="submit" className="btn-primary" disabled={busy}>
+        <button type="submit" className="btn-primary" disabled={busy || (type === "class" && subjects.length === 0)}>
           {busy ? <Spinner className="h-4 w-4" /> : <IconCheck className="h-4 w-4" />}
           {busy ? "Sending…" : "Send request"}
         </button>
