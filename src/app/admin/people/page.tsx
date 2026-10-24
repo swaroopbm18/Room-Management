@@ -9,14 +9,31 @@ import { importPeople, upsertPerson } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
-/** Pass `role` to fix the role (the add forms); otherwise it can be changed. */
-function PersonFields({ p, role }: { p?: Person; role?: Person["role"] }) {
+/** Initials as written in the timetable, with the name they stand for and who has them. */
+type InitialsChoice = { initials: string; name: string; takenBy?: string };
+
+/**
+ * Pass `role` to fix the role (the add forms); otherwise it can be changed. Initials are picked
+ * from the timetable so they always match it; a value that isn't there is kept but flagged.
+ */
+function PersonFields({ p, role, choices }: { p?: Person; role?: Person["role"]; choices: InitialsChoice[] }) {
+  const current = p?.initials ?? "";
+  const unknown = current && !choices.some((c) => c.initials === current);
   return (
     <>
       <input name="email" type="email" required defaultValue={p?.email} readOnly={!!p} placeholder="name@bmsce.ac.in" pattern=".+@bmsce\.ac\.in" className="input w-auto min-w-52 flex-[2] read-only:opacity-70" />
       <input name="full_name" required defaultValue={p?.full_name} placeholder="Full name" className="input w-auto min-w-40 flex-[2]" />
       <input name="title" defaultValue={p?.title ?? ""} placeholder="Prof. / Dr." className="input w-24 shrink-0" />
-      <input name="initials" defaultValue={p?.initials ?? ""} placeholder="Initials (AKN)" className="input w-32 shrink-0" />
+      <select name="initials" defaultValue={current} aria-label="Timetable initials" className="input w-auto min-w-44 flex-1 shrink-0">
+        <option value="">No initials</option>
+        {unknown && <option value={current}>{current} (not in the timetable)</option>}
+        {choices.map((c) => (
+          <option key={c.initials} value={c.initials} disabled={!!c.takenBy && c.takenBy !== p?.email}>
+            {c.initials} · {c.name}
+            {c.takenBy && c.takenBy !== p?.email ? " (taken)" : ""}
+          </option>
+        ))}
+      </select>
       {role ? (
         <input type="hidden" name="role" value={role} />
       ) : (
@@ -33,13 +50,13 @@ function PersonFields({ p, role }: { p?: Person; role?: Person["role"] }) {
   );
 }
 
-function AddPerson({ role }: { role: Person["role"] }) {
+function AddPerson({ role, choices }: { role: Person["role"]; choices: InitialsChoice[] }) {
   const label = role === "admin" ? "admin" : "faculty";
   return (
     <section className="card p-5">
       <h2 className="mb-3 font-semibold">Add {label}</h2>
       <form action={upsertPerson} className="flex flex-wrap gap-2">
-        <PersonFields role={role} />
+        <PersonFields role={role} choices={choices} />
         <SubmitButton pendingText="Adding…" message={`Adding the ${label}…`}>
           <IconPlus className="h-4 w-4" /> Add {label}
         </SubmitButton>
@@ -49,7 +66,7 @@ function AddPerson({ role }: { role: Person["role"] }) {
 }
 
 /** One group of people; click a person to edit them. */
-function PeopleList({ title, people, empty }: { title: string; people: Person[]; empty: string }) {
+function PeopleList({ title, people, empty, choices }: { title: string; people: Person[]; empty: string; choices: InitialsChoice[] }) {
   return (
     <section>
       <h2 className="mb-3 text-lg font-semibold">
@@ -61,7 +78,13 @@ function PeopleList({ title, people, empty }: { title: string; people: Person[];
           <details key={p.email} className={`group ${p.active ? "" : "opacity-60"}`}>
             <summary className="grid cursor-pointer list-none grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-brand-50 sm:grid-cols-[minmax(0,2fr)_6rem_minmax(0,2fr)_6rem_3rem] dark:hover:bg-brand-950 [&::-webkit-details-marker]:hidden">
               <span className="font-medium">{displayName(p)}</span>
-              <span className="muted hidden text-sm sm:block">{p.initials ?? "—"}</span>
+              {p.initials && !choices.some((c) => c.initials === p.initials) ? (
+                <span className="hidden text-sm text-amber-600 sm:block dark:text-amber-400" title="Not in the timetable, so no classes are matched. Click Edit to fix.">
+                  {p.initials} ⚠
+                </span>
+              ) : (
+                <span className="muted hidden text-sm sm:block">{p.initials ?? "—"}</span>
+              )}
               <span className="muted hidden truncate text-sm sm:block">{p.email}</span>
               <span className="muted hidden text-sm sm:block">{p.active ? "Active" : "No access"}</span>
               <span className="text-right text-sm font-medium text-brand-600 dark:text-brand-400">
@@ -74,7 +97,7 @@ function PeopleList({ title, people, empty }: { title: string; people: Person[];
               </span>
             </summary>
             <form action={upsertPerson} className="flex flex-wrap items-center gap-2 border-t border-brand-100 bg-brand-50/50 p-3 dark:border-brand-900 dark:bg-brand-950/40">
-              <PersonFields p={p} />
+              <PersonFields p={p} choices={choices} />
               <SubmitButton className="btn-secondary py-1.5" pendingText="Saving…" message="Saving changes…">
                 Save
               </SubmitButton>
@@ -89,8 +112,19 @@ function PeopleList({ title, people, empty }: { title: string; people: Person[];
 export default async function People({ searchParams }: { searchParams: Promise<{ msg?: string; error?: string }> }) {
   const sp = await searchParams;
   const supabase = await createClient();
-  const { data } = await supabase.from("people").select("*").order("role").order("full_name");
+  const [{ data }, dirRes, ttRes] = await Promise.all([
+    supabase.from("people").select("*").order("role").order("full_name"),
+    supabase.from("faculty_directory").select("initials, title, full_name"),
+    supabase.rpc("timetable_subjects"),
+  ]);
   const people = (data ?? []) as Person[];
+  // Every initial used in the current timetable, named from the faculty directory
+  const names = new Map(((dirRes.data ?? []) as { initials: string; title: string; full_name: string }[]).map((d) => [d.initials, `${d.title} ${d.full_name}`.trim()]));
+  const owner = new Map(people.filter((p) => p.initials).map((p) => [p.initials!, p.email]));
+  const used = new Set([...((ttRes.data ?? []) as { initials: string }[]).map((t) => t.initials), ...names.keys()]);
+  const choices: InitialsChoice[] = [...used]
+    .sort()
+    .map((ini) => ({ initials: ini, name: names.get(ini) ?? "Not in the faculty directory", takenBy: owner.get(ini) }));
 
   return (
     <div className="space-y-8">
@@ -100,11 +134,11 @@ export default async function People({ searchParams }: { searchParams: Promise<{
       />
       <Flash msg={sp.msg} error={sp.error} />
 
-      <PeopleList title="Admins" people={people.filter((p) => p.role === "admin")} empty="No admins yet." />
-      <AddPerson role="admin" />
+      <PeopleList title="Admins" people={people.filter((p) => p.role === "admin")} empty="No admins yet." choices={choices} />
+      <AddPerson role="admin" choices={choices} />
 
-      <PeopleList title="Faculty" people={people.filter((p) => p.role === "faculty")} empty="No faculty yet." />
-      <AddPerson role="faculty" />
+      <PeopleList title="Faculty" people={people.filter((p) => p.role === "faculty")} empty="No faculty yet." choices={choices} />
+      <AddPerson role="faculty" choices={choices} />
 
       <section className="card p-5">
         <h2 className="font-semibold">Import a list</h2>
