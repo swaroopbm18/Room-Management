@@ -55,7 +55,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <a href="https://www.linkedin.com/in/sinchana-b-m-aa698a32b" target="_blank" rel="noopener" className="font-medium text-brand-700 underline-offset-2 hover:underline dark:text-brand-300">
               Sinchana B M
             </a>
-            , Student, Computer Science and Engineering (Data Science)
+            , Student, Computer Science and Engineering (Data Science), BMSCE
           </span>
           <Link href="/privacy" className="underline hover:text-brand-600">
             Privacy policy
