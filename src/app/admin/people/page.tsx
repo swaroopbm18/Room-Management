@@ -3,6 +3,7 @@ import Flash from "@/components/Flash";
 import { IconPlus, IconUpload } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import { createClient } from "@/lib/supabase/server";
+import { displayName } from "@/lib/auth";
 import type { Person } from "@/lib/types";
 import { importPeople, upsertPerson } from "../../actions";
 
@@ -11,21 +12,23 @@ export const dynamic = "force-dynamic";
 function PersonFields({ p }: { p?: Person }) {
   return (
     <>
-      <input name="email" type="email" required defaultValue={p?.email} readOnly={!!p} placeholder="name@bmsce.ac.in" pattern=".+@bmsce\.ac\.in" className="input min-w-52 read-only:opacity-70" />
-      <input name="full_name" required defaultValue={p?.full_name} placeholder="Full name" className="input min-w-40" />
-      <input name="title" defaultValue={p?.title ?? ""} placeholder="Prof. / Dr." className="input w-24" />
-      <input name="initials" defaultValue={p?.initials ?? ""} placeholder="Initials (AKN)" className="input w-32" />
-      <select name="role" defaultValue={p?.role ?? "faculty"} className="input w-28">
+      <input name="email" type="email" required defaultValue={p?.email} readOnly={!!p} placeholder="name@bmsce.ac.in" pattern=".+@bmsce\.ac\.in" className="input w-auto min-w-52 flex-[2] read-only:opacity-70" />
+      <input name="full_name" required defaultValue={p?.full_name} placeholder="Full name" className="input w-auto min-w-40 flex-[2]" />
+      <input name="title" defaultValue={p?.title ?? ""} placeholder="Prof. / Dr." className="input w-24 shrink-0" />
+      <input name="initials" defaultValue={p?.initials ?? ""} placeholder="Initials (AKN)" className="input w-32 shrink-0" />
+      <select name="role" defaultValue={p?.role ?? "faculty"} className="input w-28 shrink-0">
         <option value="faculty">Faculty</option>
         <option value="admin">Admin</option>
       </select>
-      <select name="active" defaultValue={p ? String(p.active) : "true"} className="input w-28">
+      <select name="active" defaultValue={p ? String(p.active) : "true"} className="input w-28 shrink-0">
         <option value="true">Active</option>
         <option value="false">No access</option>
       </select>
     </>
   );
 }
+
+const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 export default async function People({ searchParams }: { searchParams: Promise<{ msg?: string; error?: string }> }) {
   const sp = await searchParams;
@@ -41,8 +44,45 @@ export default async function People({ searchParams }: { searchParams: Promise<{
       />
       <Flash msg={sp.msg} error={sp.error} />
 
+      <section>
+        <h2 className="mb-3 text-lg font-semibold">
+          Current faculty & admins <span className="muted text-sm font-normal">· {count(people.filter((p) => p.role === "admin").length, "admin")}, {people.filter((p) => p.role === "faculty").length} faculty</span>
+        </h2>
+        <div className="card divide-y divide-brand-100 dark:divide-brand-900">
+          {people.map((p) => (
+            <details key={p.email} className={`group ${p.active ? "" : "opacity-60"}`}>
+              <summary className="grid cursor-pointer list-none grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-brand-50 sm:grid-cols-[minmax(0,2fr)_5rem_minmax(0,2fr)_6rem_6rem_3rem] dark:hover:bg-brand-950 [&::-webkit-details-marker]:hidden">
+                <span className="font-medium">{displayName(p)}</span>
+                <span className="muted hidden text-sm sm:block">{p.initials ?? "—"}</span>
+                <span className="muted hidden truncate text-sm sm:block">{p.email}</span>
+                <span className="hidden sm:block">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${p.role === "admin" ? "bg-brand-600 text-white dark:bg-brand-500 dark:text-black" : "bg-brand-100 text-brand-800 dark:bg-brand-900 dark:text-brand-200"}`}>
+                    {p.role === "admin" ? "Admin" : "Faculty"}
+                  </span>
+                </span>
+                <span className="muted hidden text-sm sm:block">{p.active ? "Active" : "No access"}</span>
+                <span className="text-right text-sm font-medium text-brand-600 dark:text-brand-400">
+                  <span className="group-open:hidden">Edit</span>
+                  <span className="hidden group-open:inline">Close</span>
+                </span>
+                <span className="muted col-span-2 text-xs sm:hidden">
+                  {p.initials ?? "No initials"} · {p.email} · {p.role === "admin" ? "Admin" : "Faculty"}
+                  {p.active ? "" : " · No access"}
+                </span>
+              </summary>
+              <form action={upsertPerson} className="flex flex-wrap items-center gap-2 border-t border-brand-100 bg-brand-50/50 p-3 dark:border-brand-900 dark:bg-brand-950/40">
+                <PersonFields p={p} />
+                <SubmitButton className="btn-secondary py-1.5" pendingText="Saving…" message="Saving changes…">
+                  Save
+                </SubmitButton>
+              </form>
+            </details>
+          ))}
+        </div>
+      </section>
+
       <section className="card p-5">
-        <h2 className="mb-3 font-semibold">Add a person</h2>
+        <h2 className="mb-3 font-semibold">Add more people</h2>
         <form action={upsertPerson} className="flex flex-wrap gap-2">
           <PersonFields />
           <SubmitButton pendingText="Adding…" message="Adding the person…">
@@ -77,17 +117,6 @@ export default async function People({ searchParams }: { searchParams: Promise<{
             <IconUpload className="h-4 w-4" /> Import
           </SubmitButton>
         </form>
-      </section>
-
-      <section className="card divide-y divide-brand-100 dark:divide-brand-900">
-        {people.map((p) => (
-          <form key={p.email} action={upsertPerson} className={`flex flex-wrap items-center gap-2 p-3 ${p.active ? "" : "opacity-60"}`}>
-            <PersonFields p={p} />
-            <SubmitButton className="btn-secondary py-1.5" pendingText="Saving…" message="Saving changes…">
-              Save
-            </SubmitButton>
-          </form>
-        ))}
       </section>
     </div>
   );
