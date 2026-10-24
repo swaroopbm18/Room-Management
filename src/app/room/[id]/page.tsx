@@ -37,8 +37,8 @@ export default async function RoomWeek({ params, searchParams }: { params: Promi
   const room = rooms.find((r) => r.id === roomId);
   if (!room) notFound();
 
-  const bookable = new Set(person ? bookableDates(holidays) : []);
-  // Holidays show nothing at all
+  const bookable = new Set(person ? bookableDates().filter((d) => !holidays.has(d)) : []);
+  // A holiday shows one note across the row instead of free cells
   const perDay = schedules.map((rows, i) => (holidays.has(days[i]) ? [] : rows.filter((r) => r.room_id === roomId)));
   const upcoming = perDay.flat().filter((r) => !r.ended);
   const freeCount = upcoming.filter((r) => r.status === "free").length;
@@ -53,11 +53,12 @@ export default async function RoomWeek({ params, searchParams }: { params: Promi
           <span className={d === today ? "text-brand-600 dark:text-brand-300" : ""}>{formatDate(d, { year: undefined })}</span>
           <span className="mt-0.5 block text-[11px] font-normal opacity-75">
             {d === today ? "Today · " : ""}
-            {holidays.has(d) ? `Holiday · ${holidays.get(d)}` : `${free} free`}
+            {holidays.has(d) ? "Holiday" : `${free} free`}
           </span>
         </>
       ),
       cells: new Map(perDay[i].map((r) => [r.slot_id, r])),
+      note: holidays.has(d) ? `Holiday: ${holidays.get(d)} · No classes, and the room can't be booked` : undefined,
       requestDate: bookable.has(d) ? d : undefined,
     };
   });

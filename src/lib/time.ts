@@ -94,26 +94,31 @@ export function formatDateTime(ts: string): string {
   });
 }
 
-/** Working days from today, up to the 4-week booking window. Holidays are left out. */
-export function bookableDates(holidays: Map<string, string> = new Map()): string[] {
+/** Days from today, up to the 4-week booking window, without Sundays. Holidays are listed but can't be booked. */
+export function bookableDates(): string[] {
   const out: string[] = [];
   const today = todayIST();
   for (let i = 0; i <= 28; i++) {
     const d = addDays(today, i);
-    if (!isSunday(d) && !holidays.has(d)) out.push(d);
+    if (!isSunday(d)) out.push(d);
   }
   return out;
 }
 
-/** Working days a week back and four weeks ahead, for browsing the timetable. Holidays are left out. */
-export function viewableDates(holidays: Map<string, string> = new Map()): string[] {
+/** Days a week back and four weeks ahead, without Sundays, for browsing the timetable. */
+export function viewableDates(): string[] {
   const out: string[] = [];
   const today = todayIST();
   for (let i = -7; i <= 28; i++) {
     const d = addDays(today, i);
-    if (!isSunday(d) && !holidays.has(d)) out.push(d);
+    if (!isSunday(d)) out.push(d);
   }
   return out;
+}
+
+/** How a date reads in a dropdown: holidays are marked so nobody picks one expecting free rooms. */
+export function dateOption(date: string, holidays: Map<string, string>, label = formatDate(date)): string {
+  return holidays.has(date) ? `${label} · Holiday, can't be booked` : label;
 }
 
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
