@@ -1,4 +1,4 @@
-import { IconFile, IconHistory, IconInfo, IconShield, IconUser, IconUsers } from "@/components/Icons";
+import { IconFile, IconHistory, IconInfo, IconLock, IconShield, IconUser, IconUsers } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 
 export const metadata = { title: "Privacy policy", alternates: { canonical: "/privacy" } };
@@ -10,6 +10,16 @@ const SECTIONS = [
     points: [
       "An internal tool of the Department of Machine Learning, B.M.S. College of Engineering, Bengaluru.",
       "Used to view classroom allotments and to request free rooms.",
+    ],
+  },
+  {
+    icon: IconLock,
+    title: "Roles and what each can see",
+    points: [
+      "Student: no sign-in. Can see each room's timetable, which subject and faculty member is in each slot, upcoming events, and the free slots. Students cannot see requests, descriptions or approval letters.",
+      "Faculty: signs in with a @bmsce.ac.in Google account and must be on the department's list. Can request free rooms for one of their allotted subjects or for an event, and can withdraw their own pending requests or drop one of their own classes. Faculty see only their own requests and letters, never another faculty member's.",
+      "Admin (HOD and Time Table Officers): everything faculty can do. Admins also approve or reject requests, read their descriptions and approval letters, allot rooms for CIEs and events, and edit the timetable and holidays. They manage the faculty list and subjects, and see the full history and reports.",
+      "No role, admins included, can change or delete past allotments.",
     ],
   },
   {
@@ -69,9 +79,21 @@ export default function Privacy() {
                 {title}
               </h2>
               <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-relaxed marker:text-brand-500">
-                {points.map((p) => (
-                  <li key={p}>{p}</li>
-                ))}
+                {points.map((p) => {
+                  // "Student: ..." puts the role in bold
+                  const role = /^(Student|Faculty|Admin[^:]*): /.exec(p);
+                  return (
+                    <li key={p}>
+                      {role ? (
+                        <>
+                          <strong className="font-semibold">{role[1]}:</strong> {p.slice(role[0].length)}
+                        </>
+                      ) : (
+                        p
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </section>
