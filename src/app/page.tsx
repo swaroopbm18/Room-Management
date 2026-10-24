@@ -1,12 +1,13 @@
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
-import { IconBuilding, IconCalendarCheck, IconClock, IconDoor } from "@/components/Icons";
+import { IconBuilding, IconCalendarCheck, IconClock } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
 import PendingLink from "@/components/PendingLink";
 import StatusBadge from "@/components/StatusBadge";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { STATUS_CELL } from "@/lib/status";
-import { getDaySchedule, getSlots } from "@/lib/data";
-import { DATE_RE, defaultSlot, formatDate, isSunday, mondayOf, todayIST, viewableDates } from "@/lib/time";
+import ClosedDay from "@/components/ClosedDay";
+import { getDaySchedule, getHolidays, getSlots } from "@/lib/data";
+import { DATE_RE, defaultSlot, formatDate, isSunday, mondayOf, nextWorkingDay, todayIST, viewableDates } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +24,23 @@ const jsonLd = {
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ date?: string; slot?: string }> }) {
   const sp = await searchParams;
-  const slots = await getSlots();
-  const fallback = defaultSlot(slots);
+  const [slots, holidays] = await Promise.all([getSlots(), getHolidays()]);
+  const today = todayIST();
+  // On a Sunday or holiday, say so instead of jumping to the next working day on its own.
+  if (!sp.date && (isSunday(today) || holidays.has(today))) {
+    const next = nextWorkingDay(today, holidays);
+    return (
+      <div className="space-y-6">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        <div>
+          <div className="text-xs font-semibold tracking-wider text-brand-600 uppercase dark:text-brand-400">BMSCE Room Management</div>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Classroom allotment</h1>
+        </div>
+        <ClosedDay date={today} holiday={holidays.get(today)} nextDate={next} nextHref={`/?date=${next}&slot=${slots[0].id}`} />
+      </div>
+    );
+  }
+  const fallback = defaultSlot(slots, holidays);
   const date = sp.date && DATE_RE.test(sp.date) && !isSunday(sp.date) ? sp.date : fallback.date;
   const slotId = slots.some((s) => String(s.id) === sp.slot) ? Number(sp.slot) : fallback.slotId;
   const slot = slots.find((s) => s.id === slotId)!;
@@ -58,7 +74,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             label="Date"
             value={date}
             keep={{ slot: String(slotId) }}
-            options={dates.map((d) => ({ value: d, label: d === todayIST() ? `Today, ${formatDate(d, { year: undefined })}` : formatDate(d) }))}
+            options={dates.map((d) => ({
+              value: d,
+              label: `${d === today ? `Today, ${formatDate(d, { year: undefined })}` : formatDate(d)}${holidays.has(d) ? " · holiday" : ""}`,
+            }))}
           />
           <AutoSubmitSelect
             name="slot"
@@ -73,19 +92,29 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
       <section className="grid grid-cols-3 gap-2 sm:gap-4">
         <KpiCard
           label={
-            date === todayIST()
+            date === today
               ? "Free slots today"
               : `Free slots on ${formatDate(date, { weekday: "long", day: undefined, month: undefined, year: undefined })}`
           }
           value={freeToday}
-          hint={date === todayIST() ? "Room-slots still free for the rest of the day" : `Room-slots free on ${formatDate(date)}`}
+          hint={date === today ? "Room-slots still free for the rest of the day" : `Room-slots free on ${formatDate(date)}`}
           href={`/free?date=${date}`}
           linkText="Explore free slots"
           tone="navy"
           icon={<IconCalendarCheck />}
         />
-        <KpiCard label="Free rooms in this slot" value={freeNow} hint={slot.label} icon={<IconDoor />} />
-        <KpiCard label="Rooms" value={totalRooms} hint={`${totalRooms - freeNow} in use in this slot`} tone="ink" icon={<IconBuilding />} />
+        <div className="card flex flex-col justify-center divide-y divide-brand-100 px-3 sm:px-5 dark:divide-brand-900">
+          <div className="flex items-baseline justify-between gap-2 py-2 sm:py-3">
+            <span className="text-xs font-medium text-brand-700 sm:text-sm dark:text-brand-300">Rooms occupied</span>
+            <span className="text-2xl font-semibold tracking-tight sm:text-3xl">{totalRooms - freeNow}</span>
+          </div>
+          <div className="flex items-baseline justify-between gap-2 py-2 sm:py-3">
+            <span className="text-xs font-medium text-brand-700 sm:text-sm dark:text-brand-300">Rooms free</span>
+            <span className="text-2xl font-semibold tracking-tight text-brand-600 sm:text-3xl dark:text-brand-400">{freeNow}</span>
+          </div>
+          <div className="muted hidden pb-2 text-xs sm:block">In this slot · {slot.label}</div>
+        </div>
+        <KpiCard label="Rooms" value={totalRooms} hint="Classrooms and labs on this site" tone="ink" icon={<IconBuilding />} />
       </section>
 
       <section>

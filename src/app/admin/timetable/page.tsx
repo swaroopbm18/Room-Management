@@ -1,14 +1,15 @@
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { ScheduleGrid, type GridRow } from "@/components/DayGrid";
 import Flash from "@/components/Flash";
-import { IconCheck } from "@/components/Icons";
+import { IconCalendar, IconCheck, IconPlus, IconX } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
-import { getRooms, getSlots } from "@/lib/data";
+import { getHolidays, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { ScheduleRow } from "@/lib/types";
 import { addDays, formatDate, formatDateTime, todayIST } from "@/lib/time";
-import { adminEditTimetable } from "../../actions";
+import { addHoliday, adminEditTimetable, removeHoliday } from "../../actions";
+import TimetableUpload from "./TimetableUpload";
 import SlotRange from "../allot/SlotRange";
 
 export const dynamic = "force-dynamic";
@@ -20,22 +21,25 @@ type Change = { id: number; room_id: string; weekday: number; slot_ids: number[]
 
 export default async function EditTimetable({ searchParams }: { searchParams: Promise<{ day?: string; msg?: string; error?: string }> }) {
   const sp = await searchParams;
-  const tomorrow = addDays(todayIST(), 1);
+  const today = todayIST();
+  const tomorrow = addDays(today, 1);
   const isoDay = (d: string) => ((new Date(d + "T00:00:00Z").getUTCDay() + 6) % 7) + 1; // 1 = Monday, 7 = Sunday
   const day = Number(sp.day) >= 1 && Number(sp.day) <= 6 ? Number(sp.day) : isoDay(tomorrow) === 7 ? 1 : isoDay(tomorrow);
   // The first date from tomorrow on that falls on the chosen weekday
   const showDate = addDays(tomorrow, (day - isoDay(tomorrow) + 7) % 7);
 
   const supabase = await createClient();
-  const [rooms, slots, ttRes, changesRes, dirRes, peopleRes] = await Promise.all([
+  const [rooms, slots, holidays, ttRes, changesRes, dirRes, peopleRes] = await Promise.all([
     getRooms(),
     getSlots(),
+    getHolidays(),
     supabase.rpc("get_timetable", { p_date: showDate }),
     supabase.from("timetable_changes").select("*").order("id", { ascending: false }).limit(30),
     supabase.from("faculty_directory").select("initials, title, full_name").order("initials"),
     supabase.from("people").select("initials, title, full_name").not("initials", "is", null),
   ]);
   const entries = (ttRes.data ?? []) as Entry[];
+  const upcoming = [...holidays.entries()].filter(([d]) => d >= today).sort(([a], [b]) => a.localeCompare(b));
   const changes = (changesRes.data ?? []) as Change[];
   const slotById = new Map(slots.map((s) => [s.id, s]));
   const names = new Map<string, string>();
@@ -127,6 +131,55 @@ export default async function EditTimetable({ searchParams }: { searchParams: Pr
           </SubmitButton>
         </div>
       </form>
+
+      <TimetableUpload slots={slots} roomIds={rooms.map((r) => r.id)} effective={formatDate(tomorrow, { weekday: "long", year: undefined })} />
+
+      <section className="card space-y-4 p-6">
+        <div>
+          <h2 className="text-lg font-semibold">Holidays</h2>
+          <p className="muted mt-1 text-sm">No regular classes are shown on a holiday. Holidays can be added from tomorrow on, and past holidays stay as they were.</p>
+        </div>
+        <form action={addHoliday} className="flex flex-wrap items-end gap-3">
+          <input type="hidden" name="back" value={`/admin/timetable?day=${day}`} />
+          <div>
+            <label className="label" htmlFor="h-date">Date</label>
+            <input id="h-date" name="date" type="date" required min={tomorrow} className="input" />
+          </div>
+          <div className="min-w-56 flex-1">
+            <label className="label" htmlFor="h-name">Name</label>
+            <input id="h-name" name="name" required maxLength={80} className="input" placeholder="e.g. Kannada Rajyotsava" />
+          </div>
+          <SubmitButton pendingText="Adding…" message="Adding the holiday…">
+            <IconPlus className="h-4 w-4" /> Add holiday
+          </SubmitButton>
+        </form>
+        {upcoming.length > 0 ? (
+          <ul className="divide-y divide-brand-100 rounded-lg border border-brand-100 dark:divide-brand-900 dark:border-brand-900">
+            {upcoming.map(([d, name]) => (
+              <li key={d} className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5">
+                <span className="inline-flex items-center gap-2">
+                  <IconCalendar className="h-4 w-4 text-brand-500" />
+                  <span className="font-medium">{formatDate(d, { weekday: "long" })}</span>
+                  <span className="muted">· {name}</span>
+                </span>
+                {d > today ? (
+                  <form action={removeHoliday}>
+                    <input type="hidden" name="date" value={d} />
+                    <input type="hidden" name="back" value={`/admin/timetable?day=${day}`} />
+                    <SubmitButton className="btn-secondary py-1 text-xs" pendingText="Removing…" message="Removing the holiday…">
+                      <IconX className="h-3.5 w-3.5" /> Remove
+                    </SubmitButton>
+                  </form>
+                ) : (
+                  <span className="muted text-xs">Today</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted text-sm">No upcoming holidays.</p>
+        )}
+      </section>
 
       <section>
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">

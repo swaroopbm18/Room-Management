@@ -27,3 +27,12 @@ export async function getDaySchedule(date: string): Promise<ScheduleRow[]> {
   if (error) throw new Error(error.message);
   return (data ?? []) as ScheduleRow[];
 }
+
+export type Holiday = { date: string; name: string };
+
+/** Holidays from a week ago on (small list, read fresh so new holidays show at once). */
+export async function getHolidays(): Promise<Map<string, string>> {
+  const supabase = publicClient();
+  const { data } = await supabase.from("holidays").select("date, name").gte("date", new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10));
+  return new Map(((data ?? []) as Holiday[]).map((h) => [h.date, h.name]));
+}

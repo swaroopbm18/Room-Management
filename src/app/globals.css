@@ -122,3 +122,14 @@ body {
     break-inside: avoid;
   }
 }
+
+/* Hide the text caret outside form fields (e.g. Chrome's caret browsing, F7) */
+body {
+  caret-color: transparent;
+}
+input,
+textarea,
+select,
+[contenteditable="true"] {
+  caret-color: auto;
+}

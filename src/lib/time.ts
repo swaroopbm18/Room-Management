@@ -32,6 +32,13 @@ export function mondayOf(date: string): string {
   return addDays(date, day === 0 ? 1 : 1 - day);
 }
 
+/** The first day after `date` that is neither a Sunday nor a holiday. */
+export function nextWorkingDay(date: string, holidays: Map<string, string> = new Map()): string {
+  let d = addDays(date, 1);
+  while (isSunday(d) || holidays.has(d)) d = addDays(d, 1);
+  return d;
+}
+
 /** The date itself, or the next day if it is a Sunday. */
 export function workingDay(date: string): string {
   return isSunday(date) ? addDays(date, 1) : date;
@@ -53,16 +60,16 @@ export function slotEnded(date: string, slot: Pick<Slot, "ends">): boolean {
  * The slot to show by default: the one running now, else the next one today,
  * else the first slot of the next working day.
  */
-export function defaultSlot(slots: Slot[]): { date: string; slotId: number } {
+export function defaultSlot(slots: Slot[], holidays: Map<string, string> = new Map()): { date: string; slotId: number } {
   const n = istNow();
   const today = isoDate(n);
   const now = n.getUTCHours() * 60 + n.getUTCMinutes();
   const sorted = [...slots].sort((a, b) => minutes(a.starts) - minutes(b.starts));
-  if (!isSunday(today)) {
+  if (!isSunday(today) && !holidays.has(today)) {
     const current = sorted.find((s) => now < minutes(s.ends));
     if (current) return { date: today, slotId: current.id };
   }
-  return { date: workingDay(addDays(today, 1)), slotId: sorted[0]?.id ?? 1 };
+  return { date: nextWorkingDay(today, holidays), slotId: sorted[0]?.id ?? 1 };
 }
 
 export function formatDate(date: string, opts: Intl.DateTimeFormatOptions = {}): string {

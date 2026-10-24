@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSlots } from "@/lib/data";
-import { formatDate } from "@/lib/time";
+import { addDays, formatDate, todayIST } from "@/lib/time";
 import { createClient } from "@/lib/supabase/server";
+import type { ParsedEntry } from "@/lib/timetableDocx";
 
 function back(form: FormData, fallback: string) {
   const to = String(form.get("back") ?? fallback);
@@ -196,5 +197,62 @@ export async function importPeople(form: FormData) {
     failed.length
       ? withParam(to, "error", `Imported ${added}. Could not import: ${failed.slice(0, 5).join("; ")}${failed.length > 5 ? "…" : ""}`)
       : withParam(to, "msg", `Imported ${added} people.`),
+  );
+}
+
+export async function addHoliday(form: FormData) {
+  await run(form, "/admin/timetable", "admin_add_holiday", { p_date: s(form, "date"), p_name: s(form, "name") }, "Holiday added.");
+}
+
+export async function removeHoliday(form: FormData) {
+  await run(form, "/admin/timetable", "admin_remove_holiday", { p_date: s(form, "date") }, "Holiday removed.");
+}
+
+export type UploadChange = { room: string; weekday: number; slot: number; before: string; after: string };
+export type UploadPreview = { error?: string; warnings?: string[]; changes?: UploadChange[]; rooms?: string[]; payload?: string };
+
+const cellValue = (subject?: string, label?: string) => (subject ? `${subject}${label ? ` (${label})` : ""}` : "Free");
+
+/**
+ * Compare a timetable read from the Word file (parsed in the browser, since the file itself can
+ * be several MB) with the current one, and list what would change, without saving anything.
+ */
+export async function previewTimetableUpload(_prev: UploadPreview, form: FormData): Promise<UploadPreview> {
+  let parsed: { rooms: string[]; entries: ParsedEntry[]; warnings: string[] };
+  try {
+    parsed = JSON.parse(s(form, "parsed"));
+    if (!Array.isArray(parsed.rooms) || !Array.isArray(parsed.entries)) throw new Error();
+  } catch {
+    return { error: "The timetable could not be read. Please choose the file again." };
+  }
+  const supabase = await createClient();
+  const currentRes = await supabase.rpc("get_timetable_all", { p_date: addDays(todayIST(), 1) });
+  if (currentRes.error) return { error: currentRes.error.message };
+  type Cell = { room_id: string; weekday: number; slot_id: number; subject: string; faculty_initials: string[]; faculty_label: string; is_department: boolean };
+  const key = (c: { room_id: string; weekday: number; slot_id: number }) => `${c.room_id}|${c.weekday}|${c.slot_id}`;
+  const current = new Map(((currentRes.data ?? []) as Cell[]).filter((c) => parsed.rooms.includes(c.room_id)).map((c) => [key(c), c]));
+  const incoming = new Map(parsed.entries.map((c) => [key(c), c]));
+  const changes: UploadChange[] = [];
+  for (const k of new Set([...current.keys(), ...incoming.keys()])) {
+    const o = current.get(k);
+    const n = incoming.get(k);
+    if (o?.subject === n?.subject && (o?.faculty_initials ?? []).join() === (n?.faculty_initials ?? []).join() && !!o?.is_department === !!n?.is_department) continue;
+    const [room, weekday, slot] = k.split("|");
+    changes.push({ room, weekday: Number(weekday), slot: Number(slot), before: cellValue(o?.subject, o?.faculty_label), after: cellValue(n?.subject, n?.faculty_label) });
+  }
+  changes.sort((a, b) => a.room.localeCompare(b.room) || a.weekday - b.weekday || a.slot - b.slot);
+  return { warnings: parsed.warnings ?? [], changes, rooms: parsed.rooms, payload: JSON.stringify({ rooms: parsed.rooms, entries: parsed.entries }) };
+}
+
+/** Save an uploaded timetable that the admin has reviewed. */
+export async function applyTimetableUpload(form: FormData) {
+  const { rooms, entries } = JSON.parse(s(form, "payload") || "{}") as { rooms?: string[]; entries?: unknown[] };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_replace_timetable", { p_rooms: rooms ?? [], p_entries: entries ?? [] });
+  revalidatePath("/", "layout");
+  redirect(
+    error
+      ? withParam("/admin/timetable", "error", error.message)
+      : withParam("/admin/timetable", "msg", `Timetable updated: ${data} ${data === 1 ? "cell" : "cells"} changed, from ${formatDate(addDays(todayIST(), 1), { weekday: "long" })}. Earlier days keep the old timetable.`),
   );
 }

@@ -20,7 +20,7 @@ export default function SlotRange({
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>
-        <label className="label" htmlFor={`${idPrefix}from`}>Start time</label>
+        <label className="label whitespace-nowrap" htmlFor={`${idPrefix}from`}>Start time</label>
         <select
           id={`${idPrefix}from`}
           name="from"
@@ -38,7 +38,9 @@ export default function SlotRange({
         </select>
       </div>
       <div>
-        <label className="label" htmlFor={`${idPrefix}to`}>End time</label>
+        <label className="label whitespace-nowrap" htmlFor={`${idPrefix}to`}>
+          End time <span className="muted font-normal">· {to - from + 1 === 1 ? "1 slot" : `${to - from + 1} slots`}</span>
+        </label>
         <select id={`${idPrefix}to`} name="to" className="input" value={slots[to]?.id} onChange={(e) => setTo(slots.findIndex((s) => String(s.id) === e.target.value))}>
           {slots.map((s, i) => (
             <option key={s.id} value={s.id} disabled={i < from}>
@@ -46,7 +48,6 @@ export default function SlotRange({
             </option>
           ))}
         </select>
-        <p className="muted mt-1 text-xs">{to - from + 1 === 1 ? "1 slot" : `${to - from + 1} slots`}</p>
       </div>
     </div>
   );

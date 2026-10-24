@@ -26,7 +26,7 @@ Classroom allotment for the Department of Machine Learning, BMSCE. Students see 
 ### 1. Supabase (database and login)
 
 1. Sign up at [supabase.com](https://supabase.com) with GitHub and create a project. Pick the **Mumbai (ap-south-1)** region and save the database password somewhere safe.
-2. Open **SQL Editor** and run these files one after another, pasting the whole of each: `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_faculty_directory.sql` (full names for the timetable initials), `supabase/migrations/0003_multi_slot_requests.sql` (requests covering several slots in a row), `supabase/migrations/0004_admin_slot_range.sql` (admins allot a start-to-end range), `supabase/migrations/0005_admin_free_slots.sql` (admins free up a room), `supabase/migrations/0006_reports_and_timetable_edits.sql` (reports and timetable edits), then `supabase/seed.sql` (rooms, slots and the timetable).
+2. Open **SQL Editor** and run these files one after another, pasting the whole of each: `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_faculty_directory.sql` (full names for the timetable initials), `supabase/migrations/0003_multi_slot_requests.sql` (requests covering several slots in a row), `supabase/migrations/0004_admin_slot_range.sql` (admins allot a start-to-end range), `supabase/migrations/0005_admin_free_slots.sql` (admins free up a room), `supabase/migrations/0006_reports_and_timetable_edits.sql` (reports and timetable edits), `supabase/migrations/0007_holidays_and_timetable_upload.sql` (holidays and Word timetable upload), then `supabase/seed.sql` (rooms, slots and the timetable).
 3. Still in the SQL Editor, add yourself as the first admin (use your real email and name):
    ```sql
    insert into public.people (email, full_name, title, role)
@@ -54,7 +54,11 @@ Supabase pauses free projects after 7 days with no visits. In GitHub, open **Set
 
 ## Updating the timetable
 
-When the department issues a revised timetable, generate it as the next version, starting today or later:
+The easiest way: sign in as an admin, open **Admin → Edit timetable**, and upload the revised Word file under "Upload the timetable as a Word file". The site lists every cell that would change, and nothing is saved until you click **Apply**. Changes take effect from tomorrow; only the rooms in the file are touched, and earlier days keep the old timetable. Single cells can be edited on the same page.
+
+Holidays are added on the same page. On a holiday the site shows no regular classes.
+
+Or, from the command line, generate the revision as the next version, starting today or later:
 
 ```bash
 pip install python-docx
