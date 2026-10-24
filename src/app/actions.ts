@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 
 function back(form: FormData, fallback: string) {
@@ -56,19 +57,27 @@ export async function moveRequest(form: FormData) {
 }
 
 export async function adminOverride(form: FormData) {
+  // Every slot from the start slot to the end slot, in the day's order.
+  const slots = await getSlots();
+  const from = slots.findIndex((x) => String(x.id) === s(form, "from"));
+  const to = slots.findIndex((x) => String(x.id) === s(form, "to"));
+  if (from < 0 || to < from) {
+    redirect(withParam(back(form, "/admin/allot"), "error", "The end time must be after the start time."));
+  }
+  const picked = slots.slice(from, to + 1).map((x) => x.id);
   await run(
     form,
     "/admin/allot",
-    "admin_override",
+    "admin_override_slots",
     {
       p_room: s(form, "room"),
       p_date: s(form, "date"),
-      p_slot: Number(s(form, "slot")),
+      p_slots: picked,
       p_kind: s(form, "kind"),
       p_title: s(form, "title"),
       p_reason: s(form, "reason"),
     },
-    "Room allotted.",
+    picked.length === 1 ? "Room allotted." : `Room allotted for ${picked.length} slots.`,
   );
 }
 
@@ -102,11 +111,18 @@ export async function upsertPerson(form: FormData) {
 /** Bulk import: one person per line, "email, full name, initials, title, role". */
 export async function importPeople(form: FormData) {
   const supabase = await createClient();
-  const lines = s(form, "csv").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  // Pasted rows and an uploaded .csv file are read the same way.
+  const file = form.get("file");
+  const uploaded = file instanceof File && file.size > 0 ? await file.text() : "";
+  if (file instanceof File && file.size > 1024 * 1024) {
+    redirect(withParam(back(form, "/admin/people"), "error", "The CSV file must be under 1 MB."));
+  }
+  const lines = `${s(form, "csv")}\n${uploaded}`.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   let added = 0;
   const failed: string[] = [];
+  const rows: { email: string; full_name: string; initials: string; title: string; role: string }[] = [];
   for (const line of lines) {
-    const cols = line.split(",").map((x) => x.trim());
+    const cols = line.split(",").map((x) => x.trim().replace(/^"(.*)"$/, "$1").trim());
     let email: string, full_name: string, initials: string, title: string, role: string;
     if (cols[0]?.includes("@")) {
       // email, full name, initials, title, role
@@ -118,17 +134,24 @@ export async function importPeople(form: FormData) {
       initials = m?.[2] ?? "";
       title = m ? `${m[1]}.` : "";
     }
-    if (!email.includes("@")) continue;
-    const { error } = await supabase.rpc("admin_upsert_person", {
-      p_email: email,
-      p_full_name: full_name || email.split("@")[0],
-      p_initials: initials,
-      p_title: title,
-      p_role: role.toLowerCase().startsWith("admin") ? "admin" : "faculty",
-      p_active: true,
-    });
-    if (error) failed.push(`${email} (${error.message})`);
-    else added++;
+    if (email.includes("@")) rows.push({ email, full_name, initials, title, role }); // header rows have no email
+  }
+  // Ten at a time, so a long list imports quickly.
+  for (let i = 0; i < rows.length; i += 10) {
+    await Promise.all(
+      rows.slice(i, i + 10).map(async ({ email, full_name, initials, title, role }) => {
+        const { error } = await supabase.rpc("admin_upsert_person", {
+          p_email: email,
+          p_full_name: full_name || email.split("@")[0],
+          p_initials: initials,
+          p_title: title,
+          p_role: role.toLowerCase().startsWith("admin") ? "admin" : "faculty",
+          p_active: true,
+        });
+        if (error) failed.push(`${email} (${error.message})`);
+        else added++;
+      }),
+    );
   }
   revalidatePath("/", "layout");
   const to = back(form, "/admin/people");

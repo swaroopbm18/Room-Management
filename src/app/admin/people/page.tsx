@@ -57,6 +57,20 @@ export default async function People({ searchParams }: { searchParams: Promise<{
           Rows pasted straight from faculty-list.csv (<code>Dr. AKN, full name, email, role</code>) work too.
         </p>
         <form action={importPeople} className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-brand-300 p-4 dark:border-brand-800">
+            <label htmlFor="file" className="text-sm font-medium">Upload a CSV file</label>
+            <input
+              id="file"
+              name="file"
+              type="file"
+              accept=".csv,text/csv"
+              className="text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-brand-600 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-brand-700 dark:file:bg-brand-500 dark:file:text-black"
+            />
+            <a href="/people-template.csv" download className="text-xs text-brand-600 underline dark:text-brand-400">
+              Download a template
+            </a>
+          </div>
+          <div className="muted text-xs">or paste rows below</div>
           <textarea name="csv" rows={5} className="input font-mono text-xs" placeholder={"akn@bmsce.ac.in, Anil Kumar N, AKN, Dr., faculty\nhod.ml@bmsce.ac.in, Head of Department, , Dr., admin"} />
           <button className="btn-secondary">
             <IconUpload className="h-4 w-4" /> Import

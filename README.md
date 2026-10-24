@@ -26,7 +26,7 @@ Classroom allotment for the Department of Machine Learning, BMSCE. Students see 
 ### 1. Supabase (database and login)
 
 1. Sign up at [supabase.com](https://supabase.com) with GitHub and create a project. Pick the **Mumbai (ap-south-1)** region and save the database password somewhere safe.
-2. Open **SQL Editor** and run these files one after another, pasting the whole of each: `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_faculty_directory.sql` (full names for the timetable initials), `supabase/migrations/0003_multi_slot_requests.sql` (requests covering several slots in a row), then `supabase/seed.sql` (rooms, slots and the timetable).
+2. Open **SQL Editor** and run these files one after another, pasting the whole of each: `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_faculty_directory.sql` (full names for the timetable initials), `supabase/migrations/0003_multi_slot_requests.sql` (requests covering several slots in a row), `supabase/migrations/0004_admin_slot_range.sql` (admins allot a start-to-end range), then `supabase/seed.sql` (rooms, slots and the timetable).
 3. Still in the SQL Editor, add yourself as the first admin (use your real email and name):
    ```sql
    insert into public.people (email, full_name, title, role)
@@ -45,6 +45,7 @@ Classroom allotment for the Department of Machine Learning, BMSCE. Students see 
 
 1. Sign up at [vercel.com](https://vercel.com) with GitHub, click **Add New → Project**, and import this repository.
 2. Add the two environment variables from `.env.example` with the values from step 1.4, then **Deploy**.
+   Optional, for a cleaner Google sign-in screen: also add `NEXT_PUBLIC_GOOGLE_CLIENT_ID` (your Google web client's Client ID), and in Google Cloud add your Vercel address under the client's **Authorized JavaScript origins**. Without it, sign-in still works but Google shows the Supabase address.
 3. Back in Supabase, open **Authentication → URL Configuration**. Set **Site URL** to your Vercel address (e.g. `https://room-management.vercel.app`) and add `https://room-management.vercel.app/**` under **Redirect URLs**.
 
 ### 4. Optional: keep Supabase awake in holidays

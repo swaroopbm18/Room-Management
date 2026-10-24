@@ -26,6 +26,12 @@ export function isSunday(date: string): boolean {
   return new Date(date + "T00:00:00Z").getUTCDay() === 0;
 }
 
+/** The Monday of the week the date falls in (weeks run Monday to Saturday here). */
+export function mondayOf(date: string): string {
+  const day = new Date(date + "T00:00:00Z").getUTCDay(); // 0 = Sunday
+  return addDays(date, day === 0 ? 1 : 1 - day);
+}
+
 /** The date itself, or the next day if it is a Sunday. */
 export function workingDay(date: string): string {
   return isSunday(date) ? addDays(date, 1) : date;

@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { AllotmentRow } from "@/lib/types";
 import { bookableDates, DATE_RE, formatDate, formatDateTime, isSunday, slotEnded, todayIST, workingDay } from "@/lib/time";
 import { adminOverride, adminRestore } from "../../actions";
+import SlotRange from "./SlotRange";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +47,7 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Allot a room for CIE or an event" subtitle="Overrides the regular class or booking for that one slot. Pending requests for it are declined." />
+      <PageHeader title="Allot a room for CIE or an event" subtitle="Pick a start and end time between 8:00 AM and 5:40 PM. This overrides the regular classes and bookings in those slots, and pending requests for them are declined." />
       <Flash msg={sp.msg} error={sp.error} />
 
       <form action={adminOverride} className="card grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -59,14 +60,7 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
             ))}
           </select>
         </div>
-        <div>
-          <label className="label" htmlFor="slot">Slot</label>
-          <select id="slot" name="slot" className="input">
-            {slots.map((s) => (
-              <option key={s.id} value={s.id}>{s.label}</option>
-            ))}
-          </select>
-        </div>
+        <SlotRange slots={slots} />
         <div>
           <label className="label" htmlFor="room">Room</label>
           <select id="room" name="room" className="input">

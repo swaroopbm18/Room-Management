@@ -1,10 +1,11 @@
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { IconBuilding, IconCalendarCheck, IconClock, IconDoor } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
+import PendingLink from "@/components/PendingLink";
 import StatusBadge from "@/components/StatusBadge";
 import { STATUS_CELL } from "@/lib/status";
 import { getDaySchedule, getSlots } from "@/lib/data";
-import { DATE_RE, defaultSlot, formatDate, isSunday, todayIST, viewableDates } from "@/lib/time";
+import { DATE_RE, defaultSlot, formatDate, isSunday, mondayOf, todayIST, viewableDates } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -69,9 +70,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
         <KpiCard label="Rooms" value={totalRooms} hint={`${totalRooms - freeNow} in use in this slot`} tone="ink" icon={<IconBuilding />} />
       </section>
 
+      <p className="muted -mb-3 text-sm">Click a room to see its timetable for the whole week.</p>
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {rows.map((r) => (
-          <div key={r.room_id} className={`flex min-h-28 flex-col rounded-xl p-4 shadow-sm ${STATUS_CELL[r.status]}`}>
+          <PendingLink
+            key={r.room_id}
+            href={`/room/${encodeURIComponent(r.room_id)}?week=${mondayOf(date)}`}
+            className={`group flex min-h-28 flex-col rounded-xl p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:ring-2 hover:ring-brand-400 ${STATUS_CELL[r.status]}`}
+          >
             <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
               <span className="font-semibold tracking-tight whitespace-nowrap">{r.room_name}</span>
               {r.status !== "class" && <StatusBadge status={r.status} />}
@@ -85,7 +91,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
                 {r.reason && <div className="mt-1 line-clamp-2 text-xs opacity-70">{r.reason}</div>}
               </div>
             )}
-          </div>
+            <span className="mt-2 text-[11px] font-medium opacity-0 transition group-hover:opacity-70">View week →</span>
+          </PendingLink>
         ))}
       </section>
     </div>
