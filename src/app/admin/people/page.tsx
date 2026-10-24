@@ -28,7 +28,43 @@ function PersonFields({ p }: { p?: Person }) {
   );
 }
 
-const count = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+/** One group of people; click a person to edit them. */
+function PeopleList({ title, people, empty }: { title: string; people: Person[]; empty: string }) {
+  return (
+    <section>
+      <h2 className="mb-3 text-lg font-semibold">
+        {title} <span className="muted text-sm font-normal">· {people.length}</span>
+      </h2>
+      <div className="card divide-y divide-brand-100 dark:divide-brand-900">
+        {people.length === 0 && <p className="muted px-4 py-3 text-sm">{empty}</p>}
+        {people.map((p) => (
+          <details key={p.email} className={`group ${p.active ? "" : "opacity-60"}`}>
+            <summary className="grid cursor-pointer list-none grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-brand-50 sm:grid-cols-[minmax(0,2fr)_6rem_minmax(0,2fr)_6rem_3rem] dark:hover:bg-brand-950 [&::-webkit-details-marker]:hidden">
+              <span className="font-medium">{displayName(p)}</span>
+              <span className="muted hidden text-sm sm:block">{p.initials ?? "—"}</span>
+              <span className="muted hidden truncate text-sm sm:block">{p.email}</span>
+              <span className="muted hidden text-sm sm:block">{p.active ? "Active" : "No access"}</span>
+              <span className="text-right text-sm font-medium text-brand-600 dark:text-brand-400">
+                <span className="group-open:hidden">Edit</span>
+                <span className="hidden group-open:inline">Close</span>
+              </span>
+              <span className="muted col-span-2 text-xs sm:hidden">
+                {p.initials ?? "No initials"} · {p.email}
+                {p.active ? "" : " · No access"}
+              </span>
+            </summary>
+            <form action={upsertPerson} className="flex flex-wrap items-center gap-2 border-t border-brand-100 bg-brand-50/50 p-3 dark:border-brand-900 dark:bg-brand-950/40">
+              <PersonFields p={p} />
+              <SubmitButton className="btn-secondary py-1.5" pendingText="Saving…" message="Saving changes…">
+                Save
+              </SubmitButton>
+            </form>
+          </details>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export default async function People({ searchParams }: { searchParams: Promise<{ msg?: string; error?: string }> }) {
   const sp = await searchParams;
@@ -44,42 +80,8 @@ export default async function People({ searchParams }: { searchParams: Promise<{
       />
       <Flash msg={sp.msg} error={sp.error} />
 
-      <section>
-        <h2 className="mb-3 text-lg font-semibold">
-          Current faculty & admins <span className="muted text-sm font-normal">· {count(people.filter((p) => p.role === "admin").length, "admin")}, {people.filter((p) => p.role === "faculty").length} faculty</span>
-        </h2>
-        <div className="card divide-y divide-brand-100 dark:divide-brand-900">
-          {people.map((p) => (
-            <details key={p.email} className={`group ${p.active ? "" : "opacity-60"}`}>
-              <summary className="grid cursor-pointer list-none grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-brand-50 sm:grid-cols-[minmax(0,2fr)_5rem_minmax(0,2fr)_6rem_6rem_3rem] dark:hover:bg-brand-950 [&::-webkit-details-marker]:hidden">
-                <span className="font-medium">{displayName(p)}</span>
-                <span className="muted hidden text-sm sm:block">{p.initials ?? "—"}</span>
-                <span className="muted hidden truncate text-sm sm:block">{p.email}</span>
-                <span className="hidden sm:block">
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${p.role === "admin" ? "bg-brand-600 text-white dark:bg-brand-500 dark:text-black" : "bg-brand-100 text-brand-800 dark:bg-brand-900 dark:text-brand-200"}`}>
-                    {p.role === "admin" ? "Admin" : "Faculty"}
-                  </span>
-                </span>
-                <span className="muted hidden text-sm sm:block">{p.active ? "Active" : "No access"}</span>
-                <span className="text-right text-sm font-medium text-brand-600 dark:text-brand-400">
-                  <span className="group-open:hidden">Edit</span>
-                  <span className="hidden group-open:inline">Close</span>
-                </span>
-                <span className="muted col-span-2 text-xs sm:hidden">
-                  {p.initials ?? "No initials"} · {p.email} · {p.role === "admin" ? "Admin" : "Faculty"}
-                  {p.active ? "" : " · No access"}
-                </span>
-              </summary>
-              <form action={upsertPerson} className="flex flex-wrap items-center gap-2 border-t border-brand-100 bg-brand-50/50 p-3 dark:border-brand-900 dark:bg-brand-950/40">
-                <PersonFields p={p} />
-                <SubmitButton className="btn-secondary py-1.5" pendingText="Saving…" message="Saving changes…">
-                  Save
-                </SubmitButton>
-              </form>
-            </details>
-          ))}
-        </div>
-      </section>
+      <PeopleList title="Admins" people={people.filter((p) => p.role === "admin")} empty="No admins yet." />
+      <PeopleList title="Faculty" people={people.filter((p) => p.role === "faculty")} empty="No faculty yet. Add them below." />
 
       <section className="card p-5">
         <h2 className="mb-3 font-semibold">Add more people</h2>
