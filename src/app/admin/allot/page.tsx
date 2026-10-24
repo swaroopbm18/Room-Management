@@ -1,7 +1,6 @@
 import SubmitButton from "@/components/SubmitButton";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { IconFlag, IconMinusCircle, IconRestore } from "@/components/Icons";
-import ClosedDay from "@/components/ClosedDay";
 import DayGrid from "@/components/DayGrid";
 import Flash from "@/components/Flash";
 import PageHeader from "@/components/PageHeader";
@@ -26,14 +25,15 @@ const KIND_LABEL: Record<AllotmentRow["kind"], string> = {
 
 export default async function Allot({ searchParams }: { searchParams: Promise<{ date?: string; msg?: string; error?: string }> }) {
   const sp = await searchParams;
-  const dates = bookableDates();
-  const date = sp.date && DATE_RE.test(sp.date) && !isSunday(sp.date) ? sp.date : workingDay(todayIST());
+  const holidays = await getHolidays();
+  const dates = bookableDates(holidays);
+  // Holidays can't be picked, so a holiday in the address falls back to the next working day.
+  const date = sp.date && DATE_RE.test(sp.date) && !isSunday(sp.date) && !holidays.has(sp.date) ? sp.date : workingDay(todayIST(), holidays);
   const supabase = await createClient();
-  const [rooms, slots, day, holidays, { data: changes }] = await Promise.all([
+  const [rooms, slots, day, { data: changes }] = await Promise.all([
     getRooms(),
     getSlots(),
     getDaySchedule(date),
-    getHolidays(),
     supabase.from("allotments").select("*").gte("date", todayIST()).order("id", { ascending: false }).limit(500),
   ]);
   const slotById = new Map(slots.map((s) => [s.id, s]));
@@ -134,14 +134,9 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
       <section>
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <h2 className="text-lg font-semibold">Day at a glance · {formatDate(date, { weekday: "long" })}</h2>
-          <AutoSubmitSelect name="date" label="Date" value={date} options={dates.map((d) => ({ value: d, label: `${formatDate(d)}${holidays.has(d) ? " · holiday" : ""}` }))} />
+          <AutoSubmitSelect name="date" label="Date" value={date} options={dates.map((d) => ({ value: d, label: formatDate(d) }))} />
         </div>
-        {/* A holiday with nothing allotted shows the holiday instead of a grid of free rooms. */}
-        {holidays.has(date) && day.every((r) => r.status === "free") ? (
-          <ClosedDay date={date} holiday={holidays.get(date)} />
-        ) : (
-          <DayGrid rooms={rooms} slots={slots} rows={day} />
-        )}
+        <DayGrid rooms={rooms} slots={slots} rows={day} />
       </section>
 
       <section>

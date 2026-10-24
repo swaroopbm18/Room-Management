@@ -6,7 +6,7 @@ import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
 import { getPerson } from "@/lib/auth";
-import { getDaySchedule, getRooms, getSlots } from "@/lib/data";
+import { getDaySchedule, getHolidays, getRooms, getSlots } from "@/lib/data";
 import { addDays, bookableDates, DATE_RE, formatDate, mondayOf, todayIST } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -27,17 +27,19 @@ export default async function RoomWeek({ params, searchParams }: { params: Promi
   const monday = mondayOf(sp.week && DATE_RE.test(sp.week) ? sp.week : today);
   const days = Array.from({ length: 6 }, (_, i) => addDays(monday, i));
 
-  const [person, rooms, slots, schedules] = await Promise.all([
+  const [person, rooms, slots, holidays, schedules] = await Promise.all([
     getPerson(),
     getRooms(),
     getSlots(),
+    getHolidays(),
     Promise.all(days.map((d) => getDaySchedule(d))),
   ]);
   const room = rooms.find((r) => r.id === roomId);
   if (!room) notFound();
 
-  const bookable = new Set(person ? bookableDates() : []);
-  const perDay = schedules.map((rows) => rows.filter((r) => r.room_id === roomId));
+  const bookable = new Set(person ? bookableDates(holidays) : []);
+  // Holidays show nothing at all
+  const perDay = schedules.map((rows, i) => (holidays.has(days[i]) ? [] : rows.filter((r) => r.room_id === roomId)));
   const upcoming = perDay.flat().filter((r) => !r.ended);
   const freeCount = upcoming.filter((r) => r.status === "free").length;
   const inUse = upcoming.filter((r) => r.status !== "free" && r.status !== "department").length;
@@ -49,7 +51,10 @@ export default async function RoomWeek({ params, searchParams }: { params: Promi
       label: (
         <>
           <span className={d === today ? "text-brand-600 dark:text-brand-300" : ""}>{formatDate(d, { year: undefined })}</span>
-          <span className="mt-0.5 block text-[11px] font-normal opacity-75">{d === today ? "Today · " : ""}{free} free</span>
+          <span className="mt-0.5 block text-[11px] font-normal opacity-75">
+            {d === today ? "Today · " : ""}
+            {holidays.has(d) ? `Holiday · ${holidays.get(d)}` : `${free} free`}
+          </span>
         </>
       ),
       cells: new Map(perDay[i].map((r) => [r.slot_id, r])),
@@ -82,7 +87,7 @@ export default async function RoomWeek({ params, searchParams }: { params: Promi
       <section className="grid grid-cols-3 gap-2 sm:gap-4">
         <KpiCard label="Free slots left this week" value={freeCount} tone="navy" icon={<IconCalendarCheck />} />
         <KpiCard label="Booked or in class" value={inUse} hint="Classes, bookings, CIE and events" icon={<IconCalendar />} />
-        <KpiCard label="Slots this week" value={perDay.flat().length} hint={`${slots.length} slots × 6 days`} tone="ink" icon={<IconDoor />} />
+        <KpiCard label="Slots this week" value={perDay.flat().length} hint={`${slots.length} slots × ${perDay.filter((r) => r.length).length} days`} tone="ink" icon={<IconDoor />} />
       </section>
 
       <ScheduleGrid corner="Day" slots={slots} rows={gridRows} hint="Scroll sideways to see every slot. Faded cells have ended." />

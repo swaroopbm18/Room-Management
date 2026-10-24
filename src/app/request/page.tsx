@@ -1,7 +1,7 @@
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { displayName, requireStaff } from "@/lib/auth";
-import { getDaySchedule } from "@/lib/data";
+import { getDaySchedule, getHolidays } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { DATE_RE, formatDate } from "@/lib/time";
 import RequestForm from "./RequestForm";
@@ -16,7 +16,8 @@ export default async function RequestPage({
   const sp = await searchParams;
   const person = await requireStaff();
   const date = sp.date && DATE_RE.test(sp.date) ? sp.date : "";
-  const row = date ? (await getDaySchedule(date)).find((r) => r.room_id === sp.room && String(r.slot_id) === sp.slot) : undefined;
+  const holidays = await getHolidays();
+  const row = date && !holidays.has(date) ? (await getDaySchedule(date)).find((r) => r.room_id === sp.room && String(r.slot_id) === sp.slot) : undefined;
 
   if (!row || row.status !== "free" || row.ended) {
     return (
