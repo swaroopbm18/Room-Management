@@ -98,8 +98,9 @@ export default async function Report({ searchParams }: { searchParams: Promise<{
         </table>
 
         <footer className="mt-16 flex flex-wrap justify-between gap-10 text-sm">
-          <div>
-            <div className="w-56 border-t border-neutral-500 pt-1">Faculty signature</div>
+          <div className="flex flex-wrap gap-10">
+            <div className="w-56 border-t border-neutral-500 pt-1">HoD (Cluster A)</div>
+            <div className="w-56 border-t border-neutral-500 pt-1">HoD (Cluster B)</div>
           </div>
           <div>
             <div className="w-56 border-t border-neutral-500 pt-1">Date</div>

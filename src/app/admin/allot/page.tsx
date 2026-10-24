@@ -1,10 +1,11 @@
 import SubmitButton from "@/components/SubmitButton";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { IconFlag, IconMinusCircle, IconRestore } from "@/components/Icons";
+import ClosedDay from "@/components/ClosedDay";
 import DayGrid from "@/components/DayGrid";
 import Flash from "@/components/Flash";
 import PageHeader from "@/components/PageHeader";
-import { getDaySchedule, getRooms, getSlots } from "@/lib/data";
+import { getDaySchedule, getHolidays, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { AllotmentRow } from "@/lib/types";
 import { bookableDates, DATE_RE, formatDate, formatDateTime, isSunday, slotEnded, todayIST, workingDay } from "@/lib/time";
@@ -28,10 +29,11 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
   const dates = bookableDates();
   const date = sp.date && DATE_RE.test(sp.date) && !isSunday(sp.date) ? sp.date : workingDay(todayIST());
   const supabase = await createClient();
-  const [rooms, slots, day, { data: changes }] = await Promise.all([
+  const [rooms, slots, day, holidays, { data: changes }] = await Promise.all([
     getRooms(),
     getSlots(),
     getDaySchedule(date),
+    getHolidays(),
     supabase.from("allotments").select("*").gte("date", todayIST()).order("id", { ascending: false }).limit(500),
   ]);
   const slotById = new Map(slots.map((s) => [s.id, s]));
@@ -132,9 +134,14 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
       <section>
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <h2 className="text-lg font-semibold">Day at a glance · {formatDate(date, { weekday: "long" })}</h2>
-          <AutoSubmitSelect name="date" label="Date" value={date} options={dates.map((d) => ({ value: d, label: formatDate(d) }))} />
+          <AutoSubmitSelect name="date" label="Date" value={date} options={dates.map((d) => ({ value: d, label: `${formatDate(d)}${holidays.has(d) ? " · holiday" : ""}` }))} />
         </div>
-        <DayGrid rooms={rooms} slots={slots} rows={day} />
+        {/* A holiday with nothing allotted shows the holiday instead of a grid of free rooms. */}
+        {holidays.has(date) && day.every((r) => r.status === "free") ? (
+          <ClosedDay date={date} holiday={holidays.get(date)} />
+        ) : (
+          <DayGrid rooms={rooms} slots={slots} rows={day} />
+        )}
       </section>
 
       <section>
