@@ -38,6 +38,7 @@ export type RequestRow = {
   requester_email: string;
   requester_name: string;
   type: "class" | "event";
+  subject: string | null; // the allotted subject a class is for
   description: string;
   pdf_path: string | null;
   status: "pending" | "approved" | "rejected" | "withdrawn";

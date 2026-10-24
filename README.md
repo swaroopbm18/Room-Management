@@ -9,8 +9,8 @@ Classroom allotment for the Department of Machine Learning, BMSCE. Students see 
 | Role | Signs in? | Can |
 | --- | --- | --- |
 | Student | No | See every room's subject and faculty for any slot, and the free slots |
-| Faculty | Google, @bmsce.ac.in, must be on the list | Request a **free** slot (class, or event with a PDF approval letter under 5 MB), see their requests, withdraw a pending one, drop one occurrence of their own class |
-| Admin (HOD, Time Table Officers) | Same | Everything faculty can, plus approve or reject requests in priority order, allot any room for a CIE or event, restore a slot to the timetable, manage the faculty/admin list, view the full history |
+| Faculty | Google, @bmsce.ac.in, must be on the list | Request a **free** slot (class for one of their allotted subjects, or event with a PDF approval letter under 5 MB), see their requests, withdraw a pending one, drop one occurrence of their own class |
+| Admin (HOD, Time Table Officers) | Same | Everything faculty can, plus approve or reject requests in priority order, allot any room for a CIE or event, restore a slot to the timetable, manage the faculty/admin list, allot subjects to faculty, view the full history |
 
 ## How the data works
 
@@ -26,7 +26,7 @@ Classroom allotment for the Department of Machine Learning, BMSCE. Students see 
 ### 1. Supabase (database and login)
 
 1. Sign up at [supabase.com](https://supabase.com) with GitHub and create a project. Pick the **Mumbai (ap-south-1)** region and save the database password somewhere safe.
-2. Open **SQL Editor** and run these files one after another, pasting the whole of each: `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_faculty_directory.sql` (full names for the timetable initials), `supabase/migrations/0003_multi_slot_requests.sql` (requests covering several slots in a row), `supabase/migrations/0004_admin_slot_range.sql` (admins allot a start-to-end range), `supabase/migrations/0005_admin_free_slots.sql` (admins free up a room), `supabase/migrations/0006_reports_and_timetable_edits.sql` (reports and timetable edits), `supabase/migrations/0007_holidays_and_timetable_upload.sql` (holidays and Word timetable upload), then `supabase/seed.sql` (rooms, slots and the timetable).
+2. Open **SQL Editor** and run these files one after another, pasting the whole of each: `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_faculty_directory.sql` (full names for the timetable initials), `supabase/migrations/0003_multi_slot_requests.sql` (requests covering several slots in a row), `supabase/migrations/0004_admin_slot_range.sql` (admins allot a start-to-end range), `supabase/migrations/0005_admin_free_slots.sql` (admins free up a room), `supabase/migrations/0006_reports_and_timetable_edits.sql` (reports and timetable edits), `supabase/migrations/0007_holidays_and_timetable_upload.sql` (holidays and Word timetable upload), `supabase/migrations/0008_faculty_subjects.sql` (subjects for class requests), then `supabase/seed.sql` (rooms, slots and the timetable).
 3. Still in the SQL Editor, add yourself as the first admin (use your real email and name):
    ```sql
    insert into public.people (email, full_name, title, role)
@@ -56,7 +56,11 @@ Supabase pauses free projects after 7 days with no visits. In GitHub, open **Set
 
 The easiest way: sign in as an admin, open **Admin → Edit timetable**, and upload the revised Word file under "Upload the timetable as a Word file". The site lists every cell that would change, and nothing is saved until you click **Apply**. Changes take effect from tomorrow; only the rooms in the file are touched, and earlier days keep the old timetable. Single cells can be edited on the same page.
 
-Holidays are added on the same page. On a holiday the site shows no regular classes.
+Holidays are added on the same page.
+
+## Subjects
+
+A class request names one of the faculty member's subjects (e.g. `DBMS-3B`). Admins allot them under **Admin → Subjects**, either by hand or with **Add subjects from the timetable**, which gives everyone the subjects next to their initials in the current timetable (including a newly uploaded Word file). Faculty with no subjects can still request rooms for events. Removing a subject never changes past requests, and an approved class shows its subject in the timetable. On a holiday the site shows no regular classes.
 
 Or, from the command line, generate the revision as the next version, starting today or later:
 

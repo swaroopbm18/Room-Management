@@ -2,6 +2,7 @@ import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { displayName, requireStaff } from "@/lib/auth";
 import { getDaySchedule } from "@/lib/data";
+import { createClient } from "@/lib/supabase/server";
 import { DATE_RE, formatDate } from "@/lib/time";
 import RequestForm from "./RequestForm";
 
@@ -33,6 +34,10 @@ export default async function RequestPage({
     .filter((r) => r.room_id === row.room_id)
     .map((r) => ({ id: r.slot_id, label: r.slot_label, status: r.status, ended: r.ended, subject: r.subject }));
 
+  const supabase = await createClient();
+  const { data: subjectRows } = await supabase.from("faculty_subjects").select("subject").eq("email", person.email).order("subject");
+  const subjects = (subjectRows ?? []).map((r) => r.subject as string);
+
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader title="Request a room" subtitle={`Requesting as ${displayName(person)} (${person.email})`} />
@@ -47,7 +52,7 @@ export default async function RequestPage({
           </div>
         ))}
       </div>
-      <RequestForm room={row.room_id} date={date} initialSlot={row.slot_id} slots={roomDay} email={person.email} />
+      <RequestForm room={row.room_id} date={date} initialSlot={row.slot_id} slots={roomDay} email={person.email} subjects={subjects} />
     </div>
   );
 }

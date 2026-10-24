@@ -200,6 +200,26 @@ export async function importPeople(form: FormData) {
   );
 }
 
+export async function addSubject(form: FormData) {
+  await run(form, "/admin/subjects", "admin_add_subject", { p_email: s(form, "email"), p_subject: s(form, "subject") }, "Subject added.");
+}
+
+export async function removeSubject(form: FormData) {
+  await run(form, "/admin/subjects", "admin_remove_subject", { p_email: s(form, "email"), p_subject: s(form, "subject") }, "Subject removed. Past requests keep it.");
+}
+
+export async function subjectsFromTimetable(form: FormData) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_subjects_from_timetable");
+  revalidatePath("/", "layout");
+  const to = back(form, "/admin/subjects");
+  redirect(
+    error
+      ? withParam(to, "error", error.message)
+      : withParam(to, "msg", data ? `${data} ${data === 1 ? "subject" : "subjects"} added from the timetable.` : "Everyone already has every subject the timetable gives them."),
+  );
+}
+
 export async function addHoliday(form: FormData) {
   await run(form, "/admin/timetable", "admin_add_holiday", { p_date: s(form, "date"), p_name: s(form, "name") }, "Holiday added.");
 }
