@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { IconCalendar, IconCalendarCheck, IconInbox, IconMinusCircle, IconPlus, IconX } from "@/components/Icons";
 import Flash from "@/components/Flash";
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
@@ -36,15 +37,15 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
     <div className="space-y-8">
       <PageHeader title={`Welcome, ${displayName(person)}`} subtitle={person.email}>
         <Link href="/free" className="btn-primary">
-          Request a free room
+          <IconPlus className="h-4 w-4" /> Request a free room
         </Link>
       </PageHeader>
       <Flash msg={sp.msg} error={sp.error} />
 
       <section className="grid grid-cols-3 gap-2 sm:gap-4">
-        <KpiCard label="Free slots today" value={freeToday} href="/free" linkText="Explore free slots" />
-        <KpiCard label="My classes, next 7 days" value={mine.length} />
-        <KpiCard label="My pending requests" value={pending} />
+        <KpiCard label="Free slots today" value={freeToday} href="/free" linkText="Explore free slots" tone="navy" icon={<IconCalendarCheck />} />
+        <KpiCard label="My classes, next 7 days" value={mine.length} icon={<IconCalendar />} />
+        <KpiCard label="My pending requests" value={pending} tone="ink" icon={<IconInbox />} />
       </section>
 
       <section>
@@ -57,7 +58,7 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
         ) : (
           <div className="card overflow-x-auto">
             <table className="w-full min-w-[640px]">
-              <thead className="bg-brand-50 dark:bg-brand-950">
+              <thead className="thead-ink">
                 <tr>
                   <th className="th">Date</th>
                   <th className="th">Slot</th>
@@ -83,7 +84,9 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
                         <input type="hidden" name="slot" value={r.slot_id} />
                         <input type="hidden" name="back" value="/faculty" />
                         <input name="reason" required placeholder="Reason" className="input w-36 py-1.5" />
-                        <button className="btn-danger py-1.5">Drop</button>
+                        <button className="btn-danger py-1.5">
+                          <IconMinusCircle className="h-4 w-4" /> Drop
+                        </button>
                       </form>
                     </td>
                   </tr>
@@ -103,7 +106,7 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
         ) : (
           <div className="card overflow-x-auto">
             <table className="w-full min-w-[720px]">
-              <thead className="bg-brand-50 dark:bg-brand-950">
+              <thead className="thead-ink">
                 <tr>
                   <th className="th">Date & slot</th>
                   <th className="th">Room</th>
@@ -134,7 +137,9 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
                         {r.status === "pending" && !ended && (
                           <form action={withdrawRequest}>
                             <input type="hidden" name="id" value={r.id} />
-                            <button className="btn-secondary py-1.5">Withdraw</button>
+                            <button className="btn-secondary py-1.5">
+                              <IconX className="h-4 w-4" /> Withdraw
+                            </button>
                           </form>
                         )}
                       </td>

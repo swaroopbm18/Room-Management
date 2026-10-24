@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { IconCheck, IconFlag, IconUpload, IconUsers } from "@/components/Icons";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -69,7 +70,10 @@ export default function RequestForm({ room, date, slot, email }: { room: string;
               }`}
             >
               <input type="radio" name="type" value={o.v} checked={type === o.v} onChange={() => setType(o.v)} className="sr-only" />
-              <div className="font-medium">{o.t}</div>
+              <div className="flex items-center gap-2 font-medium">
+                {o.v === "class" ? <IconUsers className="h-4 w-4" /> : <IconFlag className="h-4 w-4" />}
+                {o.t}
+              </div>
               <div className="muted mt-0.5 text-xs">{o.d}</div>
             </label>
           ))}
@@ -96,7 +100,9 @@ export default function RequestForm({ room, date, slot, email }: { room: string;
       {type === "event" && (
         <div>
           <label className="label" htmlFor="letter">
-            Approval letter (PDF, under 5 MB) <span className="text-red-600">*</span>
+            <span className="inline-flex items-center gap-1.5">
+              <IconUpload className="h-4 w-4" /> Approval letter (PDF, under 5 MB) <span className="text-red-600">*</span>
+            </span>
           </label>
           <input
             id="letter"
@@ -116,6 +122,7 @@ export default function RequestForm({ room, date, slot, email }: { room: string;
           Cancel
         </button>
         <button type="submit" className="btn-primary" disabled={busy}>
+          <IconCheck className="h-4 w-4" />
           {busy ? "Sending…" : "Send request"}
         </button>
       </div>

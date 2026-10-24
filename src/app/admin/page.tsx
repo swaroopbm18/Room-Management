@@ -1,4 +1,5 @@
 import Flash from "@/components/Flash";
+import { IconCalendarCheck, IconCheck, IconChevronDown, IconChevronUp, IconFile, IconInbox, IconUsers, IconX } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
 import RequestStatus from "@/components/RequestStatus";
@@ -41,13 +42,15 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
       <Flash msg={sp.msg} error={sp.error} />
 
       <section className="grid grid-cols-3 gap-2 sm:gap-4">
-        <KpiCard label="Pending requests" value={pending.length} />
-        <KpiCard label="Slots with several requests" value={[...groups.values()].filter((g) => g.length > 1).length} />
+        <KpiCard label="Pending requests" value={pending.length} tone="navy" icon={<IconInbox />} />
+        <KpiCard label="Slots with several requests" value={[...groups.values()].filter((g) => g.length > 1).length} icon={<IconUsers />} />
         <KpiCard
           label="Free slots today"
           value={todayRows.filter((r) => r.status === "free" && !r.ended).length}
           href="/free"
           linkText="Explore free slots"
+          tone="ink"
+          icon={<IconCalendarCheck />}
         />
       </section>
 
@@ -59,7 +62,7 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
             const r0 = reqs[0];
             return (
               <section key={key} className="card overflow-hidden">
-                <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-brand-100 bg-brand-50 px-5 py-3 dark:border-brand-900 dark:bg-brand-950">
+                <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-brand-100 bg-gradient-to-r from-brand-100 to-white px-5 py-3 dark:border-brand-900 dark:from-brand-950 dark:to-ink">
                   <div className="font-semibold">
                     Room {r0.room_id} · {formatDate(r0.date)} · {slotById.get(r0.slot_id)?.label}
                   </div>
@@ -67,7 +70,7 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[820px]">
-                    <thead>
+                    <thead className="thead-ink">
                       <tr>
                         <th className="th w-16">#</th>
                         <th className="th">Room</th>
@@ -86,19 +89,19 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
                               {reqs.length > 1 && (
                                 <div className="flex flex-col">
                                   {[
-                                    { dir: -1, label: "▲", show: i > 0 },
-                                    { dir: 1, label: "▼", show: i < reqs.length - 1 },
+                                    { dir: -1, label: <IconChevronUp className="h-3.5 w-3.5" />, show: i > 0 },
+                                    { dir: 1, label: <IconChevronDown className="h-3.5 w-3.5" />, show: i < reqs.length - 1 },
                                   ].map((b) =>
                                     b.show ? (
                                       <form key={b.dir} action={moveRequest}>
                                         <input type="hidden" name="id" value={r.id} />
                                         <input type="hidden" name="dir" value={b.dir} />
-                                        <button className="px-1 text-[10px] leading-none text-brand-600 hover:text-brand-900 dark:text-brand-400" aria-label={b.dir < 0 ? "Move up" : "Move down"}>
+                                        <button className="rounded p-0.5 text-brand-600 hover:bg-brand-100 hover:text-brand-900 dark:text-brand-400 dark:hover:bg-brand-900" aria-label={b.dir < 0 ? "Move up" : "Move down"}>
                                           {b.label}
                                         </button>
                                       </form>
                                     ) : (
-                                      <span key={b.dir} className="h-[14px]" />
+                                      <span key={b.dir} className="h-[18px]" />
                                     ),
                                   )}
                                 </div>
@@ -115,8 +118,8 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
                             {r.type === "event" ? "Event" : "Class"}
                             {r.pdf_path && urlFor.get(r.pdf_path) && (
                               <div>
-                                <a href={urlFor.get(r.pdf_path) ?? undefined} target="_blank" rel="noreferrer" className="text-xs font-medium text-brand-600 underline dark:text-brand-400">
-                                  Approval letter (PDF)
+                                <a href={urlFor.get(r.pdf_path) ?? undefined} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-brand-600 underline dark:text-brand-400">
+                                  <IconFile className="h-3.5 w-3.5" /> Approval letter (PDF)
                                 </a>
                               </div>
                             )}
@@ -126,12 +129,16 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
                             <div className="flex flex-col items-end gap-2">
                               <form action={approveRequest}>
                                 <input type="hidden" name="id" value={r.id} />
-                                <button className="btn-primary py-1.5">Approve</button>
+                                <button className="btn-primary py-1.5">
+                                  <IconCheck className="h-4 w-4" /> Approve
+                                </button>
                               </form>
                               <form action={rejectRequest} className="flex gap-2">
                                 <input type="hidden" name="id" value={r.id} />
                                 <input name="note" placeholder="Reason (optional)" className="input w-40 py-1.5" />
-                                <button className="btn-danger py-1.5">Reject</button>
+                                <button className="btn-danger py-1.5">
+                                  <IconX className="h-4 w-4" /> Reject
+                                </button>
                               </form>
                             </div>
                           </td>
@@ -150,7 +157,7 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
         <h2 className="mb-3 text-lg font-semibold">Recently decided</h2>
         <div className="card overflow-x-auto">
           <table className="w-full min-w-[720px]">
-            <thead className="bg-brand-50 dark:bg-brand-950">
+            <thead className="thead-ink">
               <tr>
                 <th className="th">Date & slot</th>
                 <th className="th">Room</th>

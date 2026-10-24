@@ -26,7 +26,7 @@ Classroom allotment for the Department of Machine Learning, BMSCE. Students see 
 ### 1. Supabase (database and login)
 
 1. Sign up at [supabase.com](https://supabase.com) with GitHub and create a project. Pick the **Mumbai (ap-south-1)** region and save the database password somewhere safe.
-2. Open **SQL Editor**, paste the whole of `supabase/migrations/0001_init.sql`, and run it. Then do the same with `supabase/seed.sql` (rooms, slots and the timetable).
+2. Open **SQL Editor** and run these files one after another, pasting the whole of each: `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_faculty_directory.sql` (full names for the timetable initials), then `supabase/seed.sql` (rooms, slots and the timetable).
 3. Still in the SQL Editor, add yourself as the first admin (use your real email and name):
    ```sql
    insert into public.people (email, full_name, title, role)

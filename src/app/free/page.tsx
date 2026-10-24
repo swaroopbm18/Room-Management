@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { IconClock, IconPlus } from "@/components/Icons";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import PageHeader from "@/components/PageHeader";
 import { getPerson } from "@/lib/auth";
@@ -44,7 +45,12 @@ export default async function FreeSlots({ searchParams }: { searchParams: Promis
           {[...bySlot.entries()].map(([slotId, rooms]) => (
             <section key={slotId} className="card p-5">
               <div className="mb-3 flex items-baseline justify-between gap-3">
-                <h2 className="font-semibold">{rooms[0].slot_label}</h2>
+                <h2 className="inline-flex items-center gap-2 font-semibold">
+                  <span className="rounded-lg bg-brand-900 p-1.5 text-white dark:bg-brand-800">
+                    <IconClock className="h-4 w-4" />
+                  </span>
+                  {rooms[0].slot_label}
+                </h2>
                 <span className="muted text-sm">{rooms.length} free</span>
               </div>
               <ul className="flex flex-wrap gap-2">
@@ -57,7 +63,10 @@ export default async function FreeSlots({ searchParams }: { searchParams: Promis
                         title={r.reason ?? undefined}
                       >
                         <span className="font-medium">{r.room_name}</span>
-                        <span className="text-brand-600 dark:text-brand-400">Request</span>
+                        <span className="inline-flex items-center gap-0.5 text-brand-600 dark:text-brand-400">
+                          <IconPlus className="h-3.5 w-3.5" />
+                          Request
+                        </span>
                       </Link>
                     ) : (
                       <span

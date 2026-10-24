@@ -1,4 +1,5 @@
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
+import { IconBuilding, IconCalendarCheck, IconClock, IconDoor } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
 import StatusBadge from "@/components/StatusBadge";
 import { getDaySchedule, getSlots } from "@/lib/data";
@@ -25,8 +26,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Classroom allotment</h1>
-          <p className="mt-1 text-lg text-brand-700 dark:text-brand-300">
-            {formatDate(date, { weekday: "long" })} · {slot.label} <span className="muted text-sm">IST</span>
+          <p className="mt-1 inline-flex items-center gap-2 text-lg text-brand-700 dark:text-brand-300">
+            <IconClock className="h-5 w-5" />
+            <span>
+              {formatDate(date, { weekday: "long" })} · {slot.label} <span className="muted text-sm">IST</span>
+            </span>
           </p>
         </div>
         <AutoSubmitSelect
@@ -44,15 +48,17 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
           hint={date === todayIST() ? "Room-slots still free for the rest of the day" : `Room-slots free on ${formatDate(date)}`}
           href={`/free?date=${date}`}
           linkText="Explore free slots"
+          tone="navy"
+          icon={<IconCalendarCheck />}
         />
-        <KpiCard label="Free rooms in this slot" value={freeNow} hint={slot.label} />
-        <KpiCard label="Rooms" value={totalRooms} hint={`${totalRooms - freeNow} in use in this slot`} />
+        <KpiCard label="Free rooms in this slot" value={freeNow} hint={slot.label} icon={<IconDoor />} />
+        <KpiCard label="Rooms" value={totalRooms} hint={`${totalRooms - freeNow} in use in this slot`} tone="ink" icon={<IconBuilding />} />
       </section>
 
       <section className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-brand-50 dark:bg-brand-950">
+            <thead className="thead-ink">
               <tr>
                 <th className="th w-28 sm:w-40">Classroom</th>
                 <th className="th">Subject</th>

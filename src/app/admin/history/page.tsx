@@ -50,7 +50,7 @@ export default async function History({ searchParams }: { searchParams: Promise<
       </form>
       <div className="card overflow-x-auto">
         <table className="w-full min-w-[900px]">
-          <thead className="bg-brand-50 dark:bg-brand-950">
+          <thead className="thead-ink">
             <tr>
               <th className="th">Changed at</th>
               <th className="th">Date & slot</th>

@@ -16,6 +16,7 @@
   --color-brand-800: #1e3a8a;
   --color-brand-900: #172554;
   --color-brand-950: #0b1533;
+  --color-ink: #05070d; /* blue-black */
 }
 
 html {
@@ -26,11 +27,11 @@ html.dark {
 }
 
 body {
-  @apply bg-white text-neutral-900 antialiased dark:bg-black dark:text-neutral-100;
+  @apply bg-brand-50/60 text-neutral-900 antialiased dark:bg-black dark:text-neutral-100;
 }
 
 @utility card {
-    @apply rounded-2xl border border-brand-100 bg-white shadow-sm dark:border-brand-900 dark:bg-neutral-950;
+    @apply rounded-2xl border border-brand-100 bg-white shadow-sm shadow-brand-900/5 dark:border-brand-900/70 dark:bg-ink;
   }
 
 @utility btn {
@@ -58,7 +59,7 @@ body {
   }
 
 @utility th {
-    @apply px-3 py-3 text-left text-xs sm:px-4 font-semibold tracking-wide text-brand-800 uppercase dark:text-brand-300;
+    @apply px-3 py-3 text-left text-xs font-semibold tracking-wide text-brand-100 uppercase sm:px-4;
   }
 
 @utility td {
@@ -69,3 +70,7 @@ body {
     @apply text-neutral-500 dark:text-neutral-400;
   }
 
+
+@utility thead-ink {
+  @apply bg-brand-900 dark:bg-brand-950;
+}

@@ -1,4 +1,5 @@
 import Flash from "@/components/Flash";
+import { IconPlus, IconUpload } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import { createClient } from "@/lib/supabase/server";
 import type { Person } from "@/lib/types";
@@ -43,7 +44,9 @@ export default async function People({ searchParams }: { searchParams: Promise<{
         <h2 className="mb-3 font-semibold">Add a person</h2>
         <form action={upsertPerson} className="flex flex-wrap gap-2">
           <PersonFields />
-          <button className="btn-primary">Add</button>
+          <button className="btn-primary">
+            <IconPlus className="h-4 w-4" /> Add
+          </button>
         </form>
       </section>
 
@@ -55,7 +58,9 @@ export default async function People({ searchParams }: { searchParams: Promise<{
         </p>
         <form action={importPeople} className="space-y-3">
           <textarea name="csv" rows={5} className="input font-mono text-xs" placeholder={"akn@bmsce.ac.in, Anil Kumar N, AKN, Dr., faculty\nhod.ml@bmsce.ac.in, Head of Department, , Dr., admin"} />
-          <button className="btn-secondary">Import</button>
+          <button className="btn-secondary">
+            <IconUpload className="h-4 w-4" /> Import
+          </button>
         </form>
       </section>
 

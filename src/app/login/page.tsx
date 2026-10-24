@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Flash from "@/components/Flash";
+import { IconShield, IconUser } from "@/components/Icons";
 import { getPerson } from "@/lib/auth";
 import GoogleButton from "./GoogleButton";
 
@@ -21,6 +22,9 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
     <div className="mx-auto max-w-md">
       <Flash error={sp.error ? (ERRORS[sp.error] ?? sp.error) : undefined} />
       <div className="card p-8">
+        <span className="mb-4 inline-grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-brand-600 to-brand-950 text-white">
+          {as === "admin" ? <IconShield className="h-6 w-6" /> : <IconUser className="h-6 w-6" />}
+        </span>
         <div className="text-sm font-medium tracking-wide text-brand-600 uppercase dark:text-brand-400">
           {as === "admin" ? "Admin login" : "Faculty login"}
         </div>

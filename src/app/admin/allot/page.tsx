@@ -1,22 +1,16 @@
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
+import { IconFlag, IconRestore } from "@/components/Icons";
+import DayGrid from "@/components/DayGrid";
 import Flash from "@/components/Flash";
 import PageHeader from "@/components/PageHeader";
 import { getDaySchedule, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
-import type { AllotmentRow, SlotStatus } from "@/lib/types";
+import type { AllotmentRow } from "@/lib/types";
 import { bookableDates, DATE_RE, formatDate, formatDateTime, isSunday, slotEnded, todayIST, workingDay } from "@/lib/time";
 import { adminOverride, adminRestore } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
-const CELL: Record<SlotStatus, string> = {
-  free: "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300",
-  class: "bg-brand-50 text-brand-800 dark:bg-brand-950 dark:text-brand-200",
-  department: "bg-neutral-100 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400",
-  booked: "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300",
-  cie: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300",
-  event: "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300",
-};
 
 const KIND_LABEL: Record<AllotmentRow["kind"], string> = {
   class_request: "Approved class request",
@@ -39,7 +33,6 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
     supabase.from("allotments").select("*").gte("date", todayIST()).order("id", { ascending: false }).limit(500),
   ]);
   const slotById = new Map(slots.map((s) => [s.id, s]));
-  const cell = new Map(day.map((r) => [`${r.room_id}|${r.slot_id}`, r]));
 
   // Latest change per room and slot, for future slots only
   const latest = new Map<string, AllotmentRow>();
@@ -98,7 +91,9 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
           <input id="reason" name="reason" required minLength={5} className="input" placeholder="Shown on the timetable" />
         </div>
         <div className="flex justify-end sm:col-span-2 lg:col-span-3">
-          <button className="btn-primary">Allot room</button>
+          <button className="btn-primary">
+            <IconFlag className="h-4 w-4" /> Allot room
+          </button>
         </div>
       </form>
 
@@ -107,47 +102,14 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
           <h2 className="text-lg font-semibold">Day at a glance · {formatDate(date, { weekday: "long" })}</h2>
           <AutoSubmitSelect name="date" label="Date" value={date} options={dates.map((d) => ({ value: d, label: formatDate(d) }))} />
         </div>
-        <div className="card overflow-x-auto">
-          <table className="w-full min-w-[1000px] border-separate border-spacing-1 p-2 text-xs">
-            <thead>
-              <tr>
-                <th className="th px-2">Room</th>
-                {slots.map((s) => (
-                  <th key={s.id} className="px-1 py-2 text-center font-medium text-brand-800 dark:text-brand-300">
-                    {s.label.split(" – ")[0]}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rooms.map((r) => (
-                <tr key={r.id}>
-                  <td className="px-2 font-medium whitespace-nowrap">{r.name}</td>
-                  {slots.map((s) => {
-                    const c = cell.get(`${r.id}|${s.id}`);
-                    if (!c) return <td key={s.id} />;
-                    return (
-                      <td
-                        key={s.id}
-                        title={[c.subject, c.faculty_name, c.reason].filter(Boolean).join(" · ") || "Free"}
-                        className={`rounded-md px-1.5 py-1.5 text-center ${CELL[c.status]} ${c.ended ? "opacity-50" : ""}`}
-                      >
-                        <div className="truncate">{c.status === "free" ? "Free" : c.status === "booked" ? c.faculty_name : c.subject}</div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DayGrid rooms={rooms} slots={slots} rows={day} />
       </section>
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">Upcoming changes to the timetable</h2>
         <div className="card overflow-x-auto">
           <table className="w-full min-w-[820px]">
-            <thead className="bg-brand-50 dark:bg-brand-950">
+            <thead className="thead-ink">
               <tr>
                 <th className="th">Date & slot</th>
                 <th className="th">Room</th>
@@ -186,7 +148,9 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
                       <input type="hidden" name="slot" value={a.slot_id} />
                       <input type="hidden" name="back" value={`/admin/allot?date=${date}`} />
                       <input name="reason" placeholder="Why (optional)" className="input w-36 py-1.5" />
-                      <button className="btn-secondary py-1.5">Restore timetable</button>
+                      <button className="btn-secondary py-1.5 whitespace-nowrap">
+                        <IconRestore className="h-4 w-4" /> Restore
+                      </button>
                     </form>
                   </td>
                 </tr>
