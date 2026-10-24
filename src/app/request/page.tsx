@@ -1,0 +1,50 @@
+import Link from "next/link";
+import PageHeader from "@/components/PageHeader";
+import { displayName, requireStaff } from "@/lib/auth";
+import { getDaySchedule } from "@/lib/data";
+import { DATE_RE, formatDate } from "@/lib/time";
+import RequestForm from "./RequestForm";
+
+export const dynamic = "force-dynamic";
+
+export default async function RequestPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ room?: string; date?: string; slot?: string }>;
+}) {
+  const sp = await searchParams;
+  const person = await requireStaff();
+  const date = sp.date && DATE_RE.test(sp.date) ? sp.date : "";
+  const row = date ? (await getDaySchedule(date)).find((r) => r.room_id === sp.room && String(r.slot_id) === sp.slot) : undefined;
+
+  if (!row || row.status !== "free" || row.ended) {
+    return (
+      <div className="card mx-auto max-w-lg p-8 text-center">
+        <h1 className="text-xl font-semibold">This slot is not free</h1>
+        <p className="muted mt-2 text-sm">Only free slots can be requested. Pick another one from the list.</p>
+        <Link href={`/free${date ? `?date=${date}` : ""}`} className="btn-primary mt-6">
+          See free slots
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl">
+      <PageHeader title="Request a room" subtitle={`Requesting as ${displayName(person)} (${person.email})`} />
+      <div className="card mb-6 grid grid-cols-3 divide-x divide-brand-100 dark:divide-brand-900">
+        {[
+          ["Room", row.room_name],
+          ["Date", formatDate(date)],
+          ["Slot", row.slot_label],
+        ].map(([k, v]) => (
+          <div key={k} className="p-4">
+            <div className="muted text-xs uppercase">{k}</div>
+            <div className="mt-0.5 font-medium">{v}</div>
+          </div>
+        ))}
+      </div>
+      <RequestForm room={row.room_id} date={date} slot={row.slot_id} email={person.email} />
+    </div>
+  );
+}

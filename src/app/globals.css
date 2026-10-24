@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: var(--font-rubik), ui-sans-serif, system-ui, sans-serif;
+  /* Brand blues */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #1d4ed8;
+  --color-brand-700: #1e40af;
+  --color-brand-800: #1e3a8a;
+  --color-brand-900: #172554;
+  --color-brand-950: #0b1533;
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-white text-neutral-900 antialiased dark:bg-black dark:text-neutral-100;
+}
+
+@utility card {
+    @apply rounded-2xl border border-brand-100 bg-white shadow-sm dark:border-brand-900 dark:bg-neutral-950;
+  }
+
+@utility btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+@utility btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700 dark:bg-brand-500 dark:text-black dark:hover:bg-brand-400;
+  }
+
+@utility btn-secondary {
+    @apply btn border border-brand-200 text-brand-700 hover:bg-brand-50 dark:border-brand-800 dark:text-brand-300 dark:hover:bg-brand-950;
+  }
+
+@utility btn-danger {
+    @apply btn border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950;
+  }
+
+@utility input {
+    @apply w-full rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 dark:border-brand-800 dark:bg-black dark:text-neutral-100;
+  }
+
+@utility label {
+    @apply mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300;
+  }
+
+@utility th {
+    @apply px-3 py-3 text-left text-xs sm:px-4 font-semibold tracking-wide text-brand-800 uppercase dark:text-brand-300;
+  }
+
+@utility td {
+    @apply px-3 py-3 align-top text-sm sm:px-4;
+  }
+
+@utility muted {
+    @apply text-neutral-500 dark:text-neutral-400;
+  }
+

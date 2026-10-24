@@ -1,0 +1,20 @@
+# Supabase pauses free projects after 7 days without traffic (e.g. during holidays).
+# This pings the database every 3 days. Add SUPABASE_URL and SUPABASE_ANON_KEY as
+# repository secrets (Settings → Secrets and variables → Actions).
+name: Keep Supabase awake
+
+on:
+  schedule:
+    - cron: "0 3 */3 * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query the rooms table
+        run: |
+          curl --fail --silent --show-error \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/rooms?select=id&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
