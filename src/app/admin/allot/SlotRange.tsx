@@ -4,9 +4,19 @@ import { useState } from "react";
 import type { Slot } from "@/lib/types";
 
 /** Start and end time pickers; the end moves along so it never comes before the start. */
-export default function SlotRange({ slots, idPrefix = "" }: { slots: Slot[]; idPrefix?: string }) {
-  const [from, setFrom] = useState(0);
-  const [to, setTo] = useState(0);
+export default function SlotRange({
+  slots,
+  idPrefix = "",
+  initialFrom = 0,
+  initialTo = 0,
+}: {
+  slots: Slot[];
+  idPrefix?: string;
+  initialFrom?: number;
+  initialTo?: number;
+}) {
+  const [from, setFrom] = useState(initialFrom);
+  const [to, setTo] = useState(initialTo);
   return (
     <div className="grid grid-cols-2 gap-3">
       <div>

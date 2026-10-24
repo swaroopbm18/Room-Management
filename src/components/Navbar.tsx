@@ -14,7 +14,7 @@ export default async function Navbar() {
     ...(person?.role === "admin" ? [{ href: "/admin", label: "Admin", icon: <IconShield className="h-4 w-4" /> }] : []),
   ];
   return (
-    <header className="sticky top-0 z-30 bg-gradient-to-r from-ink via-brand-950 to-brand-800 text-white shadow-lg shadow-brand-950/20 dark:border-b dark:border-brand-900/60 dark:from-black dark:via-black dark:to-brand-950">
+    <header className="sticky top-0 z-30 print:hidden bg-gradient-to-r from-ink via-brand-950 to-brand-800 text-white shadow-lg shadow-brand-950/20 dark:border-b dark:border-brand-900/60 dark:from-black dark:via-black dark:to-brand-950">
       <nav className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
         <Link href="/" className="mr-2 flex items-center gap-2.5 font-semibold tracking-tight">
           <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-brand-400 to-brand-700 text-white shadow-inner">

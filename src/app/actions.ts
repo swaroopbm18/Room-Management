@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSlots } from "@/lib/data";
+import { formatDate } from "@/lib/time";
 import { createClient } from "@/lib/supabase/server";
 
 function back(form: FormData, fallback: string) {
@@ -105,6 +106,25 @@ export async function adminRestore(form: FormData) {
     "admin_restore",
     { p_room: s(form, "room"), p_date: s(form, "date"), p_slot: Number(s(form, "slot")), p_reason: s(form, "reason") },
     "Slot restored to the timetable.",
+  );
+}
+
+export async function adminEditTimetable(form: FormData) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_edit_timetable", {
+    p_room: s(form, "room"),
+    p_weekday: Number(s(form, "weekday")),
+    p_slots: await slotRange(form),
+    p_subject: s(form, "subject"),
+    p_initials: s(form, "initials").split(/[,\s]+/).filter(Boolean),
+    p_is_department: form.get("department") === "on",
+  });
+  revalidatePath("/", "layout");
+  const to = back(form, "/admin/timetable");
+  redirect(
+    error
+      ? withParam(to, "error", error.message)
+      : withParam(to, "msg", `Timetable changed. It takes effect from ${formatDate(String(data), { weekday: "long" })}; earlier days keep the old timetable.`),
   );
 }
 
