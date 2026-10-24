@@ -9,22 +9,42 @@ import { importPeople, upsertPerson } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
-function PersonFields({ p }: { p?: Person }) {
+/** Pass `role` to fix the role (the add forms); otherwise it can be changed. */
+function PersonFields({ p, role }: { p?: Person; role?: Person["role"] }) {
   return (
     <>
       <input name="email" type="email" required defaultValue={p?.email} readOnly={!!p} placeholder="name@bmsce.ac.in" pattern=".+@bmsce\.ac\.in" className="input w-auto min-w-52 flex-[2] read-only:opacity-70" />
       <input name="full_name" required defaultValue={p?.full_name} placeholder="Full name" className="input w-auto min-w-40 flex-[2]" />
       <input name="title" defaultValue={p?.title ?? ""} placeholder="Prof. / Dr." className="input w-24 shrink-0" />
       <input name="initials" defaultValue={p?.initials ?? ""} placeholder="Initials (AKN)" className="input w-32 shrink-0" />
-      <select name="role" defaultValue={p?.role ?? "faculty"} className="input w-28 shrink-0">
-        <option value="faculty">Faculty</option>
-        <option value="admin">Admin</option>
-      </select>
+      {role ? (
+        <input type="hidden" name="role" value={role} />
+      ) : (
+        <select name="role" defaultValue={p?.role ?? "faculty"} className="input w-28 shrink-0">
+          <option value="faculty">Faculty</option>
+          <option value="admin">Admin</option>
+        </select>
+      )}
       <select name="active" defaultValue={p ? String(p.active) : "true"} className="input w-28 shrink-0">
         <option value="true">Active</option>
         <option value="false">No access</option>
       </select>
     </>
+  );
+}
+
+function AddPerson({ role }: { role: Person["role"] }) {
+  const label = role === "admin" ? "admin" : "faculty";
+  return (
+    <section className="card p-5">
+      <h2 className="mb-3 font-semibold">Add {label}</h2>
+      <form action={upsertPerson} className="flex flex-wrap gap-2">
+        <PersonFields role={role} />
+        <SubmitButton pendingText="Adding…" message={`Adding the ${label}…`}>
+          <IconPlus className="h-4 w-4" /> Add {label}
+        </SubmitButton>
+      </form>
+    </section>
   );
 }
 
@@ -81,17 +101,10 @@ export default async function People({ searchParams }: { searchParams: Promise<{
       <Flash msg={sp.msg} error={sp.error} />
 
       <PeopleList title="Admins" people={people.filter((p) => p.role === "admin")} empty="No admins yet." />
-      <PeopleList title="Faculty" people={people.filter((p) => p.role === "faculty")} empty="No faculty yet. Add them below." />
+      <AddPerson role="admin" />
 
-      <section className="card p-5">
-        <h2 className="mb-3 font-semibold">Add more people</h2>
-        <form action={upsertPerson} className="flex flex-wrap gap-2">
-          <PersonFields />
-          <SubmitButton pendingText="Adding…" message="Adding the person…">
-            <IconPlus className="h-4 w-4" /> Add
-          </SubmitButton>
-        </form>
-      </section>
+      <PeopleList title="Faculty" people={people.filter((p) => p.role === "faculty")} empty="No faculty yet." />
+      <AddPerson role="faculty" />
 
       <section className="card p-5">
         <h2 className="font-semibold">Import a list</h2>
