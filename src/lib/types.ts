@@ -65,6 +65,9 @@ export type AllotmentRow = {
   created_at: string;
 };
 
+/** A slot booked for an event, CIE or approved request, as listed on the home page. */
+export type UpcomingRow = Pick<AllotmentRow, "date" | "room_id" | "slot_id" | "kind" | "title" | "faculty_name" | "reason">;
+
 /** All slots of one (possibly multi-slot) request. */
 export type RequestGroup = {
   group_id: string;
