@@ -4,7 +4,7 @@ import DayGrid from "@/components/DayGrid";
 import PageHeader from "@/components/PageHeader";
 import { getPerson } from "@/lib/auth";
 import { getDaySchedule, getHolidays, getRooms, getSlots } from "@/lib/data";
-import { bookableDates, DATE_RE, formatDate, isSunday, nextWorkingDay, todayIST, workingDay } from "@/lib/time";
+import { bookableDates, DATE_RE, dateOption, formatDate, isSunday, nextWorkingDay, todayIST, workingDay } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,7 @@ export const metadata = {
 export default async function FreeSlots({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const sp = await searchParams;
   const holidays = await getHolidays();
-  const dates = bookableDates(holidays);
+  const dates = bookableDates();
   const today = todayIST();
   if (!sp.date && (isSunday(today) || holidays.has(today))) {
     const next = nextWorkingDay(today, holidays);
@@ -28,10 +28,10 @@ export default async function FreeSlots({ searchParams }: { searchParams: Promis
       </div>
     );
   }
-  // A holiday has nothing to show or book, so it falls back to the next working day.
-  const date = sp.date && DATE_RE.test(sp.date) && !isSunday(sp.date) && !holidays.has(sp.date) ? sp.date : workingDay(today, holidays);
+  const date = sp.date && DATE_RE.test(sp.date) && !isSunday(sp.date) ? sp.date : workingDay(today, holidays);
+  const holiday = holidays.get(date);
   const [person, rooms, slots, day] = await Promise.all([getPerson(), getRooms(), getSlots(), getDaySchedule(date)]);
-  const canRequest = !!person && dates.includes(date);
+  const canRequest = !!person && dates.includes(date) && !holiday;
   const free = day.filter((r) => r.status === "free" && !r.ended).length;
 
   return (
@@ -40,12 +40,14 @@ export default async function FreeSlots({ searchParams }: { searchParams: Promis
         title="Free slots"
         subtitle={
           <>
-            {free} free room-slots on {formatDate(date, { weekday: "long" })}
-            {canRequest
-              ? " · Click a free cell to request it; you can add the following slots on the next page"
-              : !person
-                ? " · Faculty can sign in to request a room"
-                : ""}
+            {holiday ? `Holiday on ${formatDate(date, { weekday: "long" })}` : `${free} free room-slots on ${formatDate(date, { weekday: "long" })}`}
+            {holiday
+              ? ""
+              : canRequest
+                ? " · Click a free cell to request it; you can add the following slots on the next page"
+                : !person
+                  ? " · Faculty can sign in to request a room"
+                  : ""}
           </>
         }
       >
@@ -53,10 +55,14 @@ export default async function FreeSlots({ searchParams }: { searchParams: Promis
           name="date"
           label="Date"
           value={date}
-          options={(dates.includes(date) ? dates : [date, ...dates]).map((d) => ({ value: d, label: formatDate(d) }))}
+          options={(dates.includes(date) ? dates : [date, ...dates]).map((d) => ({ value: d, label: dateOption(d, holidays) }))}
         />
       </PageHeader>
-      <DayGrid rooms={rooms} slots={slots} rows={day} requestDate={canRequest ? date : undefined} />
+      {holiday ? (
+        <ClosedDay date={date} holiday={holiday} nextDate={nextWorkingDay(date, holidays)} nextHref={`/free?date=${nextWorkingDay(date, holidays)}`} />
+      ) : (
+        <DayGrid rooms={rooms} slots={slots} rows={day} requestDate={canRequest ? date : undefined} />
+      )}
     </div>
   );
 }

@@ -11,6 +11,8 @@ export type GridRow = {
   cells: Map<number, ScheduleRow>;
   /** When set, free cells that haven't ended link to the request form for this date. */
   requestDate?: string;
+  /** Shown across the whole row instead of cells, e.g. for a holiday. */
+  note?: string;
 };
 
 /**
@@ -75,7 +77,12 @@ export function ScheduleGrid({ corner, slots, rows, hint }: { corner: string; sl
                 <th className="sticky left-0 z-10 rounded-lg bg-brand-100 px-3 py-2 text-left font-semibold whitespace-nowrap text-brand-950 dark:bg-brand-950 dark:text-brand-100">
                   {r.label}
                 </th>
-                {slots.map((s) => {
+                {r.note && (
+                  <td colSpan={slots.length} className="h-20 rounded-lg border border-dashed border-amber-300 bg-amber-50 px-4 text-sm font-medium text-amber-900 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                    {r.note}
+                  </td>
+                )}
+                {!r.note && slots.map((s) => {
                   const c = r.cells.get(s.id);
                   if (!c) return <td key={s.id} />;
                   const who = c.status === "department" ? `${c.subject} department` : c.faculty_name;

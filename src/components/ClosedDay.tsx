@@ -11,7 +11,12 @@ export default function ClosedDay({ date, holiday, nextHref, nextDate }: { date:
       </span>
       <div>
         <h2 className="text-xl font-semibold">{holiday ? `Holiday: ${holiday}` : "It's Sunday"}</h2>
-        <p className="muted mt-1">No classes on {formatDate(date, { weekday: "long" })}. All rooms follow the regular timetable again on the next working day.</p>
+        <p className="muted mt-1">
+          {holiday
+            ? `No classes on ${formatDate(date, { weekday: "long" })}, and no room can be booked on a holiday.`
+            : `No classes on ${formatDate(date, { weekday: "long" })}.`}{" "}
+          All rooms follow the regular timetable again on the next working day.
+        </p>
       </div>
       {nextHref && nextDate && (
         <PendingLink href={nextHref} className="btn-primary">

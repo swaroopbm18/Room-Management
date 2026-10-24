@@ -1,13 +1,14 @@
 import SubmitButton from "@/components/SubmitButton";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { IconFlag, IconMinusCircle, IconRestore } from "@/components/Icons";
+import ClosedDay from "@/components/ClosedDay";
 import DayGrid from "@/components/DayGrid";
 import Flash from "@/components/Flash";
 import PageHeader from "@/components/PageHeader";
 import { getDaySchedule, getHolidays, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { AllotmentRow } from "@/lib/types";
-import { bookableDates, DATE_RE, formatDate, formatDateTime, isSunday, slotEnded, todayIST, workingDay } from "@/lib/time";
+import { bookableDates, DATE_RE, dateOption, formatDate, formatDateTime, isSunday, slotEnded, todayIST, workingDay } from "@/lib/time";
 import { adminFree, adminOverride, adminRestore } from "../../actions";
 import SlotRange from "./SlotRange";
 
@@ -26,9 +27,10 @@ const KIND_LABEL: Record<AllotmentRow["kind"], string> = {
 export default async function Allot({ searchParams }: { searchParams: Promise<{ date?: string; msg?: string; error?: string }> }) {
   const sp = await searchParams;
   const holidays = await getHolidays();
-  const dates = bookableDates(holidays);
-  // Holidays can't be picked, so a holiday in the address falls back to the next working day.
-  const date = sp.date && DATE_RE.test(sp.date) && !isSunday(sp.date) && !holidays.has(sp.date) ? sp.date : workingDay(todayIST(), holidays);
+  const dates = bookableDates();
+  const date = sp.date && DATE_RE.test(sp.date) && !isSunday(sp.date) ? sp.date : workingDay(todayIST(), holidays);
+  // Holidays are listed in the forms but can't be picked, so the forms start on a working day.
+  const formDate = workingDay(date, holidays);
   const supabase = await createClient();
   const [rooms, slots, day, { data: changes }] = await Promise.all([
     getRooms(),
@@ -57,9 +59,9 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
         <input type="hidden" name="back" value={`/admin/allot?date=${date}`} />
         <div>
           <label className="label" htmlFor="date">Date</label>
-          <select id="date" name="date" defaultValue={date} className="input">
+          <select id="date" name="date" defaultValue={formDate} className="input">
             {dates.map((d) => (
-              <option key={d} value={d}>{formatDate(d)}</option>
+              <option key={d} value={d} disabled={holidays.has(d)}>{dateOption(d, holidays)}</option>
             ))}
           </select>
         </div>
@@ -104,9 +106,9 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
           <input type="hidden" name="back" value={`/admin/allot?date=${date}`} />
           <div>
             <label className="label" htmlFor="free-date">Date</label>
-            <select id="free-date" name="date" defaultValue={date} className="input">
+            <select id="free-date" name="date" defaultValue={formDate} className="input">
               {dates.map((d) => (
-                <option key={d} value={d}>{formatDate(d)}</option>
+                <option key={d} value={d} disabled={holidays.has(d)}>{dateOption(d, holidays)}</option>
               ))}
             </select>
           </div>
@@ -134,9 +136,9 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
       <section>
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <h2 className="text-lg font-semibold">Day at a glance · {formatDate(date, { weekday: "long" })}</h2>
-          <AutoSubmitSelect name="date" label="Date" value={date} options={dates.map((d) => ({ value: d, label: formatDate(d) }))} />
+          <AutoSubmitSelect name="date" label="Date" value={date} options={dates.map((d) => ({ value: d, label: dateOption(d, holidays) }))} />
         </div>
-        <DayGrid rooms={rooms} slots={slots} rows={day} />
+        {holidays.has(date) ? <ClosedDay date={date} holiday={holidays.get(date)} /> : <DayGrid rooms={rooms} slots={slots} rows={day} />}
       </section>
 
       <section>
