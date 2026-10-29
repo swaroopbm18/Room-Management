@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
-import { ScheduleGrid, type GridRow } from "@/components/DayGrid";
+import { pendingBySlot, ScheduleGrid, type GridRow } from "@/components/DayGrid";
 import { IconCalendar, IconCalendarCheck, IconDoor } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
 import { getPerson } from "@/lib/auth";
-import { getDaySchedule, getHolidays, getRooms, getSlots } from "@/lib/data";
+import { getDaySchedule, getHolidays, getRooms, getSlots, getSlotRequests } from "@/lib/data";
 import { addDays, bookableDates, DATE_RE, formatDate, mondayOf, todayIST } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -27,12 +27,13 @@ export default async function RoomWeek({ params, searchParams }: { params: Promi
   const monday = mondayOf(sp.week && DATE_RE.test(sp.week) ? sp.week : today);
   const days = Array.from({ length: 6 }, (_, i) => addDays(monday, i));
 
-  const [person, rooms, slots, holidays, schedules] = await Promise.all([
+  const [person, rooms, slots, holidays, schedules, requests] = await Promise.all([
     getPerson(),
     getRooms(),
     getSlots(),
     getHolidays(),
     Promise.all(days.map((d) => getDaySchedule(d))),
+    getSlotRequests(roomId, days[0], days[5]),
   ]);
   const room = rooms.find((r) => r.id === roomId);
   if (!room) notFound();
@@ -58,6 +59,8 @@ export default async function RoomWeek({ params, searchParams }: { params: Promi
         </>
       ),
       cells: new Map(perDay[i].map((r) => [r.slot_id, r])),
+      date: d,
+      pending: requests ? pendingBySlot(requests.filter((r) => r.date === d)) : undefined,
       note: holidays.has(d) ? `Holiday: ${holidays.get(d)} · No classes, and the room can't be booked` : undefined,
       requestDate: bookable.has(d) ? d : undefined,
     };
@@ -69,7 +72,7 @@ export default async function RoomWeek({ params, searchParams }: { params: Promi
     <div className="space-y-6">
       <PageHeader
         title={`Room ${room.name}`}
-        subtitle={`Week of ${formatDate(days[0], { weekday: undefined })} to ${formatDate(days[5], { weekday: undefined })}${person ? " · Click a free cell to request it" : ""}`}
+        subtitle={`Week of ${formatDate(days[0], { weekday: undefined })} to ${formatDate(days[5], { weekday: undefined })} · Click a slot to see who has requested it${person ? " or to request it yourself" : ""}`}
       >
         <AutoSubmitSelect name="room" label="Room" value={roomId} pathTemplate="/room/{}" keep={{ week: monday }} options={rooms.map((r) => ({ value: r.id, label: r.name }))} />
         <div className="flex items-center gap-1">

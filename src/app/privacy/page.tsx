@@ -16,8 +16,8 @@ const SECTIONS = [
     icon: IconLock,
     title: "Roles and what each can see",
     points: [
-      "Student: no sign-in. Can see each room's timetable, which subject and faculty member is in each slot, upcoming events, and the free slots. Students cannot see requests, descriptions or approval letters.",
-      "Faculty: signs in with a @bmsce.ac.in Google account and must be on the department's list. Can request free rooms for one of their allotted subjects or for an event, and can withdraw their own pending requests or drop one of their own classes. Faculty see only their own requests and letters, never another faculty member's.",
+      "Student: no sign-in. Can see each room's timetable, which subject and faculty member is in each slot, upcoming events, and the free slots. Clicking a slot shows the requests for it: who asked, whether for a class or an event, the subject and description, and whether it is pending, approved or rejected. Students cannot see email addresses, approval letters or the admin's notes.",
+      "Faculty: signs in with a @bmsce.ac.in Google account and must be on the department's list. Can request free rooms for one of their allotted subjects or for an event, and can withdraw their own pending requests or drop one of their own classes. Like everyone, they see the requests for each slot, but only their own approval letters, never another faculty member's.",
       "Admin (HOD and Time Table Officers): everything faculty can do. Admins also approve or reject requests, read their descriptions and approval letters, allot rooms for CIEs and events, and edit the timetable and holidays. They manage the faculty list and subjects, and see the full history and reports.",
       "No role, admins included, can change or delete past allotments.",
     ],
