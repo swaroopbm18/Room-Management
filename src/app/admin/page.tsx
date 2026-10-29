@@ -1,6 +1,6 @@
 import SubmitButton from "@/components/SubmitButton";
 import Flash from "@/components/Flash";
-import { IconCalendarCheck, IconCheck, IconChevronDown, IconChevronUp, IconFile, IconInbox, IconUsers, IconX } from "@/components/Icons";
+import { IconAlert, IconCalendarCheck, IconCheck, IconChevronDown, IconChevronUp, IconFile, IconInbox, IconUsers, IconX } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
 import RequestStatus from "@/components/RequestStatus";
@@ -163,6 +163,13 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
                                   >
                                     <IconFile className="h-3.5 w-3.5" /> Approval letter (PDF)
                                   </a>
+                                </div>
+                              )}
+                              {r.type === "event" && !r.pdf_path && (
+                                <div>
+                                  <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-red-700 ring-1 ring-red-200 ring-inset dark:bg-red-950 dark:text-red-300 dark:ring-red-900">
+                                    <IconAlert className="h-3.5 w-3.5" /> No permission letter
+                                  </span>
                                 </div>
                               )}
                             </td>

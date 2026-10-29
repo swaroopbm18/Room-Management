@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { IconClock, IconInbox, IconPlus } from "@/components/Icons";
+import Flash from "@/components/Flash";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
+import RenameBooking from "@/components/RenameBooking";
 import RequestStatus from "@/components/RequestStatus";
 import StatusBadge from "@/components/StatusBadge";
 import { getPerson } from "@/lib/auth";
@@ -17,7 +19,7 @@ export const metadata = {
 };
 
 /** One room, one date, one slot: what's on, and every request for it. Open to everyone. */
-export default async function SlotPage({ searchParams }: { searchParams: Promise<{ room?: string; date?: string; slot?: string }> }) {
+export default async function SlotPage({ searchParams }: { searchParams: Promise<{ room?: string; date?: string; slot?: string; msg?: string; error?: string }> }) {
   const sp = await searchParams;
   if (!sp.room || !sp.date || !DATE_RE.test(sp.date) || !sp.slot) notFound();
   const date = sp.date;
@@ -72,6 +74,8 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
         </PendingLink>
       </PageHeader>
 
+      <Flash msg={sp.msg} error={sp.error} />
+
       <section className="card flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5">
         <div className="min-w-0">
           <div className="muted text-xs uppercase">In this slot</div>
@@ -86,6 +90,17 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
           )}
           {row.reason && <div className="muted mt-1 text-sm">{row.reason}</div>}
           {row.ended && <div className="muted mt-1 text-sm">This slot has ended.</div>}
+          {person?.role === "admin" && !row.ended && !holiday && (row.status === "booked" || row.status === "cie" || row.status === "event") && (
+            <div className="mt-2">
+              <RenameBooking
+                room={row.room_id}
+                date={date}
+                slot={row.slot_id}
+                title={row.subject ?? ""}
+                back={`/slot?room=${encodeURIComponent(row.room_id)}&date=${date}&slot=${row.slot_id}`}
+              />
+            </div>
+          )}
         </div>
         {canRequest &&
           (person ? (
