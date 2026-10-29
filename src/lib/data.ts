@@ -45,6 +45,23 @@ export async function getSlotRequests(room: string | null, from: string, to: str
   return error ? null : ((data ?? []) as PublicRequest[]);
 }
 
+export type FacultySlotStatus = {
+  initials: string;
+  name: string;
+  cluster: "A" | "B" | null;
+  slot_id: number;
+  busy: boolean;
+  activity: string | null;
+  room_id: string | null;
+};
+
+/** Every faculty member, free or busy, in every slot of a date. Null before migration 0016 is run. */
+export async function getFacultyStatus(date: string): Promise<FacultySlotStatus[] | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("faculty_status", { p_date: date });
+  return error ? null : ((data ?? []) as FacultySlotStatus[]);
+}
+
 export type Holiday = { date: string; name: string };
 
 /** Holidays from a week ago on (small list, read fresh so new holidays show at once). */

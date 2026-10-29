@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { displayName } from "@/lib/auth";
 import type { Person } from "@/lib/types";
 import { importPeople, upsertPerson } from "../../actions";
+import FacultyNames, { type DirectoryEntry } from "./FacultyNames";
 
 export const dynamic = "force-dynamic";
 
@@ -119,9 +120,11 @@ export default async function People({ searchParams }: { searchParams: Promise<{
   ]);
   const people = (data ?? []) as Person[];
   // Every initial used in the current timetable, named from the faculty directory
-  const names = new Map(((dirRes.data ?? []) as { initials: string; title: string; full_name: string }[]).map((d) => [d.initials, `${d.title} ${d.full_name}`.trim()]));
+  const directory = (dirRes.data ?? []) as DirectoryEntry[];
+  const names = new Map(directory.filter((d) => d.full_name.trim()).map((d) => [d.initials, `${d.title} ${d.full_name}`.trim()]));
+  const inTimetable = new Set(((ttRes.data ?? []) as { initials: string }[]).map((t) => t.initials));
   const owner = new Map(people.filter((p) => p.initials).map((p) => [p.initials!, p.email]));
-  const used = new Set([...((ttRes.data ?? []) as { initials: string }[]).map((t) => t.initials), ...names.keys()]);
+  const used = new Set([...inTimetable, ...directory.map((d) => d.initials)]);
   const choices: InitialsChoice[] = [...used]
     .sort()
     .map((ini) => ({ initials: ini, name: names.get(ini) ?? "Not in the faculty directory", takenBy: owner.get(ini) }));
@@ -139,6 +142,8 @@ export default async function People({ searchParams }: { searchParams: Promise<{
 
       <PeopleList title="Faculty" people={people.filter((p) => p.role === "faculty")} empty="No faculty yet." choices={choices} />
       <AddPerson role="faculty" choices={choices} />
+
+      <FacultyNames directory={directory} inTimetable={inTimetable} owner={owner} />
 
       <section className="card p-5">
         <h2 className="font-semibold">Import a list</h2>

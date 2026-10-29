@@ -44,7 +44,7 @@ export default async function EditTimetable({ searchParams }: { searchParams: Pr
   const slotById = new Map(slots.map((s) => [s.id, s]));
   const names = new Map<string, string>();
   for (const p of [...(dirRes.data ?? []), ...(peopleRes.data ?? [])] as { initials: string; title: string | null; full_name: string }[]) {
-    names.set(p.initials, `${p.title ? p.title + " " : ""}${p.full_name}`);
+    if (p.full_name.trim()) names.set(p.initials, `${p.title ? p.title + " " : ""}${p.full_name}`);
   }
 
   const byCell = new Map(entries.map((e) => [`${e.room_id}|${e.slot_id}`, e]));
