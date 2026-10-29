@@ -3,7 +3,7 @@ import ClosedDay from "@/components/ClosedDay";
 import DayGrid from "@/components/DayGrid";
 import PageHeader from "@/components/PageHeader";
 import { getPerson } from "@/lib/auth";
-import { getDaySchedule, getHolidays, getRooms, getSlots } from "@/lib/data";
+import { getDaySchedule, getHolidays, getRooms, getSlots, getSlotRequests } from "@/lib/data";
 import { bookableDates, DATE_RE, dateOption, formatDate, isSunday, nextWorkingDay, todayIST, workingDay } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ export default async function FreeSlots({ searchParams }: { searchParams: Promis
   }
   const date = sp.date && DATE_RE.test(sp.date) && !isSunday(sp.date) ? sp.date : workingDay(today, holidays);
   const holiday = holidays.get(date);
-  const [person, rooms, slots, day] = await Promise.all([getPerson(), getRooms(), getSlots(), getDaySchedule(date)]);
+  const [person, rooms, slots, day, requests] = await Promise.all([getPerson(), getRooms(), getSlots(), getDaySchedule(date), getSlotRequests(null, date, date)]);
   const canRequest = !!person && dates.includes(date) && !holiday;
   const free = day.filter((r) => r.status === "free" && !r.ended).length;
 
@@ -46,8 +46,8 @@ export default async function FreeSlots({ searchParams }: { searchParams: Promis
               : canRequest
                 ? " · Click a free cell to request it; you can add the following slots on the next page"
                 : !person
-                  ? " · Faculty can sign in to request a room"
-                  : ""}
+                  ? " · Click a slot to see its requests; faculty can sign in to request a room"
+                  : " · Click a slot to see its requests"}
           </>
         }
       >
@@ -61,7 +61,7 @@ export default async function FreeSlots({ searchParams }: { searchParams: Promis
       {holiday ? (
         <ClosedDay date={date} holiday={holiday} nextDate={nextWorkingDay(date, holidays)} nextHref={`/free?date=${nextWorkingDay(date, holidays)}`} />
       ) : (
-        <DayGrid rooms={rooms} slots={slots} rows={day} requestDate={canRequest ? date : undefined} />
+        <DayGrid rooms={rooms} slots={slots} rows={day} date={date} requestDate={canRequest ? date : undefined} requests={requests} />
       )}
     </div>
   );

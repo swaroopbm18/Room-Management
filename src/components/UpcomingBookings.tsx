@@ -1,6 +1,7 @@
 import { IconFlag } from "./Icons";
 import PendingLink from "./PendingLink";
 import StatusBadge from "./StatusBadge";
+import { STATUS_LABEL } from "@/lib/status";
 import { formatDate, mondayOf, todayIST } from "@/lib/time";
 import type { Slot, SlotStatus, UpcomingRow } from "@/lib/types";
 
@@ -25,31 +26,42 @@ export default function UpcomingBookings({ rows, slots, days }: { rows: Upcoming
   groups.sort((a, b) => a.date.localeCompare(b.date) || pos.get(a.first.id)! - pos.get(b.first.id)! || a.room_id.localeCompare(b.room_id));
   const today = todayIST();
 
-  const item = (g: Group) => (
-    <li key={`${g.date}|${g.room_id}|${g.first.id}`}>
-      <PendingLink
-        href={`/room/${encodeURIComponent(g.room_id)}?week=${mondayOf(g.date)}`}
-        className="grid grid-cols-[6.5rem_1fr] gap-x-4 gap-y-1 px-4 py-3 hover:bg-brand-50 sm:grid-cols-[8rem_10rem_7rem_1fr] dark:hover:bg-brand-950"
-      >
-        <span className="text-sm font-medium">
-          {g.date === today ? "Today" : formatDate(g.date, { year: undefined })}
-        </span>
-        <span className="text-sm whitespace-nowrap">
-          {g.first.label.split(" – ")[0]} – {g.last.label.split(" – ")[1]}
-        </span>
-        <span className="text-sm font-semibold">{g.room_id}</span>
-        <span className="min-w-0">
-          <span className="flex flex-wrap items-center gap-2">
-            <StatusBadge status={STATUS[g.kind]} />
-            <span className="font-medium">{g.title || (g.kind === "cie" ? "CIE" : "Event")}</span>
-          </span>
+  // Each booking is a KPI-style card: events navy, CIEs ink, approved bookings light.
+  const TONE: Record<string, string> = {
+    event: "bg-gradient-to-br from-brand-700 via-brand-800 to-brand-950 text-white shadow-lg shadow-brand-900/20",
+    event_request: "bg-gradient-to-br from-brand-700 via-brand-800 to-brand-950 text-white shadow-lg shadow-brand-900/20",
+    cie: "bg-gradient-to-br from-ink via-brand-950 to-brand-900 text-white shadow-lg shadow-black/20 dark:border dark:border-brand-900",
+    class_request: "border border-brand-100 bg-white shadow-sm dark:border-brand-900 dark:bg-brand-950/40",
+  };
+  const item = (g: Group) => {
+    const dark = g.kind !== "class_request";
+    const sub = dark ? "text-brand-200" : "text-brand-700 dark:text-brand-300";
+    return (
+      <li key={`${g.date}|${g.room_id}|${g.first.id}`}>
+        <PendingLink
+          href={`/room/${encodeURIComponent(g.room_id)}?week=${mondayOf(g.date)}`}
+          className={`flex h-full flex-col rounded-2xl p-3 transition sm:p-4 hover:-translate-y-0.5 hover:ring-2 hover:ring-brand-400 ${TONE[g.kind]}`}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <span className={`text-xs font-medium sm:text-sm ${sub}`}>{g.date === today ? "Today" : formatDate(g.date, { year: undefined })}</span>
+            {dark ? (
+              <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-medium text-white ring-1 ring-white/25 ring-inset">{STATUS_LABEL[STATUS[g.kind]]}</span>
+            ) : (
+              <StatusBadge status={STATUS[g.kind]} />
+            )}
+          </div>
+          <div className="mt-2 line-clamp-2 text-base leading-snug sm:text-lg font-semibold tracking-tight">{g.title || (g.kind === "cie" ? "CIE" : "Event")}</div>
+          <div className={`mt-auto pt-3 text-xs sm:text-sm ${sub}`}>
+            <span className="font-semibold">{g.room_id}</span> · {g.first.label.split(" – ")[0]} – {g.last.label.split(" – ")[1]}
+          </div>
           {(g.faculty_name || g.reason) && (
-            <span className="muted mt-0.5 block truncate text-xs">{[g.faculty_name, g.reason].filter(Boolean).join(" · ")}</span>
+            <div className={`mt-0.5 truncate text-xs ${dark ? "text-brand-200/80" : "muted"}`}>{[g.faculty_name, g.reason].filter(Boolean).join(" · ")}</div>
           )}
-        </span>
-      </PendingLink>
-    </li>
-  );
+        </PendingLink>
+      </li>
+    );
+  };
+  const grid = "grid grid-cols-2 gap-2 p-3 sm:gap-3 sm:p-4 lg:grid-cols-4";
 
   return (
     <section className="card overflow-hidden">
@@ -63,13 +75,13 @@ export default function UpcomingBookings({ rows, slots, days }: { rows: Upcoming
         <p className="muted px-4 py-6 text-sm">No events, CIEs or extra classes booked in the next {days} days.</p>
       ) : (
         <>
-          <ul className="divide-y divide-brand-100 dark:divide-brand-900">{groups.slice(0, SHOWN).map(item)}</ul>
+          <ul className={grid}>{groups.slice(0, SHOWN).map(item)}</ul>
           {groups.length > SHOWN && (
             <details className="group border-t border-brand-100 dark:border-brand-900">
               <summary className="cursor-pointer list-none px-4 py-2.5 text-sm font-medium text-brand-600 group-open:hidden dark:text-brand-400 [&::-webkit-details-marker]:hidden">
                 Show {groups.length - SHOWN} more
               </summary>
-              <ul className="divide-y divide-brand-100 dark:divide-brand-900">{groups.slice(SHOWN).map(item)}</ul>
+              <ul className={grid}>{groups.slice(SHOWN).map(item)}</ul>
             </details>
           )}
         </>

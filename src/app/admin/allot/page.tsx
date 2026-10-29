@@ -5,6 +5,7 @@ import ClosedDay from "@/components/ClosedDay";
 import DayGrid from "@/components/DayGrid";
 import Flash from "@/components/Flash";
 import PageHeader from "@/components/PageHeader";
+import RenameBooking from "@/components/RenameBooking";
 import { getDaySchedule, getHolidays, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { AllotmentRow } from "@/lib/types";
@@ -171,6 +172,9 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
                   <td className="td">
                     {KIND_LABEL[a.kind]}
                     {a.title && <div className="muted text-xs">{a.title}</div>}
+                    {a.kind !== "drop" && (
+                      <RenameBooking room={a.room_id} date={a.date} slot={a.slot_id} title={a.title} back={`/admin/allot?date=${date}`} />
+                    )}
                   </td>
                   <td className="td">
                     {a.faculty_name}
