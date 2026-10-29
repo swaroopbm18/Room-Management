@@ -6,20 +6,17 @@ import type { Person, Slot } from "./types";
 export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-/**
- * The two slot patterns of the class timetables. Cluster A (3rd and 7th semester) runs from
- * 8:00 with lunch at 1:05; Cluster B (5th semester) starts at 11:15 with lunch at 2:00.
- */
+/** The department's two groups of faculty, each under its own HoD. */
 export const CLUSTERS = {
-  A: { label: "Cluster A", slots: [1, 2, 3, 4, 5, 7, 8, 9], lunch: 6, note: "8:00 AM to 4:45 PM, lunch 1:05 to 2:00" },
-  B: { label: "Cluster B", slots: [4, 5, 6, 8, 9], lunch: 7, note: "11:15 AM to 4:45 PM, lunch 2:00 to 2:55" },
+  A: { label: "Cluster A" },
+  B: { label: "Cluster B" },
 } as const;
 export type ClusterKey = keyof typeof CLUSTERS;
 
-/** Slots a meeting can use when no cluster is picked: the teaching day, 8:00 to 4:45. */
+/** The teaching day, 8:00 to 4:45. */
 export const DAY_SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-export type FacultyMember = { initials: string; name: string; email?: string };
+export type FacultyMember = { initials: string; name: string; email?: string; cluster?: ClusterKey };
 
 /** What keeps a faculty member busy in one slot of the week. */
 export type Busy = { activity: string; room?: string; source: "timetable" | "duty" };
@@ -36,13 +33,14 @@ type Duty = { initials: string; weekday: number; slot_id: number; activity: stri
  * Every faculty member and their week: the classes in the timetable that applies from
  * tomorrow (so a Word upload shows at once), plus the duties admins added.
  */
-export async function getFacultyWeeks(): Promise<{ faculty: FacultyMember[]; weeks: Weeks; dutiesReady: boolean }> {
+export async function getFacultyWeeks(): Promise<{ faculty: FacultyMember[]; weeks: Weeks; dutiesReady: boolean; clustersReady: boolean }> {
   const supabase = await createClient();
-  const [peopleRes, dirRes, ttRes, dutyRes] = await Promise.all([
+  const [peopleRes, dirRes, ttRes, dutyRes, clusterRes] = await Promise.all([
     supabase.from("people").select("*").not("initials", "is", null),
     supabase.from("faculty_directory").select("initials, title, full_name"),
     supabase.rpc("get_timetable_all", { p_date: addDays(todayIST(), 1) }),
     supabase.from("faculty_duties").select("initials, weekday, slot_id, activity"),
+    supabase.from("faculty_clusters").select("initials, cluster"),
   ]);
 
   const names = new Map<string, FacultyMember>();
@@ -70,11 +68,14 @@ export async function getFacultyWeeks(): Promise<{ faculty: FacultyMember[]; wee
   // Initials in the timetable that aren't in the directory still get a card
   for (const ini of weeks.keys()) if (!names.has(ini)) names.set(ini, { initials: ini, name: ini });
 
+  const clusterOf = new Map(((clusterRes.data ?? []) as { initials: string; cluster: ClusterKey }[]).map((c) => [c.initials, c.cluster]));
+  for (const f of names.values()) f.cluster = clusterOf.get(f.initials);
+
   // By name without the title; initials with no known name go last
   const unnamed = (f: FacultyMember) => (f.name === f.initials ? 1 : 0);
   const bare = (f: FacultyMember) => f.name.replace(/^(Dr|Prof)\.\s*/, "");
   const faculty = [...names.values()].sort((a, b) => unnamed(a) - unnamed(b) || bare(a).localeCompare(bare(b)));
-  return { faculty, weeks, dutiesReady: !dutyRes.error };
+  return { faculty, weeks, dutiesReady: !dutyRes.error, clustersReady: !clusterRes.error };
 }
 
 export function isFree(weeks: Weeks, initials: string, weekday: number, slotId: number): boolean {
