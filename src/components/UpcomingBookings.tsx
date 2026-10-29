@@ -1,4 +1,4 @@
-import { IconFlag } from "./Icons";
+import { IconCheck, IconFlag } from "./Icons";
 import PendingLink from "./PendingLink";
 import StatusBadge from "./StatusBadge";
 import { STATUS_LABEL } from "@/lib/status";
@@ -18,7 +18,7 @@ export default function UpcomingBookings({ rows, slots, days }: { rows: Upcoming
     const prev = groups.find(
       (g) =>
         g.date === r.date && g.room_id === r.room_id && g.kind === r.kind && g.title === r.title &&
-        g.faculty_name === r.faculty_name && g.reason === r.reason && pos.get(g.last.id)! + 1 === pos.get(r.slot_id),
+        g.faculty_name === r.faculty_name && g.reason === r.reason && g.approved_by === r.approved_by && pos.get(g.last.id)! + 1 === pos.get(r.slot_id),
     );
     if (prev) prev.last = slot;
     else groups.push({ ...r, first: slot, last: slot });
@@ -36,6 +36,7 @@ export default function UpcomingBookings({ rows, slots, days }: { rows: Upcoming
   const item = (g: Group) => {
     const dark = g.kind !== "class_request";
     const sub = dark ? "text-brand-200" : "text-brand-700 dark:text-brand-300";
+    const requested = g.kind === "class_request" || g.kind === "event_request";
     return (
       <li key={`${g.date}|${g.room_id}|${g.first.id}`}>
         <PendingLink
@@ -54,9 +55,21 @@ export default function UpcomingBookings({ rows, slots, days }: { rows: Upcoming
           <div className={`mt-auto pt-3 text-xs sm:text-sm ${sub}`}>
             <span className="font-semibold">{g.room_id}</span> · {g.first.label.split(" – ")[0]} – {g.last.label.split(" – ")[1]}
           </div>
-          {(g.faculty_name || g.reason) && (
-            <div className={`mt-0.5 truncate text-xs ${dark ? "text-brand-200/80" : "muted"}`}>{[g.faculty_name, g.reason].filter(Boolean).join(" · ")}</div>
+          {/* Requested by (for faculty requests), then who approved it, then what it is for, each on its own line. */}
+          {requested && g.faculty_name && (
+            <div className={`mt-0.5 line-clamp-2 text-xs ${dark ? "text-brand-200/80" : "muted"}`}>Requested by {g.faculty_name}</div>
           )}
+          {g.approved_by && (
+            <div
+              className={`mt-2 inline-flex max-w-full items-start gap-1 self-start rounded-xl px-2 py-0.5 text-[11px] font-medium sm:text-xs ${
+                dark ? "bg-white/15 text-white ring-1 ring-white/25 ring-inset" : "bg-brand-50 text-brand-800 ring-1 ring-brand-200 ring-inset dark:bg-brand-900/60 dark:text-brand-100 dark:ring-brand-800"
+              }`}
+            >
+              <IconCheck className="mt-px h-3.5 w-3.5 shrink-0" />
+              <span>Approved by {g.approved_by}</span>
+            </div>
+          )}
+          {g.reason && <div className={`mt-1.5 line-clamp-2 text-xs ${dark ? "text-brand-100/90" : "text-neutral-600 dark:text-neutral-300"}`}>{g.reason}</div>}
         </PendingLink>
       </li>
     );

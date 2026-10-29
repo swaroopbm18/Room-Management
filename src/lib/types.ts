@@ -66,7 +66,10 @@ export type AllotmentRow = {
 };
 
 /** A slot booked for an event, CIE or approved request, as listed on the home page. */
-export type UpcomingRow = Pick<AllotmentRow, "date" | "room_id" | "slot_id" | "kind" | "title" | "faculty_name" | "reason">;
+export type UpcomingRow = Pick<AllotmentRow, "date" | "room_id" | "slot_id" | "kind" | "title" | "faculty_name" | "reason"> & {
+  /** The admin who approved the request or allotted the slot (missing before migration 0015). */
+  approved_by?: string | null;
+};
 
 /** A request as anyone can see it on a slot: no email, letter or decision note. */
 export type PublicRequest = Pick<
