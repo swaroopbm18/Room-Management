@@ -68,6 +68,12 @@ export type AllotmentRow = {
 /** A slot booked for an event, CIE or approved request, as listed on the home page. */
 export type UpcomingRow = Pick<AllotmentRow, "date" | "room_id" | "slot_id" | "kind" | "title" | "faculty_name" | "reason">;
 
+/** A request as anyone can see it on a slot: no email, letter or decision note. */
+export type PublicRequest = Pick<
+  RequestRow,
+  "id" | "room_id" | "date" | "slot_id" | "requester_name" | "type" | "subject" | "description" | "status" | "created_at" | "decided_at"
+>;
+
 /** All slots of one (possibly multi-slot) request. */
 export type RequestGroup = {
   group_id: string;

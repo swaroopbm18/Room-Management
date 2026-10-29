@@ -60,8 +60,8 @@ export default function RequestForm({
 
   function pickFile(f: File | null) {
     setError(null);
-    if (f && f.type !== "application/pdf") return setError("The approval letter must be a PDF."), setFile(null);
-    if (f && f.size >= MAX_BYTES) return setError("The approval letter must be under 5 MB."), setFile(null);
+    if (f && f.type !== "application/pdf") return setError("The permission letter must be a PDF."), setFile(null);
+    if (f && f.size >= MAX_BYTES) return setError("The permission letter must be under 5 MB."), setFile(null);
     setFile(f);
   }
 
@@ -71,7 +71,6 @@ export default function RequestForm({
     if (type === "class" && subjects.length === 0) return setError("No subjects are allotted to you yet. Ask an admin to add your subjects.");
     if (type === "class" && !subject) return setError("Pick the subject the class is for.");
     if (description.trim().length < 5) return setError("Please describe what the room is for.");
-    if (type === "event" && !file) return setError("Attach the approval letter (PDF, under 5 MB).");
     setBusy(true);
     const supabase = createClient();
     let pdfPath: string | null = null;
@@ -140,7 +139,7 @@ export default function RequestForm({
         <div className="grid gap-3 sm:grid-cols-2">
           {[
             { v: "class" as const, t: "Request for class", d: "Extra or make-up class. No letter needed." },
-            { v: "event" as const, t: "Request for event", d: "Needs the approval letter as a PDF under 5 MB." },
+            { v: "event" as const, t: "Request for event", d: "Attach the permission letter as a PDF under 5 MB." },
           ].map((o) => (
             <label
               key={o.v}
@@ -213,9 +212,13 @@ export default function RequestForm({
         <div>
           <label className="label" htmlFor="letter">
             <span className="inline-flex items-center gap-1.5">
-              <IconUpload className="h-4 w-4" /> Approval letter (PDF, under 5 MB) <span className="text-red-600">*</span>
+              <IconUpload className="h-4 w-4" /> Permission letter (PDF, under 5 MB)
             </span>
           </label>
+          <p className="mb-2 flex gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+            <IconAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            Uploading the permission letter is mandatory. If it is not uploaded, the admin can reject the request.
+          </p>
           <input
             id="letter"
             type="file"
@@ -238,7 +241,7 @@ export default function RequestForm({
           {busy ? "Sending…" : "Send request"}
         </button>
       </div>
-      {busy && <LoadingOverlay label={type === "event" ? "Uploading the letter and sending your request…" : "Sending your request…"} />}
+      {busy && <LoadingOverlay label={type === "event" && file ? "Uploading the letter and sending your request…" : "Sending your request…"} />}
     </form>
   );
 }

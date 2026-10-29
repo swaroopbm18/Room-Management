@@ -1,7 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { createClient } from "./supabase/server";
-import type { Room, ScheduleRow, Slot, UpcomingRow } from "./types";
+import type { PublicRequest, Room, ScheduleRow, Slot, UpcomingRow } from "./types";
 
 // Rooms and slots are public and almost never change, so they are cached for an hour
 // instead of being fetched on every page.
@@ -33,6 +33,16 @@ export async function getUpcomingBookings(days: number): Promise<UpcomingRow[] |
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("upcoming_bookings", { p_days: days });
   return error ? null : ((data ?? []) as UpcomingRow[]);
+}
+
+/**
+ * Requests for one room (or every room, with null) from one date to another, readable by anyone.
+ * Null if they can't be read (e.g. before migration 0010 is run).
+ */
+export async function getSlotRequests(room: string | null, from: string, to: string): Promise<PublicRequest[] | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("slot_requests", { p_room: room, p_from: from, p_to: to });
+  return error ? null : ((data ?? []) as PublicRequest[]);
 }
 
 export type Holiday = { date: string; name: string };

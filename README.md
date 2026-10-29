@@ -23,8 +23,9 @@ Classroom allotment for the Department of Machine Learning, BMSCE. Students see 
 
 ### For everyone (no sign-in)
 
-- **Home:** pick a date and slot to see every room's subject and faculty member, how many rooms are free, and the events, CIEs and extra classes coming up in the next 14 days.
+- **Home:** pick a date and slot to see every room's subject and faculty member, how many rooms are free, and the events, CIEs and extra classes coming up in the next 14 days, each as its own card.
 - **Room week view:** click any room to see its whole week, Monday to Saturday.
+- **Slot requests:** click any slot to see who has requested it, for what, and where each request stands. Slots with pending requests show a count.
 - **Free slots:** every free room for each slot of a day, so you can find a room fast.
 - Works on phones and has a light and a dark theme.
 
@@ -39,7 +40,7 @@ Classroom allotment for the Department of Machine Learning, BMSCE. Students see 
 
 ### For faculty
 
-- **Request a room:** pick one slot or several in a row, then choose a class (for one of your allotted subjects) or an event (with the approval letter as a PDF under 5 MB).
+- **Request a room:** pick one slot or several in a row, then choose a class (for one of your allotted subjects) or an event (with the permission letter as a PDF under 5 MB; the form says it is mandatory, and the admin can reject an event request sent without it).
 - **My dashboard:** your upcoming classes for the next 7 days, with a button to drop one, and your requests, with a button to withdraw a pending one.
 
 | Request a room | My dashboard |
@@ -48,8 +49,8 @@ Classroom allotment for the Department of Machine Learning, BMSCE. Students see 
 
 ### For admins
 
-- **Requests:** approve or reject in priority order. Approving a request declines the others for the same slots.
-- **Allot / free rooms:** take a room for a CIE or event over a start-to-end time, free a room up, or restore a slot to the timetable. The day-at-a-glance grid shows every room.
+- **Requests:** approve or reject in priority order. Approving a request declines the others for the same slots. Event requests sent without a permission letter are marked so you can reject them.
+- **Allot / free rooms:** take a room for a CIE or event over a start-to-end time, free a room up, rename a booked class, event or CIE (from the upcoming changes list or by clicking the slot), or restore a slot to the timetable. The day-at-a-glance grid shows every room.
 - **Edit timetable:** change single cells, upload a revised Word timetable (you see every change before it is saved), and add holidays.
 - **Report:** events, CIEs, dropped classes and extra classes between two dates, ready to print with signature lines for HoD (Cluster A) and HoD (Cluster B), or as CSV.
 - **Subjects:** allot subjects to faculty by hand or straight from the timetable.
@@ -72,9 +73,9 @@ Classroom allotment for the Department of Machine Learning, BMSCE. Students see 
 
 | Role | Signs in? | Can |
 | --- | --- | --- |
-| Student | No | See every room's subject and faculty for any slot, and the free slots |
-| Faculty | Google, @bmsce.ac.in, must be on the list | Request a **free** slot (class for one of their allotted subjects, or event with a PDF approval letter under 5 MB), see their requests, withdraw a pending one, drop one occurrence of their own class |
-| Admin (HoD, Time Table Officers) | Same | Everything faculty can, plus approve or reject requests in priority order, allot any room for a CIE or event, restore a slot to the timetable, manage the faculty/admin list, allot subjects to faculty, view the full history |
+| Student | No | See every room's subject and faculty for any slot, the free slots, and the requests for each slot |
+| Faculty | Google, @bmsce.ac.in, must be on the list | Request a **free** slot (class for one of their allotted subjects, or event with a PDF permission letter under 5 MB), see their requests, withdraw a pending one, drop one occurrence of their own class |
+| Admin (HoD, Time Table Officers) | Same | Everything faculty can, plus approve or reject requests in priority order, allot any room for a CIE or event, rename a booked class, event or CIE, restore a slot to the timetable, manage the faculty/admin list, allot subjects to faculty, view the full history |
 
 The [privacy page](src/app/privacy/page.tsx) on the site explains the same roles and what each can see.
 
@@ -82,9 +83,9 @@ The [privacy page](src/app/privacy/page.tsx) on the site explains the same roles
 
 - `timetable_entries` holds the weekly timetable imported from the department's Word file. A revised timetable is a **new version** starting today or later, so past days always show the timetable that applied then.
 - `allotments` is an append-only log of every change to a (room, date, slot): approved requests, CIE/event overrides, dropped classes and restores. The latest row wins.
-- `requests` holds faculty requests. Several requests per slot are allowed; approving one declines the rest.
+- `requests` holds faculty requests. Several requests per slot are allowed; approving one declines the rest. Anyone can see the requests for a slot (name, type, subject, description and status) by clicking it; email addresses, letters and the admin's notes stay private.
 - **Past data is locked in the database itself.** Triggers reject any update or delete on `allotments` and the timetable, any change to a request once its slot has ended, and any new allotment for a slot that has ended. This applies to every account, admins included.
-- Users never write to tables directly. Every action goes through a Postgres function that checks the caller's role (see `supabase/migrations/0001_init.sql`). Row-level security hides requests from other faculty and keeps approval letters private.
+- Users never write to tables directly. Every action goes through a Postgres function that checks the caller's role (see `supabase/migrations/0001_init.sql`). Row-level security keeps email addresses and approval letters private; the public request list comes from `slot_requests`, which returns only the safe columns.
 - Holidays have no classes, are left out of every date list, and cannot be booked from the website.
 - All times are IST. Slots: 8:00, 8:55, 10:20, 11:15, 12:10, 1:05, 2:00, 2:55, 3:50 and 4:45 (55 minutes each), Monday to Saturday. Bookings open up to 4 weeks ahead.
 
@@ -93,7 +94,7 @@ The [privacy page](src/app/privacy/page.tsx) on the site explains the same roles
 ### 1. Supabase (database and login)
 
 1. Sign up at [supabase.com](https://supabase.com) with GitHub and create a project. Pick the **Mumbai (ap-south-1)** region and save the database password somewhere safe.
-2. Open **SQL Editor** and run these files one after another, pasting the whole of each: `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_faculty_directory.sql` (full names for the timetable initials), `supabase/migrations/0003_multi_slot_requests.sql` (requests covering several slots in a row), `supabase/migrations/0004_admin_slot_range.sql` (admins allot a start-to-end range), `supabase/migrations/0005_admin_free_slots.sql` (admins free up a room), `supabase/migrations/0006_reports_and_timetable_edits.sql` (reports and timetable edits), `supabase/migrations/0007_holidays_and_timetable_upload.sql` (holidays and Word timetable upload), `supabase/migrations/0008_faculty_subjects.sql` (subjects for class requests), `supabase/migrations/0009_upcoming_bookings.sql` (upcoming events on the home page), then `supabase/seed.sql` (rooms, slots and the timetable).
+2. Open **SQL Editor** and run these files one after another, pasting the whole of each: `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_faculty_directory.sql` (full names for the timetable initials), `supabase/migrations/0003_multi_slot_requests.sql` (requests covering several slots in a row), `supabase/migrations/0004_admin_slot_range.sql` (admins allot a start-to-end range), `supabase/migrations/0005_admin_free_slots.sql` (admins free up a room), `supabase/migrations/0006_reports_and_timetable_edits.sql` (reports and timetable edits), `supabase/migrations/0007_holidays_and_timetable_upload.sql` (holidays and Word timetable upload), `supabase/migrations/0008_faculty_subjects.sql` (subjects for class requests), `supabase/migrations/0009_upcoming_bookings.sql` (upcoming events on the home page), `supabase/migrations/0010_public_slot_requests.sql` (anyone can see a slot's requests), `supabase/migrations/0011_optional_letter_and_rename.sql` (optional event letter, renaming bookings), then `supabase/seed.sql` (rooms, slots and the timetable).
 3. Still in the SQL Editor, add yourself as the first admin (use your real email and name):
    ```sql
    insert into public.people (email, full_name, title, role)

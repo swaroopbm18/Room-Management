@@ -100,6 +100,16 @@ export async function adminFree(form: FormData) {
   redirect(error ? withParam(to, "error", error.message) : withParam(to, "msg", data === 1 ? "Room freed for 1 slot." : `Room freed for ${data} slots.`));
 }
 
+export async function adminRenameBooking(form: FormData) {
+  await run(
+    form,
+    "/admin/allot",
+    "admin_rename_booking",
+    { p_room: s(form, "room"), p_date: s(form, "date"), p_slot: Number(s(form, "slot")), p_title: s(form, "title") },
+    "Booking renamed.",
+  );
+}
+
 export async function adminRestore(form: FormData) {
   await run(
     form,
