@@ -1,46 +1,59 @@
-import { IconArrowRight, IconUser, IconUsers } from "./Icons";
+import { IconArrowRight, IconUsers } from "./Icons";
 import PendingLink from "./PendingLink";
 
-/** A home-page KPI card for the faculty free or busy in the chosen slot, linking to the full list. */
+const TONES = {
+  navy: "bg-gradient-to-br from-brand-700 via-brand-800 to-brand-950 text-white shadow-lg shadow-brand-900/20",
+  ink: "bg-gradient-to-br from-ink via-brand-950 to-brand-900 text-white shadow-lg shadow-black/20 dark:border dark:border-brand-900",
+  light: "card",
+};
+
+/** A home-page KPI card: how many faculty of a group are free and busy in the chosen slot, linking to who. */
 export default function FacultyCard({
-  kind,
-  count,
-  clusters,
+  label,
+  free,
+  busy,
   href,
   ready,
+  tone,
 }: {
-  kind: "free" | "busy";
-  count: number;
-  clusters: { A: number; B: number };
+  label: string;
+  free: number;
+  busy: number;
   href: string;
   ready: boolean;
+  tone: keyof typeof TONES;
 }) {
-  const free = kind === "free";
-  const box = free
-    ? "bg-gradient-to-br from-brand-700 via-brand-800 to-brand-950 shadow-brand-900/20"
-    : "bg-gradient-to-br from-ink via-brand-950 to-brand-900 shadow-black/20 dark:border dark:border-brand-900";
+  const dark = tone !== "light";
+  const sub = dark ? "text-brand-200" : "text-brand-700 dark:text-brand-300";
+  const total = free + busy;
   return (
-    <PendingLink
-      href={href}
-      className={`group flex flex-col rounded-2xl p-3 text-white shadow-lg transition hover:-translate-y-0.5 hover:ring-2 hover:ring-brand-400 sm:p-5 ${box}`}
-    >
+    <PendingLink href={href} className={`group flex flex-col rounded-2xl p-4 transition hover:-translate-y-0.5 hover:ring-2 hover:ring-brand-400 sm:p-5 ${TONES[tone]}`}>
       <div className="flex items-start justify-between gap-2">
-        <div className="text-xs font-medium text-brand-200 sm:text-sm">{free ? "Free faculty" : "Busy faculty"}</div>
-        <span className="hidden rounded-lg bg-white/10 p-1.5 sm:inline-flex">{free ? <IconUser /> : <IconUsers />}</span>
+        <div>
+          <div className="font-semibold">{label}</div>
+          <div className={`text-xs ${sub}`}>{ready ? `${total} faculty` : "Not available yet"}</div>
+        </div>
+        <span className={`hidden rounded-lg p-1.5 sm:inline-flex ${dark ? "bg-white/10" : "bg-brand-100 text-brand-700 dark:bg-brand-900/70 dark:text-brand-200"}`}>
+          <IconUsers />
+        </span>
       </div>
-      <div className="mt-1 text-2xl font-semibold tracking-tight sm:text-4xl">{ready ? count : "—"}</div>
-      <div className="mt-1 text-xs text-brand-200/80">{ready ? (free ? "No class or duty in this slot" : "Teaching or on a duty in this slot") : "Not available yet"}</div>
-      {ready && (
-        <div className="mt-2 flex flex-wrap gap-1.5 sm:mt-3">
-          {(["A", "B"] as const).map((c) => (
-            <span key={c} className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-medium ring-1 ring-white/20 ring-inset sm:text-xs">
-              Cluster {c} · {clusters[c]}
-            </span>
-          ))}
+      <div className={`mt-3 grid grid-cols-2 divide-x ${dark ? "divide-white/15" : "divide-brand-100 dark:divide-brand-900"}`}>
+        <div className="pr-3">
+          <div className={`text-xs font-medium ${sub}`}>Free</div>
+          <div className="text-3xl font-semibold tracking-tight sm:text-4xl">{ready ? free : "—"}</div>
+        </div>
+        <div className="pl-3">
+          <div className={`text-xs font-medium ${sub}`}>Busy</div>
+          <div className={`text-3xl font-semibold tracking-tight sm:text-4xl ${dark ? "text-white/70" : "text-neutral-500 dark:text-neutral-400"}`}>{ready ? busy : "—"}</div>
+        </div>
+      </div>
+      {ready && total > 0 && (
+        <div className={`mt-3 h-1.5 overflow-hidden rounded-full ${dark ? "bg-white/15" : "bg-brand-100 dark:bg-brand-950"}`} aria-hidden>
+          <div className={`h-full rounded-full ${dark ? "bg-white" : "bg-brand-600 dark:bg-brand-500"}`} style={{ width: `${Math.round((free / total) * 100)}%` }} />
         </div>
       )}
-      <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium group-hover:underline sm:mt-3 sm:text-sm">
-        See who, by slot and cluster <IconArrowRight className="h-4 w-4" />
+      <span className={`mt-3 inline-flex items-center gap-1 text-xs font-medium group-hover:underline sm:text-sm ${dark ? "text-white" : "text-brand-600 dark:text-brand-400"}`}>
+        See who is free and busy <IconArrowRight className="h-4 w-4" />
       </span>
     </PendingLink>
   );

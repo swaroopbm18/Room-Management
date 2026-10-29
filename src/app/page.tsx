@@ -51,11 +51,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const UPCOMING_DAYS = 14;
   const [day, upcoming, status] = await Promise.all([getDaySchedule(date), getUpcomingBookings(UPCOMING_DAYS), getFacultyStatus(date)]);
   const inSlot = (status ?? []).filter((f) => f.slot_id === slotId);
-  const freeFaculty = inSlot.filter((f) => !f.busy).length;
-  const busyFaculty = inSlot.length - freeFaculty;
-  const clusterCounts = (kind: "free" | "busy") => {
-    const rows = inSlot.filter((f) => f.busy === (kind === "busy"));
-    return { A: rows.filter((f) => f.cluster === "A").length, B: rows.filter((f) => f.cluster === "B").length };
+  // Free and busy faculty in the chosen slot: the whole department (null) or one cluster
+  const counts = (cluster: "A" | "B" | null) => {
+    const rows = cluster ? inSlot.filter((f) => f.cluster === cluster) : inSlot;
+    const free = rows.filter((f) => !f.busy).length;
+    return { free, busy: rows.length - free };
   };
   const rows = day.filter((r) => r.slot_id === slotId);
   const freeToday = day.filter((r) => r.status === "free" && !r.ended).length;
@@ -104,9 +104,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
       {holiday ? (
         <ClosedDay date={date} holiday={holiday} nextDate={nextWorkingDay(date, holidays)} nextHref={`/?date=${nextWorkingDay(date, holidays)}&slot=${slotId}`} />
       ) : (
-        <section className="grid grid-cols-2 gap-2 sm:gap-4">
-          <FacultyCard kind="free" count={freeFaculty} clusters={clusterCounts("free")} href={`/faculty-status?date=${date}&slot=${slotId}#free`} ready={!!status} />
-          <FacultyCard kind="busy" count={busyFaculty} clusters={clusterCounts("busy")} href={`/faculty-status?date=${date}&slot=${slotId}#busy`} ready={!!status} />
+        <section className="grid gap-3 sm:grid-cols-3 sm:gap-4" aria-label="Free and busy faculty">
+          <FacultyCard label="Machine Learning Department" {...counts(null)} href={`/faculty-status?date=${date}&slot=${slotId}`} ready={!!status} tone="navy" />
+          <FacultyCard label="Cluster A" {...counts("A")} href={`/faculty-status?date=${date}&slot=${slotId}&c=A`} ready={!!status} tone="light" />
+          <FacultyCard label="Cluster B" {...counts("B")} href={`/faculty-status?date=${date}&slot=${slotId}&c=B`} ready={!!status} tone="ink" />
         </section>
       )}
 
