@@ -76,7 +76,7 @@ export default async function FacultyTimetables({ searchParams }: { searchParams
       </PageHeader>
       <Flash msg={sp.msg} error={sp.error} />
       {!dutiesReady && (
-        <Flash error="Run supabase/migrations/0010_faculty_timetables.sql in the Supabase SQL Editor to add duties other than classes. Classes from the room timetable already show." />
+        <Flash error="Run supabase/migrations/0011_faculty_timetables.sql in the Supabase SQL Editor to add duties other than classes. Classes from the room timetable already show." />
       )}
 
       <section className="grid grid-cols-3 gap-2 sm:gap-4">
