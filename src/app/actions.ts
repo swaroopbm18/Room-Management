@@ -336,3 +336,15 @@ export async function importFacultyDuties(form: FormData) {
   revalidatePath("/", "layout");
   redirect(error ? withParam(to, "error", error.message) : withParam(to, "msg", `Saved ${data} duty ${data === 1 ? "slot" : "slots"} for ${new Set(entries.map((e) => e.initials)).size} faculty.`));
 }
+
+/** Save the HoD cluster of every faculty member on the form (fields named "cluster:<initials>"). */
+export async function setFacultyClusters(form: FormData) {
+  const entries = [...form.entries()]
+    .filter(([k]) => k.startsWith("cluster:"))
+    .map(([k, v]) => ({ initials: k.slice("cluster:".length), cluster: String(v) }));
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_set_faculty_clusters", { p_entries: entries });
+  revalidatePath("/", "layout");
+  const to = back(form, "/admin/faculty");
+  redirect(error ? withParam(to, "error", error.message) : withParam(to, "msg", data ? `Clusters saved: ${data} ${data === 1 ? "change" : "changes"}.` : "No cluster changed."));
+}

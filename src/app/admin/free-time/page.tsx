@@ -7,7 +7,7 @@ import { cellKey, CLUSTERS, DAY_NAMES, DAY_SLOTS, DAYS, getFacultyWeeks, isFree,
 
 export const dynamic = "force-dynamic";
 
-type Search = { c?: string; d?: string; s?: string; in?: string; len?: string; mode?: string; p?: string | string[] };
+type Search = { c?: string; d?: string; s?: string; who?: string; len?: string; p?: string | string[] };
 
 /** Background for a cell by where it sits between the least and most free slots: darker is more free. */
 function heat(share: number) {
@@ -20,15 +20,17 @@ function heat(share: number) {
 
 export default async function FreeTime({ searchParams }: { searchParams: Promise<Search> }) {
   const sp = await searchParams;
-  const cluster: ClusterKey = sp.c === "B" ? "B" : "A";
-  const def = CLUSTERS[cluster];
-  const [slots, { faculty, weeks }] = await Promise.all([getSlots(), getFacultyWeeks()]);
+  const cluster: ClusterKey | "all" = sp.c === "A" || sp.c === "B" ? sp.c : "all";
+  const [slots, { faculty: everyone, weeks, clustersReady }] = await Promise.all([getSlots(), getFacultyWeeks()]);
   const slotById = new Map(slots.map((s) => [s.id, s]));
-  const clusterSlots = def.slots.map((id) => slotById.get(id)!).filter(Boolean);
+  const daySlots = slots.filter((s) => DAY_SLOTS.includes(s.id));
+  const inCluster = (c: ClusterKey | "all") => (c === "all" ? everyone : everyone.filter((f) => f.cluster === c));
+  const faculty = inCluster(cluster);
+  const groupLabel = cluster === "all" ? "the department" : CLUSTERS[cluster].label;
   const total = faculty.length;
 
   const freeAt = (wd: number, slotId: number) => faculty.filter((f) => isFree(weeks, f.initials, wd, slotId));
-  const cells = DAY_NAMES.flatMap((_, i) => clusterSlots.map((s) => ({ wd: i + 1, slot: s, free: freeAt(i + 1, s.id).length })));
+  const cells = DAY_NAMES.flatMap((_, i) => daySlots.map((s) => ({ wd: i + 1, slot: s, free: freeAt(i + 1, s.id).length })));
   const best = [...cells].sort((a, b) => b.free - a.free)[0];
   const fewest = Math.min(...cells.map((c) => c.free));
   const most = Math.max(...cells.map((c) => c.free));
@@ -45,14 +47,12 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
     return `/admin/free-time?${p.toString()}`;
   };
 
-  // Meeting finder
-  const meetIn = sp.in === "A" || sp.in === "B" ? sp.in : sp.in === "all" ? "all" : cluster;
-  const length = Math.min(3, Math.max(1, Number(sp.len) || 1));
+  // Meeting finder: a cluster, the whole department or the faculty ticked
   const chosen = new Set([sp.p ?? []].flat());
-  const onlySome = sp.mode === "some" && chosen.size > 0;
-  const attendees = onlySome ? faculty.filter((f) => chosen.has(f.initials)) : faculty;
-  const meetSlots = meetIn === "all" ? DAY_SLOTS : [...CLUSTERS[meetIn].slots];
-  const suggestions = suggestMeetings(weeks, attendees, slots, meetSlots, length);
+  const who = sp.who === "A" || sp.who === "B" || sp.who === "all" || (sp.who === "some" && chosen.size > 0) ? sp.who : cluster;
+  const length = Math.min(3, Math.max(1, Number(sp.len) || 1));
+  const attendees = who === "some" ? everyone.filter((f) => chosen.has(f.initials)) : inCluster(who);
+  const suggestions = attendees.length ? suggestMeetings(weeks, attendees, slots, DAY_SLOTS, length) : [];
   const runLabel = (ids: number[]) => `${slotById.get(ids[0])!.label.split(" – ")[0]} – ${slotById.get(ids[ids.length - 1])!.label.split(" – ")[1]}`;
   const what = (ini: string, wd: number, ids: number[]) =>
     [...new Set(ids.flatMap((id) => (weeks.get(ini)?.get(cellKey(wd, id)) ?? []).map((b) => b.activity)))].join(", ");
@@ -66,10 +66,10 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
       </PageHeader>
 
       <div className="flex flex-wrap gap-2" role="tablist">
-        {(Object.keys(CLUSTERS) as ClusterKey[]).map((k) => (
+        {(["all", "A", "B"] as const).map((k) => (
           <Link
             key={k}
-            href={`/admin/free-time?c=${k}`}
+            href={k === "all" ? "/admin/free-time" : `/admin/free-time?c=${k}`}
             scroll={false}
             role="tab"
             aria-selected={k === cluster}
@@ -79,28 +79,41 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
                 : "border-brand-200 bg-white text-brand-900 hover:bg-brand-50 dark:border-brand-900 dark:bg-ink dark:text-brand-100 dark:hover:bg-brand-950"
             }`}
           >
-            <span className="font-semibold">{CLUSTERS[k].label}</span>
-            <span className={`block text-xs ${k === cluster ? "text-brand-100" : "muted"}`}>{CLUSTERS[k].note}</span>
+            <span className="font-semibold">{k === "all" ? "Whole department" : CLUSTERS[k].label}</span>
+            <span className={`block text-xs ${k === cluster ? "text-brand-100" : "muted"}`}>{inCluster(k).length} faculty</span>
           </Link>
         ))}
       </div>
 
       <section className="grid grid-cols-3 gap-2 sm:gap-4">
         <KpiCard
-          label={`Most free in ${def.label}`}
-          value={best ? `${DAYS[best.wd - 1]} ${best.slot.label.split(" – ")[0].replace(/ (AM|PM)$/, "")}` : "—"}
-          hint={best ? `${best.free} of ${total} faculty free` : undefined}
+          label={`Most free in ${cluster === "all" ? "the department" : CLUSTERS[cluster].label}`}
+          value={best && total ? `${DAYS[best.wd - 1]} ${best.slot.label.split(" – ")[0].replace(/ (AM|PM)$/, "")}` : "—"}
+          hint={best && total ? `${best.free} of ${total} faculty free` : undefined}
           tone="navy"
           icon={<IconCalendarCheck />}
         />
         <KpiCard label="Free in an average slot" value={Math.round(avg)} hint={`of ${total} faculty`} icon={<IconClock />} />
-        <KpiCard label="Faculty counted" value={total} hint="Classes from the room timetable plus other duties" tone="ink" icon={<IconUsers />} />
+        <KpiCard label="Faculty counted" value={total} hint={`In ${groupLabel}, from classes and other duties`} tone="ink" icon={<IconUsers />} />
       </section>
+
+      {!clustersReady && (
+        <div className="card muted p-4 text-sm">Run supabase/migrations/0014_faculty_clusters.sql in the Supabase SQL Editor, then put faculty into Cluster A and Cluster B on the Faculty timetables page.</div>
+      )}
+      {clustersReady && cluster !== "all" && total === 0 && (
+        <div className="card p-4 text-sm">
+          Nobody is in {groupLabel} yet.{" "}
+          <Link href="/admin/faculty" className="font-medium text-brand-600 underline dark:text-brand-400">
+            Put faculty into clusters
+          </Link>{" "}
+          on the Faculty timetables page.
+        </div>
+      )}
 
       <section className="card overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-100 px-4 py-3 text-xs dark:border-brand-900/70">
           <span className="font-semibold">
-            {def.label} · faculty free in each slot
+            {cluster === "all" ? "Whole department" : CLUSTERS[cluster].label} · faculty free in each slot
           </span>
           <span className="muted">Darker means more faculty free than in the other slots. Click a slot to see who.</span>
         </div>
@@ -109,7 +122,7 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
             <thead>
               <tr>
                 <th className="w-28 rounded-lg bg-brand-950 px-3 py-2 text-left text-xs font-semibold tracking-wide text-brand-100 uppercase">Day</th>
-                {clusterSlots.map((s) => (
+                {daySlots.map((s) => (
                   <th key={s.id} className="rounded-lg bg-brand-900 px-2 py-2 text-left font-medium whitespace-nowrap text-white dark:bg-brand-950">
                     <div className="text-sm">{s.label.split(" – ")[0]}</div>
                     <div className="text-[11px] font-normal text-brand-300">to {s.label.split(" – ")[1]}</div>
@@ -121,7 +134,7 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
               {DAY_NAMES.map((d, i) => (
                 <tr key={d}>
                   <th className="rounded-lg bg-brand-100 px-3 py-2 text-left font-semibold text-brand-950 dark:bg-brand-950 dark:text-brand-100">{d}</th>
-                  {clusterSlots.map((s) => {
+                  {daySlots.map((s) => {
                     const n = freeAt(i + 1, s.id).length;
                     const on = picked?.wd === i + 1 && picked.slot.id === s.id;
                     return (
@@ -183,13 +196,14 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
       <section id="meeting" className="scroll-mt-4 space-y-4">
         <h2 className="text-lg font-semibold">Suggest a meeting time</h2>
         <form action="/admin/free-time#meeting" className="card grid gap-4 p-5 sm:grid-cols-3">
-          <input type="hidden" name="c" value={cluster} />
+          {cluster !== "all" && <input type="hidden" name="c" value={cluster} />}
           <div>
-            <label className="label" htmlFor="meet-in">Slots to use</label>
-            <select id="meet-in" name="in" defaultValue={meetIn} className="input">
-              <option value="A">{CLUSTERS.A.label} slots</option>
-              <option value="B">{CLUSTERS.B.label} slots</option>
-              <option value="all">Any slot, 8:00 to 4:45</option>
+            <label className="label" htmlFor="meet-who">Who should attend</label>
+            <select id="meet-who" name="who" defaultValue={who} className="input">
+              <option value="all">Whole department · {everyone.length}</option>
+              <option value="A">{CLUSTERS.A.label} · {inCluster("A").length}</option>
+              <option value="B">{CLUSTERS.B.label} · {inCluster("B").length}</option>
+              <option value="some">Only the faculty ticked below</option>
             </select>
           </div>
           <div>
@@ -200,21 +214,11 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
               <option value="3">3 slots in a row</option>
             </select>
           </div>
-          <fieldset>
-            <legend className="label">Who should attend</legend>
-            <div className="flex gap-4 pt-2 text-sm">
-              <label className="flex items-center gap-1.5">
-                <input type="radio" name="mode" value="all" defaultChecked={!onlySome} className="accent-brand-600" /> All faculty
-              </label>
-              <label className="flex items-center gap-1.5">
-                <input type="radio" name="mode" value="some" defaultChecked={onlySome} className="accent-brand-600" /> Only those ticked below
-              </label>
-            </div>
-          </fieldset>
-          <details className="sm:col-span-3" open={onlySome}>
-            <summary className="cursor-pointer text-sm font-medium text-brand-600 dark:text-brand-400">Pick faculty{onlySome ? ` · ${attendees.length} ticked` : ""}</summary>
+          <p className="muted self-end pb-2 text-sm">Times run from 8:00 AM to 4:45 PM, Monday to Saturday.</p>
+          <details className="sm:col-span-3" open={who === "some"}>
+            <summary className="cursor-pointer text-sm font-medium text-brand-600 dark:text-brand-400">Pick faculty{who === "some" ? ` · ${attendees.length} ticked` : ""}</summary>
             <div className="mt-3 grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-2 lg:grid-cols-3">
-              {faculty.map((f) => (
+              {everyone.map((f) => (
                 <label key={f.initials} className="flex items-center gap-2">
                   <input type="checkbox" name="p" value={f.initials} defaultChecked={chosen.has(f.initials)} className="h-4 w-4 accent-brand-600" />
                   <span className="truncate">{f.name}</span>
@@ -273,7 +277,7 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
               </li>
             );
           })}
-          {suggestions.length === 0 && <li className="card muted p-6 text-sm md:col-span-2">No {length} slots in a row fit in these slots. Try a shorter meeting or any slot.</li>}
+          {suggestions.length === 0 && <li className="card muted p-6 text-sm md:col-span-2">Nobody to invite yet. Pick a group with faculty in it, or tick some faculty.</li>}
         </ol>
       </section>
     </div>
