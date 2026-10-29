@@ -67,7 +67,7 @@ export type AllotmentRow = {
 
 /** A slot booked for an event, CIE or approved request, as listed on the home page. */
 export type UpcomingRow = Pick<AllotmentRow, "date" | "room_id" | "slot_id" | "kind" | "title" | "faculty_name" | "reason"> & {
-  /** The admin who approved the request or allotted the slot (missing before migration 0012). */
+  /** The admin who approved the request or allotted the slot (missing before migration 0015). */
   approved_by?: string | null;
 };
 
