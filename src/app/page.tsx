@@ -1,5 +1,6 @@
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { IconBuilding, IconCalendarCheck, IconClock } from "@/components/Icons";
+import FacultyCard from "@/components/FacultyCard";
 import KpiCard from "@/components/KpiCard";
 import PendingLink from "@/components/PendingLink";
 import StatusBadge from "@/components/StatusBadge";
@@ -7,7 +8,7 @@ import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { STATUS_CELL } from "@/lib/status";
 import ClosedDay from "@/components/ClosedDay";
 import UpcomingBookings from "@/components/UpcomingBookings";
-import { getDaySchedule, getHolidays, getSlots, getUpcomingBookings } from "@/lib/data";
+import { getDaySchedule, getFacultyStatus, getHolidays, getSlots, getUpcomingBookings } from "@/lib/data";
 import { DATE_RE, dateOption, defaultSlot, formatDate, isSunday, mondayOf, nextWorkingDay, todayIST, viewableDates } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +49,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const slot = slots.find((s) => s.id === slotId)!;
 
   const UPCOMING_DAYS = 14;
-  const [day, upcoming] = await Promise.all([getDaySchedule(date), getUpcomingBookings(UPCOMING_DAYS)]);
+  const [day, upcoming, status] = await Promise.all([getDaySchedule(date), getUpcomingBookings(UPCOMING_DAYS), getFacultyStatus(date)]);
+  const inSlot = (status ?? []).filter((f) => f.slot_id === slotId);
+  // Free and busy faculty in the chosen slot: the whole department (null) or one cluster
+  const counts = (cluster: "A" | "B" | null) => {
+    const rows = cluster ? inSlot.filter((f) => f.cluster === cluster) : inSlot;
+    const free = rows.filter((f) => !f.busy).length;
+    return { free, busy: rows.length - free };
+  };
   const rows = day.filter((r) => r.slot_id === slotId);
   const freeToday = day.filter((r) => r.status === "free" && !r.ended).length;
   const freeNow = rows.filter((r) => r.status === "free").length;
@@ -96,31 +104,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
       {holiday ? (
         <ClosedDay date={date} holiday={holiday} nextDate={nextWorkingDay(date, holidays)} nextHref={`/?date=${nextWorkingDay(date, holidays)}&slot=${slotId}`} />
       ) : (
-        <section className="grid grid-cols-3 gap-2 sm:gap-4">
-          <KpiCard
-            label={
-              date === today
-                ? "Free slots today"
-                : `Free slots on ${formatDate(date, { weekday: "long", day: undefined, month: undefined, year: undefined })}`
-            }
-            value={freeToday}
-            hint={date === today ? "Room-slots still free for the rest of the day" : `Room-slots free on ${formatDate(date)}`}
-            href={`/free?date=${date}`}
-            linkText="Explore free slots"
-            tone="navy"
-            icon={<IconCalendarCheck />}
-          />
-          <div className="card flex flex-col divide-y divide-brand-100 px-3 sm:px-5 dark:divide-brand-900">
-            <div className="flex flex-1 items-center justify-between gap-2 py-2 sm:py-3">
-              <span className="text-xs font-medium text-brand-700 sm:text-sm dark:text-brand-300">Rooms occupied</span>
-              <span className="text-2xl font-semibold tracking-tight sm:text-3xl">{totalRooms - freeNow}</span>
-            </div>
-            <div className="flex flex-1 items-center justify-between gap-2 py-2 sm:py-3">
-              <span className="text-xs font-medium text-brand-700 sm:text-sm dark:text-brand-300">Rooms free</span>
-              <span className="text-2xl font-semibold tracking-tight text-brand-600 sm:text-3xl dark:text-brand-400">{freeNow}</span>
-            </div>
-          </div>
-          <KpiCard label="Rooms" value={totalRooms} hint="Classrooms and labs on this site" tone="ink" icon={<IconBuilding />} />
+        <section className="grid gap-3 sm:grid-cols-3 sm:gap-4" aria-label="Free and busy faculty">
+          <FacultyCard label="Machine Learning Department" {...counts(null)} href={`/faculty-status?date=${date}&slot=${slotId}`} ready={!!status} tone="navy" />
+          <FacultyCard label="Cluster A" {...counts("A")} href={`/faculty-status?date=${date}&slot=${slotId}&c=A`} ready={!!status} tone="light" />
+          <FacultyCard label="Cluster B" {...counts("B")} href={`/faculty-status?date=${date}&slot=${slotId}&c=B`} ready={!!status} tone="ink" />
         </section>
       )}
 
@@ -153,6 +140,35 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
               </PendingLink>
             ))}
           </div>
+        </section>
+      )}
+
+      {!holiday && (
+        <section className="grid grid-cols-3 gap-2 sm:gap-4" aria-label="Room statistics">
+          <KpiCard
+            label={
+              date === today
+                ? "Free slots today"
+                : `Free slots on ${formatDate(date, { weekday: "long", day: undefined, month: undefined, year: undefined })}`
+            }
+            value={freeToday}
+            hint={date === today ? "Room-slots still free for the rest of the day" : `Room-slots free on ${formatDate(date)}`}
+            href={`/free?date=${date}`}
+            linkText="Explore free slots"
+            tone="navy"
+            icon={<IconCalendarCheck />}
+          />
+          <div className="card flex flex-col divide-y divide-brand-100 px-3 sm:px-5 dark:divide-brand-900">
+            <div className="flex flex-1 items-center justify-between gap-2 py-2 sm:py-3">
+              <span className="text-xs font-medium text-brand-700 sm:text-sm dark:text-brand-300">Rooms occupied</span>
+              <span className="text-2xl font-semibold tracking-tight sm:text-3xl">{totalRooms - freeNow}</span>
+            </div>
+            <div className="flex flex-1 items-center justify-between gap-2 py-2 sm:py-3">
+              <span className="text-xs font-medium text-brand-700 sm:text-sm dark:text-brand-300">Rooms free</span>
+              <span className="text-2xl font-semibold tracking-tight text-brand-600 sm:text-3xl dark:text-brand-400">{freeNow}</span>
+            </div>
+          </div>
+          <KpiCard label="Rooms" value={totalRooms} hint="Classrooms and labs on this site" tone="ink" icon={<IconBuilding />} />
         </section>
       )}
     </div>

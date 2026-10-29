@@ -110,6 +110,21 @@ export async function adminRenameBooking(form: FormData) {
   );
 }
 
+export async function saveFaculty(form: FormData) {
+  const old = s(form, "old_initials");
+  await run(
+    form,
+    "/admin/people",
+    "admin_save_faculty",
+    { p_old_initials: old || null, p_initials: s(form, "initials"), p_title: s(form, "title"), p_full_name: s(form, "full_name") },
+    old ? "Faculty member saved." : "Faculty member added.",
+  );
+}
+
+export async function removeFaculty(form: FormData) {
+  await run(form, "/admin/people", "admin_remove_faculty", { p_initials: s(form, "initials") }, "Faculty member removed from the directory.");
+}
+
 export async function adminRestore(form: FormData) {
   await run(
     form,

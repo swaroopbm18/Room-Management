@@ -45,7 +45,8 @@ export async function getFacultyWeeks(): Promise<{ faculty: FacultyMember[]; wee
 
   const names = new Map<string, FacultyMember>();
   for (const d of (dirRes.data ?? []) as { initials: string; title: string; full_name: string }[]) {
-    names.set(d.initials, { initials: d.initials, name: `${d.title} ${d.full_name}`.trim() });
+    // A directory entry with no name yet shows its initials
+    names.set(d.initials, { initials: d.initials, name: d.full_name.trim() ? `${d.title} ${d.full_name}`.trim() : d.initials });
   }
   // A person on the list takes over the directory name for their initials
   for (const p of (peopleRes.data ?? []) as Person[]) {
