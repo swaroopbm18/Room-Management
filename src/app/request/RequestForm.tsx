@@ -212,7 +212,7 @@ export default function RequestForm({
         <div>
           <label className="label" htmlFor="letter">
             <span className="inline-flex items-center gap-1.5">
-              <IconUpload className="h-4 w-4" /> Permission letter (PDF, under 5 MB) <span className="text-red-600">*</span>
+              <IconUpload className="h-4 w-4" /> Permission letter (PDF, under 5 MB)
             </span>
           </label>
           <p className="mb-2 flex gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
