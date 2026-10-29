@@ -1,4 +1,4 @@
-import { IconCalendar, IconFile, IconFlag, IconHistory, IconInbox, IconTag, IconUsers } from "@/components/Icons";
+import { IconCalendar, IconClock, IconFile, IconFlag, IconHistory, IconInbox, IconTag, IconUser, IconUsers } from "@/components/Icons";
 import PendingLink from "@/components/PendingLink";
 import { requireAdmin } from "@/lib/auth";
 
@@ -7,6 +7,8 @@ const TABS = [
   { href: "/admin/allot", label: "Allot / free rooms", icon: <IconFlag className="h-4 w-4" /> },
   { href: "/admin/timetable", label: "Edit timetable", icon: <IconCalendar className="h-4 w-4" /> },
   { href: "/admin/report", label: "Report", icon: <IconFile className="h-4 w-4" /> },
+  { href: "/admin/faculty", label: "Faculty timetables", icon: <IconUser className="h-4 w-4" /> },
+  { href: "/admin/free-time", label: "Free time & meetings", icon: <IconClock className="h-4 w-4" /> },
   { href: "/admin/subjects", label: "Subjects", icon: <IconTag className="h-4 w-4" /> },
   { href: "/admin/people", label: "Faculty & admins", icon: <IconUsers className="h-4 w-4" /> },
   { href: "/admin/history", label: "History", icon: <IconHistory className="h-4 w-4" /> },

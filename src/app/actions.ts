@@ -286,3 +286,53 @@ export async function applyTimetableUpload(form: FormData) {
       : withParam("/admin/timetable", "msg", `Timetable updated: ${data} ${data === 1 ? "cell" : "cells"} changed, from ${formatDate(addDays(todayIST(), 1), { weekday: "long" })}. Earlier days keep the old timetable.`),
   );
 }
+
+/** Add (or clear, with an empty duty) one faculty member's duty over a start-to-end range. */
+export async function setFacultyDuty(form: FormData) {
+  await run(
+    form,
+    "/admin/faculty",
+    "admin_set_faculty_duty",
+    { p_initials: s(form, "initials"), p_weekday: Number(s(form, "weekday")), p_slots: await slotRange(form), p_activity: s(form, "activity") },
+    s(form, "activity") ? "Duty saved." : "Slots cleared.",
+  );
+}
+
+const DAY_NUMBERS: Record<string, number> = { MON: 1, TUE: 2, WED: 3, THU: 4, THUR: 4, FRI: 5, SAT: 6 };
+
+/**
+ * Faculty duties from a CSV, one slot per line: "initials, day, start time, duty", e.g.
+ * "AKN, Mon, 8:00, Proctoring". Everyone in the file has their duties replaced.
+ */
+export async function importFacultyDuties(form: FormData) {
+  const to = back(form, "/admin/faculty");
+  const file = form.get("file");
+  if (file instanceof File && file.size > 1024 * 1024) redirect(withParam(to, "error", "The CSV file must be under 1 MB."));
+  const uploaded = file instanceof File && file.size > 0 ? await file.text() : "";
+  const slots = await getSlots();
+  // "8:00", "2:00 PM" and "14:00" all name the 2 PM slot; afternoon slots are written without PM in the timetables
+  const slotFor = (t: string) => {
+    const m = t.toUpperCase().match(/^(\d{1,2})[:.](\d{2})\s*(AM|PM)?$/);
+    if (!m) return slots.find((x) => String(x.id) === t)?.id;
+    let h = Number(m[1]) % 12;
+    if (m[3] === "PM" || (!m[3] && h < 8)) h += 12;
+    const hhmm = `${String(h).padStart(2, "0")}:${m[2]}`;
+    return slots.find((x) => x.starts === hhmm)?.id;
+  };
+  const entries: { initials: string; weekday: number; slot_id: number; activity: string }[] = [];
+  const bad: string[] = [];
+  for (const line of `${s(form, "csv")}\n${uploaded}`.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+    const [ini = "", day = "", time = "", ...rest] = line.split(",").map((x) => x.trim().replace(/^"(.*)"$/, "$1").trim());
+    const weekday = DAY_NUMBERS[day.slice(0, 4).toUpperCase()] ?? DAY_NUMBERS[day.slice(0, 3).toUpperCase()];
+    const slot_id = slotFor(time);
+    const activity = rest.join(", ");
+    if (/^initials$/i.test(ini)) continue; // header row
+    if (!ini || !weekday || !slot_id || !activity) bad.push(line);
+    else entries.push({ initials: ini.replace(/^(Prof|Dr)[.,]?\s*/i, "").toUpperCase(), weekday, slot_id, activity });
+  }
+  if (bad.length) redirect(withParam(to, "error", `Could not read ${bad.length} ${bad.length === 1 ? "line" : "lines"}: ${bad.slice(0, 3).join(" | ")}${bad.length > 3 ? "…" : ""}`));
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_replace_faculty_duties", { p_initials: [...new Set(entries.map((e) => e.initials))], p_entries: entries });
+  revalidatePath("/", "layout");
+  redirect(error ? withParam(to, "error", error.message) : withParam(to, "msg", `Saved ${data} duty ${data === 1 ? "slot" : "slots"} for ${new Set(entries.map((e) => e.initials)).size} faculty.`));
+}
