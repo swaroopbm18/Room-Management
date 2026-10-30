@@ -1,31 +1,11 @@
-import { IconCalendar, IconClock, IconFile, IconFlag, IconHistory, IconInbox, IconTag, IconUser, IconUsers } from "@/components/Icons";
-import PendingLink from "@/components/PendingLink";
+import AdminNav from "@/components/AdminNav";
 import { requireAdmin } from "@/lib/auth";
-
-const TABS = [
-  { href: "/admin", label: "Requests", icon: <IconInbox className="h-4 w-4" /> },
-  { href: "/admin/allot", label: "Allot / free rooms", icon: <IconFlag className="h-4 w-4" /> },
-  { href: "/admin/timetable", label: "Edit timetable", icon: <IconCalendar className="h-4 w-4" /> },
-  { href: "/admin/report", label: "Report", icon: <IconFile className="h-4 w-4" /> },
-  { href: "/admin/faculty", label: "Faculty timetables", icon: <IconUser className="h-4 w-4" /> },
-  { href: "/admin/free-time", label: "Free time & meetings", icon: <IconClock className="h-4 w-4" /> },
-  { href: "/admin/subjects", label: "Subjects", icon: <IconTag className="h-4 w-4" /> },
-  { href: "/admin/people", label: "Faculty & admins", icon: <IconUsers className="h-4 w-4" /> },
-  { href: "/admin/history", label: "History", icon: <IconHistory className="h-4 w-4" /> },
-];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   await requireAdmin();
   return (
     <div>
-      <div className="mb-6 flex flex-wrap print:hidden gap-1 rounded-xl bg-brand-950 p-1 text-sm shadow-sm dark:border dark:border-brand-900 dark:bg-ink">
-        {TABS.map((t) => (
-          <PendingLink key={t.href} href={t.href} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium text-brand-100 hover:bg-white/10 hover:text-white">
-            {t.icon}
-            {t.label}
-          </PendingLink>
-        ))}
-      </div>
+      <AdminNav />
       {children}
     </div>
   );

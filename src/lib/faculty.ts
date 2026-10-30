@@ -79,6 +79,23 @@ export async function getFacultyWeeks(): Promise<{ faculty: FacultyMember[]; wee
   return { faculty, weeks, dutiesReady: !dutyRes.error, clustersReady: !clusterRes.error };
 }
 
+/** One faculty member's week from tomorrow: their classes and the duties they can read. */
+export async function getWeekFor(initials: string): Promise<Map<string, Busy[]>> {
+  const supabase = await createClient();
+  const [ttRes, dutyRes] = await Promise.all([
+    supabase.rpc("get_timetable_all", { p_date: addDays(todayIST(), 1) }),
+    supabase.from("faculty_duties").select("weekday, slot_id, activity").eq("initials", initials),
+  ]);
+  const week = new Map<string, Busy[]>();
+  const add = (weekday: number, slotId: number, b: Busy) => week.set(cellKey(weekday, slotId), [...(week.get(cellKey(weekday, slotId)) ?? []), b]);
+  for (const t of (ttRes.data ?? []) as TimetableCell[]) {
+    if (!t.is_department && t.faculty_initials.includes(initials)) add(t.weekday, t.slot_id, { activity: t.subject, room: t.room_id, source: "timetable" });
+  }
+  // Before migration 0017 faculty can't read their duties, so only classes show
+  for (const d of (dutyRes.data ?? []) as Omit<Duty, "initials">[]) add(d.weekday, d.slot_id, { activity: d.activity, source: "duty" });
+  return week;
+}
+
 export function isFree(weeks: Weeks, initials: string, weekday: number, slotId: number): boolean {
   return !weeks.get(initials)?.get(cellKey(weekday, slotId))?.length;
 }

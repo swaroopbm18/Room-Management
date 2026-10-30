@@ -7,6 +7,7 @@ import { IconAlert, IconCheck, IconFlag, IconUpload, IconUsers } from "@/compone
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { SlotStatus } from "@/lib/types";
+import { clashText, findClashes, type BusyAt, type SectionRow } from "@/lib/clashes";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -19,6 +20,8 @@ export default function RequestForm({
   slots,
   email,
   subjects,
+  busy: busyAt,
+  day,
 }: {
   room: string;
   date: string;
@@ -26,6 +29,8 @@ export default function RequestForm({
   slots: RoomSlot[]; // this room's slots for the day, in time order
   email: string;
   subjects: string[]; // allotted to this faculty member by an admin
+  busy: ({ slot_id: number } & BusyAt)[]; // what the requester is doing that day
+  day: SectionRow[]; // every class that day, for section clashes
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<number[]>([initialSlot]);
@@ -37,6 +42,14 @@ export default function RequestForm({
   const [busy, setBusy] = useState(false);
 
   const pos = (id: number) => slots.findIndex((s) => s.id === id);
+  const clashes = findClashes({
+    room,
+    slotIds: [...selected].sort((a, b) => pos(a) - pos(b)),
+    subject: type === "class" ? subject : null,
+    busy: new Map(busyAt.map((b) => [b.slot_id, b])),
+    day,
+  });
+  const startOf = (id: number) => slots.find((s) => s.id === id)?.label.split(" – ")[0] ?? "";
   const selectable = (s: RoomSlot) => s.status === "free" && !s.ended;
 
   // Keep the selection one unbroken run of free slots: extend at either end, shrink from
@@ -227,6 +240,20 @@ export default function RequestForm({
             onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
           />
           {file && <div className="muted mt-1 text-xs">{file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB</div>}
+        </div>
+      )}
+
+      {clashes.length > 0 && (
+        <div className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+          <div className="flex items-center gap-2 font-medium">
+            <IconAlert className="h-4 w-4 shrink-0" /> Possible clash
+          </div>
+          <ul className="mt-1 list-disc space-y-0.5 pl-6">
+            {clashes.map((c, i) => (
+              <li key={i}>{clashText(c, "You", startOf(c.slot_id))}</li>
+            ))}
+          </ul>
+          <p className="mt-1 text-xs opacity-80">You can still send the request; the admin sees the same warning.</p>
         </div>
       )}
 

@@ -49,7 +49,7 @@ export default async function Subjects({ searchParams }: { searchParams: Promise
         <div>
           <h2 className="text-lg font-semibold">Add subjects from the timetable</h2>
           <p className="muted mt-1 text-sm">
-            Reads the current timetable, including the latest Word file uploaded under Edit timetable, and gives each faculty member the subjects next to
+            Reads the current timetable, including the latest Word file uploaded under Timetables, and gives each faculty member the subjects next to
             their initials. Subjects already allotted are kept.
             {noInitials > 0 && ` ${noInitials} ${noInitials === 1 ? "person has" : "people have"} no initials on the faculty list, so the timetable can't be matched to them.`}
           </p>

@@ -4,7 +4,8 @@ import { IconAlert, IconCalendarCheck, IconCheck, IconChevronDown, IconChevronUp
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
 import RequestStatus from "@/components/RequestStatus";
-import { getDaySchedule, getSlots } from "@/lib/data";
+import { getDaySchedule, getFacultyStatus, getSlots } from "@/lib/data";
+import { clashText, findClashes, sectionRows } from "@/lib/clashes";
 import { groupRequests, slotCount } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
 import type { RequestRow } from "@/lib/types";
@@ -41,6 +42,22 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
   const paths = pending.map((g) => g.first.pdf_path).filter((p): p is string => !!p);
   const signed = paths.length ? ((await supabase.storage.from("letters").createSignedUrls(paths, 60 * 30)).data ?? []) : [];
   const urlFor = new Map(signed.map((s) => [s.path ?? "", s.signedUrl]));
+
+  // Clash warnings: what each requester, and the class's section, already has in those slots
+  const dates = [...new Set(pending.map((g) => g.first.date))];
+  const [peopleRes, statuses, days] = await Promise.all([
+    supabase.from("people").select("email, initials"),
+    Promise.all(dates.map((d) => getFacultyStatus(d))),
+    Promise.all(dates.map((d) => getDaySchedule(d))),
+  ]);
+  const initialsOf = new Map(((peopleRes.data ?? []) as { email: string; initials: string | null }[]).map((p) => [p.email, p.initials]));
+  const clashesFor = (g: (typeof pending)[number]) => {
+    const i = dates.indexOf(g.first.date);
+    const ini = initialsOf.get(g.first.requester_email);
+    const busy = new Map((statuses[i] ?? []).filter((f) => ini && f.initials === ini && f.busy).map((f) => [f.slot_id, f]));
+    return findClashes({ room: g.first.room_id, slotIds: g.slotIds, subject: g.first.type === "class" ? g.first.subject : null, busy, day: sectionRows(days[i]) });
+  };
+  const startOf = (id: number) => slotById.get(id)?.label.split(" – ")[0] ?? "";
 
   // Requests for the same room on the same day share one priority order
   const groups = new Map<string, typeof pending>();
@@ -173,7 +190,14 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
                                 </div>
                               )}
                             </td>
-                            <td className="td max-w-sm whitespace-pre-wrap">{r.description}</td>
+                            <td className="td max-w-sm">
+                              <div className="whitespace-pre-wrap">{r.description}</div>
+                              {clashesFor(g).map((c, k) => (
+                                <div key={k} className="mt-1 flex gap-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                                  <IconAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {clashText(c, r.requester_name, startOf(c.slot_id))}
+                                </div>
+                              ))}
+                            </td>
                             <td className="td">
                               <div className="flex flex-col items-end gap-2">
                                 <form action={approveRequest}>

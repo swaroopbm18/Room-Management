@@ -132,8 +132,8 @@ export default async function People({ searchParams }: { searchParams: Promise<{
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Faculty & admins"
-        subtitle={`${people.filter((p) => p.active).length} people can sign in. Initials link each person to their classes in the timetable.`}
+        title="Sign-in list & names"
+        subtitle={`${people.filter((p) => p.active).length} people can sign in. Initials link each person to their classes in the timetable. To change one person's details, cluster or subjects, open their Faculty profile.`}
       />
       <Flash msg={sp.msg} error={sp.error} />
 
