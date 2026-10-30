@@ -7,7 +7,7 @@ import SubmitButton from "@/components/SubmitButton";
 import { getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { ScheduleRow } from "@/lib/types";
-import { addDays, formatDate, formatDateTime, todayIST } from "@/lib/time";
+import { addDays, formatDate, formatDateTime, slotOpen, todayIST } from "@/lib/time";
 import { adminEditTimetable } from "../../actions";
 import TimetableUpload from "./TimetableUpload";
 import SlotRange from "../allot/SlotRange";
@@ -59,7 +59,7 @@ export default async function EditTimetable({ searchParams }: { searchParams: Pr
           slot_label: s.label,
           starts: s.starts,
           ends: s.ends,
-          status: !e ? "free" : e.is_department ? "department" : "class",
+          status: !e ? (slotOpen(day, s) ? "free" : "closed") : e.is_department ? "department" : "class",
           subject: e?.subject ?? null,
           faculty_name: e ? (e.is_department ? `${e.subject} department` : e.faculty_name) : null,
           reason: null,

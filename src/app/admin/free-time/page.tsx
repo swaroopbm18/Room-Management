@@ -5,7 +5,7 @@ import MeetingPicker from "@/components/MeetingPicker";
 import PageHeader from "@/components/PageHeader";
 import AvailabilityTabs from "@/components/AvailabilityTabs";
 import { getSlots } from "@/lib/data";
-import { cellKey, CLUSTERS, DAY_NAMES, DAY_SLOTS, DAYS, getFacultyWeeks, isFree, suggestMeetings, type ClusterKey } from "@/lib/faculty";
+import { cellKey, CLUSTERS, DAY_NAMES, DAY_SLOTS, DAYS, getFacultyWeeks, isFree, isOpen, suggestMeetings, type ClusterKey } from "@/lib/faculty";
 
 export const dynamic = "force-dynamic";
 
@@ -37,14 +37,14 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
   const total = faculty.length;
 
   const freeAt = (wd: number, slotId: number) => faculty.filter((f) => isFree(weeks, f.initials, wd, slotId));
-  const cells = DAY_NAMES.flatMap((_, i) => daySlots.map((s) => ({ wd: i + 1, slot: s, free: freeAt(i + 1, s.id).length })));
+  const cells = DAY_NAMES.flatMap((_, i) => daySlots.filter((s) => isOpen(i + 1, s.id)).map((s) => ({ wd: i + 1, slot: s, free: freeAt(i + 1, s.id).length })));
   const best = [...cells].sort((a, b) => b.free - a.free)[0];
   const shade = (n: number) => heat(total ? n / total : 0);
   const avg = cells.length ? cells.reduce((n, c) => n + c.free, 0) / cells.length : 0;
 
   const pickDay = Number(sp.d);
   const pickSlot = slotById.get(Number(sp.s));
-  const picked = pickDay >= 1 && pickDay <= 6 && pickSlot ? { wd: pickDay, slot: pickSlot } : null;
+  const picked = pickDay >= 1 && pickDay <= 6 && pickSlot && isOpen(pickDay, pickSlot.id) ? { wd: pickDay, slot: pickSlot } : null;
   const keep = (extra: Record<string, string>) => {
     const p = new URLSearchParams();
     p.set("c", cluster);
@@ -149,6 +149,12 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
                 <tr key={d}>
                   <th className="rounded-lg bg-brand-100 px-3 py-2 text-left font-semibold text-brand-950 dark:bg-brand-950 dark:text-brand-100">{d}</th>
                   {daySlots.map((s) => {
+                    if (!isOpen(i + 1, s.id))
+                      return (
+                        <td key={s.id} title="Saturday classes end at 2 PM" className="muted rounded-lg border border-dashed border-brand-200 px-3 py-2 text-xs dark:border-brand-900">
+                          No classes
+                        </td>
+                      );
                     const n = freeAt(i + 1, s.id).length;
                     const on = picked?.wd === i + 1 && picked.slot.id === s.id;
                     return (
@@ -229,7 +235,7 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
                 <option value="3">3 slots in a row</option>
               </select>
             </div>
-            <p className="muted self-end pb-2 text-sm">The 3 best times, Monday to Saturday, 8:00 AM to 4:45 PM.</p>
+            <p className="muted self-end pb-2 text-sm">The 3 best times, Monday to Friday 8:00 AM to 4:45 PM and Saturday until 2 PM.</p>
           </MeetingPicker>
           <div className="flex justify-end sm:col-span-3">
             <button className="btn-primary">

@@ -89,6 +89,7 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
             </div>
           )}
           {row.reason && <div className="muted mt-1 text-sm">{row.reason}</div>}
+          {row.status === "closed" && <div className="muted mt-1 text-sm">Saturday classes end at 2 PM, so this slot can&apos;t be requested.</div>}
           {row.ended && <div className="muted mt-1 text-sm">This slot has ended.</div>}
           {person?.role === "admin" && !row.ended && !holiday && (row.status === "booked" || row.status === "cie" || row.status === "event") && (
             <div className="mt-2">

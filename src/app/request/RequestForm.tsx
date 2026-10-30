@@ -155,7 +155,7 @@ export default function RequestForm({
                 }`}
               >
                 <div className="font-semibold">{s.label.split(" – ")[0]}</div>
-                <div className="truncate opacity-80">{ok ? (on ? "Selected" : "Free") : s.ended ? "Ended" : s.subject ?? "Taken"}</div>
+                <div className="truncate opacity-80">{ok ? (on ? "Selected" : "Free") : s.ended ? "Ended" : s.status === "closed" ? "No classes" : (s.subject ?? "Taken")}</div>
               </button>
             );
           })}

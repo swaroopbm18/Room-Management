@@ -13,7 +13,7 @@ export type Slot = { id: number; starts: string; ends: string; label: string };
 
 export type Room = { id: string; name: string; sort_order: number };
 
-export type SlotStatus = "free" | "class" | "department" | "booked" | "cie" | "event";
+export type SlotStatus = "free" | "class" | "department" | "booked" | "cie" | "event" | "closed";
 
 export type ScheduleRow = {
   room_id: string;

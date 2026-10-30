@@ -43,7 +43,7 @@ export default async function RoomWeek({ params, searchParams }: { params: Promi
   const perDay = schedules.map((rows, i) => (holidays.has(days[i]) ? [] : rows.filter((r) => r.room_id === roomId)));
   const upcoming = perDay.flat().filter((r) => !r.ended);
   const freeCount = upcoming.filter((r) => r.status === "free").length;
-  const inUse = upcoming.filter((r) => r.status !== "free" && r.status !== "department").length;
+  const inUse = upcoming.filter((r) => r.status !== "free" && r.status !== "department" && r.status !== "closed").length;
 
   const gridRows: GridRow[] = days.map((d, i) => {
     const free = perDay[i].filter((r) => r.status === "free" && !r.ended).length;

@@ -22,6 +22,19 @@ export function addDays(date: string, days: number): string {
   return isoDate(d);
 }
 
+/** Monday = 1 … Sunday = 7. */
+export function weekdayOf(date: string): number {
+  return ((new Date(date + "T00:00:00Z").getUTCDay() + 6) % 7) + 1;
+}
+
+/** Saturday classes end at 2 PM, so Saturday slots from 2:00 on are closed: never free, bookable or counted. */
+export const SATURDAY_ENDS = "14:00";
+
+/** Whether a slot is part of the teaching day on that weekday (1 = Monday). */
+export function slotOpen(weekday: number, slot: { starts: string }): boolean {
+  return weekday !== 6 || slot.starts < SATURDAY_ENDS;
+}
+
 export function isSunday(date: string): boolean {
   return new Date(date + "T00:00:00Z").getUTCDay() === 0;
 }
@@ -65,7 +78,7 @@ export function slotEnded(date: string, slot: Pick<Slot, "ends">): boolean {
 
 /**
  * The slot to show by default: the one running now, else the next one today,
- * else the first slot of the next working day.
+ * else the first slot of the next working day. Saturday's closed afternoon counts as over.
  */
 export function defaultSlot(slots: Slot[], holidays: Map<string, string> = new Map()): { date: string; slotId: number } {
   const n = istNow();
@@ -73,7 +86,7 @@ export function defaultSlot(slots: Slot[], holidays: Map<string, string> = new M
   const now = n.getUTCHours() * 60 + n.getUTCMinutes();
   const sorted = [...slots].sort((a, b) => minutes(a.starts) - minutes(b.starts));
   if (!isSunday(today) && !holidays.has(today)) {
-    const current = sorted.find((s) => now < minutes(s.ends));
+    const current = sorted.find((s) => now < minutes(s.ends) && slotOpen(weekdayOf(today), s));
     if (current) return { date: today, slotId: current.id };
   }
   return { date: nextWorkingDay(today, holidays), slotId: sorted[0]?.id ?? 1 };
