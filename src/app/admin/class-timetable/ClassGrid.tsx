@@ -4,15 +4,11 @@ import { useEffect, useState } from "react";
 import { IconAlert, IconCheck, IconPencil, IconPlus, IconX } from "@/components/Icons";
 import SubmitButton from "@/components/SubmitButton";
 import type { Slot } from "@/lib/types";
+import type { ClassEntry, Span } from "@/lib/classTimetable";
 import { deleteClassEntry, saveClassEntry } from "../../actions";
 
 const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-/** One class taught in a slot (or a block of slots): where, what and by whom. */
-export type ClassEntry = { room: string; subject: string; initials: string[]; wholeSemester: boolean };
-
-/** A cell of the class timetable: one slot, or several in a row with the same classes. */
-export type Span = { weekday: number; slotIds: number[]; entries: ClassEntry[] };
 
 /**
  * A class's week, days × slots. Each class has a pencil that opens a small form in its cell to

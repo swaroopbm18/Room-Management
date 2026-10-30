@@ -19,13 +19,13 @@ export const getPerson = cache(async (): Promise<Person | null> => {
 
 export async function requireStaff(): Promise<Person> {
   const person = await getPerson();
-  if (!person) redirect("/login?as=faculty");
+  if (!person) redirect("/login?next=/faculty");
   return person;
 }
 
 export async function requireAdmin(): Promise<Person> {
   const person = await getPerson();
-  if (!person) redirect("/login?as=admin");
+  if (!person) redirect("/login?next=/admin");
   if (person.role !== "admin") redirect("/faculty?error=" + encodeURIComponent("Your account does not have admin access."));
   return person;
 }

@@ -22,6 +22,7 @@ export default function RequestForm({
   subjects,
   busy: busyAt,
   day,
+  weeks,
 }: {
   room: string;
   date: string;
@@ -31,6 +32,7 @@ export default function RequestForm({
   subjects: string[]; // allotted to this faculty member by an admin
   busy: ({ slot_id: number } & BusyAt)[]; // what the requester is doing that day
   day: SectionRow[]; // every class that day, for section clashes
+  weeks: { date: string; label: string }[]; // the same weekday in the next weeks, for repeating
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<number[]>([initialSlot]);
@@ -40,6 +42,7 @@ export default function RequestForm({
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [repeat, setRepeat] = useState(0); // extra weeks after this one
 
   const pos = (id: number) => slots.findIndex((s) => s.id === id);
   const clashes = findClashes({
@@ -95,20 +98,32 @@ export default function RequestForm({
         return setError(`Upload failed: ${up.error.message}`);
       }
     }
-    const { error } = await supabase.rpc("create_group_request", {
-      p_room: room,
-      p_date: date,
-      p_slots: [...selected].sort((a, b) => pos(a) - pos(b)),
-      p_type: type,
-      p_description: description,
-      p_pdf_path: pdfPath,
-      p_subject: type === "class" ? subject : null,
-    });
+    // One request per week; each is approved on its own
+    const send = (d: string) =>
+      supabase.rpc("create_group_request", {
+        p_room: room,
+        p_date: d,
+        p_slots: [...selected].sort((a, b) => pos(a) - pos(b)),
+        p_type: type,
+        p_description: description,
+        p_pdf_path: pdfPath,
+        p_subject: type === "class" ? subject : null,
+      });
+    const { error } = await send(date);
     if (error) {
       setBusy(false);
       return setError(error.message);
     }
-    router.push("/faculty?msg=" + encodeURIComponent("Request sent. An admin will review it."));
+    const failed: string[] = [];
+    for (const w of weeks.slice(0, repeat)) {
+      const r = await send(w.date);
+      if (r.error) failed.push(`${w.label}: ${r.error.message}`);
+    }
+    const sent = 1 + repeat - failed.length;
+    const msg = sent === 1 ? "Request sent. An admin will review it." : `${sent} requests sent, one for each week. An admin will review them.`;
+    router.push(
+      "/faculty?" + (failed.length ? `error=${encodeURIComponent(`${msg} Not sent for ${failed.join("; ")}`)}` : `msg=${encodeURIComponent(msg)}`),
+    );
     router.refresh();
   }
 
@@ -240,6 +255,27 @@ export default function RequestForm({
             onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
           />
           {file && <div className="muted mt-1 text-xs">{file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB</div>}
+        </div>
+      )}
+
+      {weeks.length > 0 && (
+        <div>
+          <label className="label" htmlFor="repeat">
+            Repeat weekly
+          </label>
+          <select id="repeat" className="input sm:w-72" value={repeat} onChange={(e) => setRepeat(Number(e.target.value))}>
+            <option value={0}>No, just this date</option>
+            {weeks.map((w, i) => (
+              <option key={w.date} value={i + 1}>
+                For {i + 2} weeks, until {w.label}
+              </option>
+            ))}
+          </select>
+          {repeat > 0 && (
+            <p className="muted mt-1 text-xs">
+              Sends {repeat + 1} requests, one a week, for the same room and slots. Each is approved on its own, and a week where the room is taken is skipped.
+            </p>
+          )}
         </div>
       )}
 

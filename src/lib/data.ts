@@ -28,6 +28,20 @@ export async function getDaySchedule(date: string): Promise<ScheduleRow[]> {
   return (data ?? []) as ScheduleRow[];
 }
 
+export type MyClass = Pick<ScheduleRow, "room_id" | "room_name" | "slot_id" | "slot_label" | "status" | "subject" | "ended"> & { date: string };
+
+/**
+ * The signed-in faculty member's classes and bookings from one date to another, in one call.
+ * Before migration 0018 it falls back to one call per day.
+ */
+export async function getMySchedule(from: string, to: string, dates: string[]): Promise<MyClass[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("my_schedule", { p_from: from, p_to: to });
+  if (!error) return (data ?? []) as MyClass[];
+  const days = await Promise.all(dates.map(async (d) => ({ date: d, rows: await getDaySchedule(d) })));
+  return days.flatMap(({ date, rows }) => rows.filter((r) => r.is_mine).map((r) => ({ ...r, date })));
+}
+
 /** Upcoming events and bookings, or null if they can't be read (e.g. before migration 0009 is run). */
 export async function getUpcomingBookings(days: number): Promise<UpcomingRow[] | null> {
   const supabase = await createClient();

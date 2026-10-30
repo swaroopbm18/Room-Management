@@ -33,7 +33,7 @@ const GROUPS: Group[] = [
     icon: <IconUsers className={i} />,
     tabs: [
       { href: "/admin/faculty", label: "Faculty profiles", icon: <IconUser className={i} /> },
-      { href: "/admin/free-time", label: "Free time & meetings", icon: <IconClock className={i} /> },
+      { href: "/admin/free-time", label: "Availability & meetings", icon: <IconClock className={i} /> },
       { href: "/admin/subjects", label: "Subjects", icon: <IconTag className={i} /> },
       { href: "/admin/people", label: "Sign-in list & names", icon: <IconUsers className={i} /> },
     ],
@@ -50,7 +50,7 @@ const GROUPS: Group[] = [
 
 const isOn = (path: string, href: string) => (href === "/admin" ? path === "/admin" : path === href || path.startsWith(href + "/"));
 
-export default function AdminNav() {
+export default function AdminNav({ pending }: { pending: number }) {
   const path = usePathname();
   const group = GROUPS.find((g) => g.tabs.some((t) => isOn(path, t.href))) ?? GROUPS[0];
   return (
@@ -67,6 +67,7 @@ export default function AdminNav() {
             >
               {g.icon}
               {g.label}
+              {g.label === "Requests" && pending > 0 && <span className="rounded-full bg-amber-400 px-1.5 text-[11px] leading-[18px] font-semibold text-black">{pending}</span>}
             </PendingLink>
           );
         })}

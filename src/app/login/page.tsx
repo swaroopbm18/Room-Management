@@ -20,11 +20,12 @@ const FEATURES = [
   { icon: IconShield, title: "Role-based access", text: "The HOD and Time Table Officers approve, faculty request rooms, and students can view." },
 ];
 
-export default async function Login({ searchParams }: { searchParams: Promise<{ as?: string; error?: string }> }) {
+export default async function Login({ searchParams }: { searchParams: Promise<{ as?: string; next?: string; error?: string }> }) {
   const sp = await searchParams;
-  const as = sp.as === "admin" ? "admin" : "faculty";
+  // One sign-in for everyone; the faculty list decides who is an admin. Old ?as=admin links still go to Admin.
+  const next = sp.next?.startsWith("/") && !sp.next.startsWith("//") ? sp.next : sp.as === "admin" ? "/admin" : null;
   const person = await getPerson();
-  if (person) redirect(as === "admin" && person.role === "admin" ? "/admin" : "/faculty");
+  if (person) redirect(next && (!next.startsWith("/admin") || person.role === "admin") ? next : person.role === "admin" ? "/admin" : "/faculty");
 
   return (
     <div className="grid overflow-hidden rounded-2xl shadow-xl ring-1 ring-brand-900/40 lg:min-h-[640px] lg:grid-cols-[1.15fr_1fr]">
@@ -84,17 +85,15 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
             <IconLock className="h-6 w-6" />
           </span>
           <div className="mt-5 text-xs font-semibold tracking-wider text-brand-600 uppercase dark:text-brand-400">
-            {as === "admin" ? "Admin login" : "Faculty login"}
+            Faculty and admin sign-in
           </div>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight">Welcome back</h2>
           <p className="muted mt-2 text-sm">
-            {as === "admin"
-              ? "Sign in with your college Google account to approve requests and allot rooms for CIEs and college events."
-              : "Sign in with your college Google account to request free classrooms or drop a class you can't take."}
+            Sign in with your college Google account. Faculty can request free classrooms or drop a class; admins can also approve requests and allot rooms.
           </p>
           <div className="mt-6">
             <Flash error={sp.error ? (ERRORS[sp.error] ?? sp.error) : undefined} />
-            <GoogleButton next={as === "admin" ? "/admin" : "/faculty"} />
+            <GoogleButton next={next ?? "auto"} />
           </div>
           <p className="mt-6 flex gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs leading-relaxed text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
             <IconShield className="h-4 w-4 shrink-0" />

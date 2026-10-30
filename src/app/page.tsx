@@ -1,5 +1,5 @@
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
-import { IconBuilding, IconCalendarCheck, IconClock } from "@/components/Icons";
+import { IconCalendarCheck, IconClock, IconSearch } from "@/components/Icons";
 import FacultyCard from "@/components/FacultyCard";
 import KpiCard from "@/components/KpiCard";
 import PendingLink from "@/components/PendingLink";
@@ -8,7 +8,9 @@ import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { STATUS_CELL } from "@/lib/status";
 import ClosedDay from "@/components/ClosedDay";
 import UpcomingBookings from "@/components/UpcomingBookings";
-import { getDaySchedule, getFacultyStatus, getHolidays, getSlots, getUpcomingBookings } from "@/lib/data";
+import { getDaySchedule, getFacultyStatus, getHolidays, getSlots, getUpcomingBookings, type FacultySlotStatus } from "@/lib/data";
+import { sameStudents, sectionOf } from "@/lib/clashes";
+import type { ScheduleRow, Slot } from "@/lib/types";
 import { DATE_RE, dateOption, defaultSlot, formatDate, isSunday, mondayOf, nextWorkingDay, todayIST, viewableDates } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +26,7 @@ const jsonLd = {
   publisher: { "@type": "CollegeOrUniversity", name: "B.M.S. College of Engineering", alternateName: "BMSCE", url: "https://bmsce.ac.in" },
 };
 
-export default async function Home({ searchParams }: { searchParams: Promise<{ date?: string; slot?: string }> }) {
+export default async function Home({ searchParams }: { searchParams: Promise<{ date?: string; slot?: string; q?: string }> }) {
   const sp = await searchParams;
   const [slots, holidays] = await Promise.all([getSlots(), getHolidays()]);
   const today = todayIST();
@@ -61,6 +63,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const freeToday = day.filter((r) => r.status === "free" && !r.ended).length;
   const freeNow = rows.filter((r) => r.status === "free").length;
   const totalRooms = rows.length;
+  const isNow = date === fallback.date && slotId === fallback.slotId;
+  const q = (sp.q ?? "").trim();
+  const found = q && !holiday ? search(q, status ?? [], day) : null;
   const dates = viewableDates();
   if (!dates.includes(date)) dates.push(date);
   dates.sort();
@@ -97,6 +102,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
             keep={{ date }}
             options={slots.map((s) => ({ value: String(s.id), label: s.label }))}
           />
+          {!isNow && (
+            <PendingLink href="/" className="btn-secondary self-end py-2">
+              <IconClock className="h-4 w-4" /> Now
+            </PendingLink>
+          )}
         </div>
       </section>
 
@@ -111,6 +121,28 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
         </section>
       )}
 
+      {!holiday && (
+        <form className="flex flex-wrap gap-2" role="search">
+          <input type="hidden" name="date" value={date} />
+          <input type="hidden" name="slot" value={slotId} />
+          <input
+            name="q"
+            defaultValue={q}
+            aria-label="Find a faculty member or class"
+            placeholder="Find a faculty member or class, e.g. SBM, Swaroop or 5A"
+            className="input min-w-0 flex-1 sm:max-w-md"
+          />
+          <button className="btn-primary">
+            <IconSearch className="h-4 w-4" /> Find
+          </button>
+          {q && (
+            <PendingLink href={`/?date=${date}&slot=${slotId}`} className="btn-secondary">
+              Clear
+            </PendingLink>
+          )}
+        </form>
+      )}
+      {found && <SearchResults q={q} found={found} slots={slots} slotId={slotId} date={date} />}
       {upcoming && <UpcomingBookings rows={upcoming.filter((r) => !holidays.has(r.date))} slots={slots} days={UPCOMING_DAYS} />}
 
       {!holiday && (
@@ -144,7 +176,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
       )}
 
       {!holiday && (
-        <section className="grid grid-cols-3 gap-2 sm:gap-4" aria-label="Room statistics">
+        <section className="grid grid-cols-2 gap-2 sm:gap-4" aria-label="Room statistics">
           <KpiCard
             label={
               date === today
@@ -168,9 +200,83 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
               <span className="text-2xl font-semibold tracking-tight text-brand-600 sm:text-3xl dark:text-brand-400">{freeNow}</span>
             </div>
           </div>
-          <KpiCard label="Rooms" value={totalRooms} hint="Classrooms and labs on this site" tone="ink" icon={<IconBuilding />} />
         </section>
       )}
     </div>
+  );
+}
+
+type Found = { key: string; title: string; sub?: string; bySlot: Map<number, string> };
+
+/**
+ * Faculty whose name or initials match `q`, and, for a class like "5A", that class's slots:
+ * what each is doing in every slot of the day.
+ */
+function search(q: string, status: FacultySlotStatus[], day: ScheduleRow[]): Found[] {
+  const needle = q.toLowerCase();
+  const out: Found[] = [];
+  const people = new Map<string, Found>();
+  for (const f of status) {
+    if (!f.initials.toLowerCase().startsWith(needle) && !f.name.toLowerCase().includes(needle)) continue;
+    if (!people.has(f.initials)) people.set(f.initials, { key: f.initials, title: f.name, sub: f.initials, bySlot: new Map() });
+    if (f.busy) people.get(f.initials)!.bySlot.set(f.slot_id, `${f.activity ?? "Busy"}${f.room_id ? ` · ${f.room_id}` : ""}`);
+  }
+  out.push(...[...people.values()].slice(0, 6));
+  const section = /^\d[a-z]?$/i.test(q) ? q.toUpperCase() : null;
+  if (section) {
+    const cls: Found = { key: `class-${section}`, title: section.length === 1 ? `Semester ${section}` : `Class ${section}`, bySlot: new Map() };
+    for (const r of day) {
+      const s = sectionOf(r.subject);
+      if (s && (r.status === "class" || r.status === "booked") && sameStudents(s, section)) {
+        const prev = cls.bySlot.get(r.slot_id);
+        cls.bySlot.set(r.slot_id, `${prev ? prev + " / " : ""}${r.subject} · ${r.room_name}`);
+      }
+    }
+    out.unshift(cls);
+  }
+  return out;
+}
+
+function SearchResults({ q, found, slots, slotId, date }: { q: string; found: Found[]; slots: Slot[]; slotId: number; date: string }) {
+  return (
+    <section className="card overflow-hidden" aria-label="Search results">
+      <div className="border-b border-brand-100 px-4 py-3 text-sm dark:border-brand-900">
+        {found.length === 0 ? (
+          <span className="muted">Nobody or no class matches “{q}”.</span>
+        ) : (
+          <span className="font-medium">Where they are on {formatDate(date, { weekday: "long" })}</span>
+        )}
+      </div>
+      <div className="divide-y divide-brand-100 dark:divide-brand-900">
+        {found.map((f) => {
+          const now = f.bySlot.get(slotId);
+          return (
+            <div key={f.key} className="px-4 py-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="font-semibold">
+                  {f.title} {f.sub && <span className="muted text-xs font-normal">{f.sub}</span>}
+                </span>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${now ? "bg-brand-600 text-white dark:bg-brand-500 dark:text-black" : "bg-brand-100 text-brand-800 dark:bg-brand-900/70 dark:text-brand-100"}`}>
+                  {now ? `In this slot: ${now}` : "Free in this slot"}
+                </span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
+                {slots.map((s) => {
+                  const what = f.bySlot.get(s.id);
+                  return (
+                    <span
+                      key={s.id}
+                      className={`rounded-md px-2 py-1 ${s.id === slotId ? "ring-2 ring-brand-500" : ""} ${what ? "bg-brand-100 text-brand-950 dark:bg-brand-900/60 dark:text-brand-50" : "muted bg-brand-50 dark:bg-brand-950/40"}`}
+                    >
+                      <span className="font-semibold">{s.label.split(" – ")[0]}</span> {what ?? "Free"}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

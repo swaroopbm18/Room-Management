@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get("next");
   const supabase = await createClient();
   if (!code || (await supabase.auth.exchangeCodeForSession(code)).error) {
-    return NextResponse.redirect(`${origin}/login?as=${next?.startsWith("/admin") ? "admin" : "faculty"}&error=auth`);
+    return NextResponse.redirect(`${origin}/login?error=auth`);
   }
   return finishSignIn(supabase, origin, next);
 }

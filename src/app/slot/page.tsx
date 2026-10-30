@@ -108,7 +108,7 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
               <IconPlus className="h-4 w-4" /> Request this slot
             </Link>
           ) : (
-            <Link href="/login?as=faculty" className="btn-secondary">
+            <Link href="/login" className="btn-secondary">
               Sign in to request
             </Link>
           ))}
