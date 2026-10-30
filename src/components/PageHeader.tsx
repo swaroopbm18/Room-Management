@@ -5,7 +5,7 @@ export default function PageHeader({ title, subtitle, children }: { title: strin
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
         {subtitle && <div className="muted mt-1 text-sm">{subtitle}</div>}
       </div>
-      {children && <div className="flex flex-wrap items-center gap-3">{children}</div>}
+      {children && <div className="flex flex-wrap items-center gap-3 print:hidden">{children}</div>}
     </div>
   );
 }

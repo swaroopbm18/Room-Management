@@ -7,8 +7,10 @@ import PendingLink from "@/components/PendingLink";
 import RenameBooking from "@/components/RenameBooking";
 import RequestStatus from "@/components/RequestStatus";
 import StatusBadge from "@/components/StatusBadge";
+import Substitutes from "@/components/Substitutes";
 import { getPerson } from "@/lib/auth";
 import { getDaySchedule, getHolidays, getSlotRequests } from "@/lib/data";
+import { findSubstitutes } from "@/lib/substitutes";
 import { bookableDates, DATE_RE, formatDate, formatDateTime, mondayOf } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +33,9 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
   const pending = requests.filter((r) => r.status === "pending");
   const decided = requests.filter((r) => r.status !== "pending");
   const canRequest = row.status === "free" && !row.ended && !holiday && bookableDates().includes(date);
+  // A dropped class: who is free to take it, for signed-in faculty
+  const dropped = !!person && !row.ended && row.status === "free" && !!row.reason?.startsWith("Class dropped");
+  const subs = dropped ? (await findSubstitutes([{ room_id: row.room_id, date, slot_id: row.slot_id }], person?.initials)).values().next().value : undefined;
   const who = row.status === "department" ? `${row.subject} department` : row.faculty_name;
 
   const item = (r: (typeof requests)[number], place?: number) => (
@@ -89,6 +94,12 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
             </div>
           )}
           {row.reason && <div className="muted mt-1 text-sm">{row.reason}</div>}
+          {subs && (
+            <div className="mt-1">
+              {subs.subject && <span className="muted text-xs">The class was {subs.subject}. </span>}
+              <Substitutes people={subs.people} />
+            </div>
+          )}
           {row.status === "closed" && <div className="muted mt-1 text-sm">Saturday classes end at 2 PM, so this slot can&apos;t be requested.</div>}
           {row.ended && <div className="muted mt-1 text-sm">This slot has ended.</div>}
           {person?.role === "admin" && !row.ended && !holiday && (row.status === "booked" || row.status === "cie" || row.status === "event") && (

@@ -1,8 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { getSlots } from "@/lib/data";
+import { getHolidays, getSlots } from "@/lib/data";
 import { addDays, formatDate, todayIST } from "@/lib/time";
 import { createClient } from "@/lib/supabase/server";
 import type { ParsedEntry } from "@/lib/timetableDocx";
@@ -81,12 +81,12 @@ export async function adminOverride(form: FormData) {
   );
 }
 
-async function slotRange(form: FormData): Promise<number[]> {
+async function slotRange(form: FormData, fallback = "/admin/allot"): Promise<number[]> {
   const slots = await getSlots();
   const from = slots.findIndex((x) => String(x.id) === s(form, "from"));
   const to = slots.findIndex((x) => String(x.id) === s(form, "to"));
   if (from < 0 || to < from) {
-    redirect(withParam(back(form, "/admin/allot"), "error", "The end time must be after the start time."));
+    redirect(withParam(back(form, fallback), "error", "The end time must be after the start time."));
   }
   return slots.slice(from, to + 1).map((x) => x.id);
 }
@@ -346,6 +346,79 @@ export async function addHoliday(form: FormData) {
 
 export async function removeHoliday(form: FormData) {
   await run(form, "/admin/holidays", "admin_remove_holiday", { p_date: s(form, "date") }, "Holiday removed.");
+}
+
+export async function setDayOrder(form: FormData) {
+  const follows = Number(s(form, "follows")) || null;
+  await run(
+    form,
+    "/admin/holidays",
+    "admin_set_day_order",
+    { p_date: s(form, "date"), p_follows: follows, p_note: s(form, "note") },
+    follows ? "Day swap saved." : "Day swap removed.",
+  );
+}
+
+export async function addNotice(form: FormData) {
+  await run(form, "/admin/holidays", "admin_add_notice", { p_message: s(form, "message"), p_starts: s(form, "starts"), p_ends: s(form, "ends") }, "Notice added.");
+}
+
+export async function removeNotice(form: FormData) {
+  await run(form, "/admin/holidays", "admin_remove_notice", { p_id: Number(s(form, "id")) }, "Notice removed.");
+}
+
+export async function updateRoom(form: FormData) {
+  const supabase = await createClient();
+  const capacity = Number(s(form, "capacity"));
+  const { error } = await supabase.rpc("admin_update_room", {
+    p_room: s(form, "room"),
+    p_capacity: capacity > 0 ? capacity : null,
+    p_kind: s(form, "kind") || "classroom",
+    p_projector: form.get("projector") === "on",
+    p_notes: s(form, "notes"),
+  });
+  revalidateTag("rooms");
+  revalidatePath("/", "layout");
+  redirect(withParam(back(form, "/admin/rooms"), error ? "error" : "msg", error ? error.message : `Room ${s(form, "room")} saved.`));
+}
+
+/**
+ * A CIE (or event) in the same slots of several rooms on several days, e.g. a CIE week.
+ * Sundays and holidays are skipped; a day or room that can't be taken is reported, not fatal.
+ */
+export async function blockCieWeek(form: FormData) {
+  const to = back(form, "/admin/cie");
+  const rooms = form.getAll("rooms").map(String).filter(Boolean);
+  const from = s(form, "from_date");
+  const until = s(form, "to_date") || from;
+  if (!rooms.length) redirect(withParam(to, "error", "Pick at least one room."));
+  if (!from || until < from) redirect(withParam(to, "error", "The last day must be on or after the first day."));
+  const [picked, holidays] = await Promise.all([slotRange(form, to), getHolidays()]);
+  const days: string[] = [];
+  for (let d = from; d <= until && days.length < 31; d = addDays(d, 1)) {
+    if (new Date(d + "T00:00:00Z").getUTCDay() !== 0 && !holidays.has(d)) days.push(d);
+  }
+  if (!days.length) redirect(withParam(to, "error", "Those days are all Sundays or holidays."));
+  const supabase = await createClient();
+  const failed: string[] = [];
+  let done = 0;
+  for (const d of days) {
+    for (const room of rooms) {
+      const { error } = await supabase.rpc("admin_override_slots", {
+        p_room: room,
+        p_date: d,
+        p_slots: picked,
+        p_kind: s(form, "kind") === "event" ? "event" : "cie",
+        p_title: s(form, "title"),
+        p_reason: s(form, "reason"),
+      });
+      if (error) failed.push(`${room} on ${formatDate(d, { year: undefined })} (${error.message})`);
+      else done++;
+    }
+  }
+  revalidatePath("/", "layout");
+  const ok = `Booked ${done} room-${done === 1 ? "day" : "days"} across ${days.length} ${days.length === 1 ? "day" : "days"}.`;
+  redirect(withParam(to, failed.length ? "error" : "msg", failed.length ? `${done ? ok + " " : ""}Not booked: ${failed.slice(0, 6).join("; ")}${failed.length > 6 ? ` and ${failed.length - 6} more` : ""}.` : ok));
 }
 
 export type UploadChange = { room: string; weekday: number; slot: number; before: string; after: string };

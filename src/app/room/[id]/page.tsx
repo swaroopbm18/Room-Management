@@ -4,10 +4,12 @@ import { pendingBySlot, ScheduleGrid, type GridRow } from "@/components/DayGrid"
 import { IconCalendar, IconCalendarCheck, IconDoor } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
+import PrintButton from "@/components/PrintButton";
 import PendingLink from "@/components/PendingLink";
 import { getPerson } from "@/lib/auth";
-import { getDaySchedule, getHolidays, getRooms, getSlots, getSlotRequests } from "@/lib/data";
-import { addDays, bookableDates, DATE_RE, formatDate, mondayOf, todayIST } from "@/lib/time";
+import { getDayOrders, getDaySchedule, getHolidays, getRooms, getSlots, getSlotRequests } from "@/lib/data";
+import { roomSummary } from "@/lib/rooms";
+import { addDays, bookableDates, DATE_RE, formatDate, mondayOf, todayIST, WEEKDAY_NAMES } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -27,12 +29,13 @@ export default async function RoomWeek({ params, searchParams }: { params: Promi
   const monday = mondayOf(sp.week && DATE_RE.test(sp.week) ? sp.week : today);
   const days = Array.from({ length: 6 }, (_, i) => addDays(monday, i));
 
-  const [person, rooms, slots, holidays, schedules, requests] = await Promise.all([
+  const [person, rooms, slots, holidays, schedules, dayOrders, requests] = await Promise.all([
     getPerson(),
     getRooms(),
     getSlots(),
     getHolidays(),
     Promise.all(days.map((d) => getDaySchedule(d))),
+    getDayOrders(),
     getSlotRequests(roomId, days[0], days[5]),
   ]);
   const room = rooms.find((r) => r.id === roomId);
@@ -55,6 +58,7 @@ export default async function RoomWeek({ params, searchParams }: { params: Promi
           <span className="mt-0.5 block text-[11px] font-normal opacity-75">
             {d === today ? "Today · " : ""}
             {holidays.has(d) ? "Holiday" : `${free} free`}
+            {!holidays.has(d) && dayOrders.has(d) && ` · ${WEEKDAY_NAMES[dayOrders.get(d)!.follows - 1].slice(0, 3)} timetable`}
           </span>
         </>
       ),
@@ -72,8 +76,15 @@ export default async function RoomWeek({ params, searchParams }: { params: Promi
     <div className="space-y-6">
       <PageHeader
         title={`Room ${room.name}`}
-        subtitle={`Week of ${formatDate(days[0], { weekday: undefined })} to ${formatDate(days[5], { weekday: undefined })} · Click a slot to see who has requested it${person ? " or to request it yourself" : ""}`}
+        subtitle={
+          <>
+            {roomSummary(room) && <span className="font-medium text-brand-700 dark:text-brand-300">{roomSummary(room)} · </span>}
+            Week of {formatDate(days[0], { weekday: undefined })} to {formatDate(days[5], { weekday: undefined })}
+            <span className="print:hidden"> · Click a slot to see who has requested it{person ? " or to request it yourself" : ""}</span>
+          </>
+        }
       >
+        <PrintButton />
         <AutoSubmitSelect name="room" label="Room" value={roomId} pathTemplate="/room/{}" keep={{ week: monday }} options={rooms.map((r) => ({ value: r.id, label: r.name }))} />
         <div className="flex items-center gap-1">
           <PendingLink href={weekLink(addDays(monday, -7))} className="btn-secondary py-2" aria-label="Previous week">
@@ -88,7 +99,7 @@ export default async function RoomWeek({ params, searchParams }: { params: Promi
         </div>
       </PageHeader>
 
-      <section className="grid grid-cols-3 gap-2 sm:gap-4">
+      <section className="grid grid-cols-3 gap-2 sm:gap-4 print:hidden">
         <KpiCard label="Free slots left this week" value={freeCount} tone="navy" icon={<IconCalendarCheck />} />
         <KpiCard label="Booked or in class" value={inUse} hint="Classes, bookings, CIE and events" icon={<IconCalendar />} />
         <KpiCard label="Slots this week" value={perDay.flat().length} hint={`${slots.length} slots × ${perDay.filter((r) => r.length).length} days`} tone="ink" icon={<IconDoor />} />

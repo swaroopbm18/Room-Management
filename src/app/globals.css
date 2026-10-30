@@ -311,6 +311,16 @@ body {
   .report-table tr {
     break-inside: avoid;
   }
+  /* Timetable grids: let rows shrink to their text so a week fits on one sheet */
+  table td,
+  table th,
+  table td * {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  table tr {
+    break-inside: avoid;
+  }
 }
 
 /* Hide the text caret outside form fields (e.g. Chrome's caret browsing, F7) */

@@ -1,11 +1,12 @@
 "use client";
 
-import { IconFile } from "./Icons";
+import { IconPrinter } from "./Icons";
 
-export default function PrintButton({ label = "Print / save as PDF" }: { label?: string }) {
+/** Opens the browser's print dialog; hidden on paper. */
+export default function PrintButton({ label = "Print", className = "btn-secondary" }: { label?: string; className?: string }) {
   return (
-    <button type="button" onClick={() => window.print()} className="btn-primary">
-      <IconFile className="h-4 w-4" /> {label}
+    <button type="button" onClick={() => window.print()} className={`${className} print:hidden`}>
+      <IconPrinter className="h-4 w-4" /> {label}
     </button>
   );
 }

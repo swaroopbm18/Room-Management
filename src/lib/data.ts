@@ -19,7 +19,7 @@ export const getRooms = unstable_cache(async (): Promise<Room[]> => {
   const { data, error } = await supabase.from("rooms").select("*").order("sort_order");
   if (error) throw new Error(error.message);
   return data ?? [];
-}, ["rooms"], { revalidate: 3600 });
+}, ["rooms"], { revalidate: 3600, tags: ["rooms"] });
 
 export async function getDaySchedule(date: string): Promise<ScheduleRow[]> {
   const supabase = await createClient();
@@ -83,4 +83,22 @@ export async function getHolidays(): Promise<Map<string, string>> {
   const supabase = publicClient();
   const { data } = await supabase.from("holidays").select("date, name").gte("date", new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10));
   return new Map(((data ?? []) as Holiday[]).map((h) => [h.date, h.name]));
+}
+
+export type DayOrder = { date: string; follows: number; note: string };
+
+/** Days that run another weekday's timetable, from a week ago on (empty before migration 0020). */
+export async function getDayOrders(): Promise<Map<string, DayOrder>> {
+  const supabase = publicClient();
+  const { data } = await supabase.from("day_orders").select("date, follows, note").gte("date", new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10));
+  return new Map(((data ?? []) as DayOrder[]).map((o) => [o.date, o]));
+}
+
+export type Notice = { id: number; message: string; starts_on: string; ends_on: string };
+
+/** Notices that haven't ended yet, soonest first (empty before migration 0020). */
+export async function getNotices(from: string): Promise<Notice[]> {
+  const supabase = publicClient();
+  const { data } = await supabase.from("notices").select("id, message, starts_on, ends_on").gte("ends_on", from).order("starts_on");
+  return (data ?? []) as Notice[];
 }

@@ -76,15 +76,15 @@ export function ScheduleGrid({ corner, slots, rows, hint }: { corner: string; sl
           {hint}
         </span>
       </div>
-      <div className="max-h-[75vh] overflow-auto overscroll-contain">
-        <table className="border-separate border-spacing-1.5 text-sm">
+      <div className="max-h-[75vh] overflow-auto overscroll-contain print:max-h-none print:overflow-visible">
+        <table className="border-separate border-spacing-1.5 text-sm print:w-full print:border-spacing-0.5 print:text-[9px]">
           <thead>
             <tr>
-              <th className="sticky top-0 left-0 z-20 min-w-32 rounded-lg bg-brand-950 px-3 py-3 text-left text-xs font-semibold tracking-wide text-brand-100 uppercase">
+              <th className="sticky top-0 left-0 z-20 min-w-32 print:min-w-0 rounded-lg bg-brand-950 px-3 py-3 text-left text-xs font-semibold tracking-wide text-brand-100 uppercase">
                 {corner}
               </th>
               {slots.map((s) => (
-                <th key={s.id} className="sticky top-0 z-10 min-w-44 rounded-lg bg-brand-900 px-3 py-2 text-left font-medium whitespace-nowrap text-white dark:bg-brand-950">
+                <th key={s.id} className="sticky top-0 z-10 min-w-44 print:min-w-0 rounded-lg bg-brand-900 px-3 py-2 text-left font-medium whitespace-nowrap text-white dark:bg-brand-950">
                   <div className="text-sm">{s.label.split(" – ")[0]}</div>
                   <div className="text-[11px] font-normal text-brand-300">to {s.label.split(" – ")[1]}</div>
                 </th>
@@ -108,7 +108,7 @@ export function ScheduleGrid({ corner, slots, rows, hint }: { corner: string; sl
                   const who = c.status === "department" ? `${c.subject} department` : c.faculty_name;
                   if (c.status === "closed")
                     return (
-                      <td key={s.id} title="Saturday classes end at 2 PM" className={`h-20 max-w-48 min-w-44 rounded-lg px-3 py-2 text-center align-middle text-xs font-medium tracking-wide uppercase ${STATUS_CELL.closed}`}>
+                      <td key={s.id} title="Saturday classes end at 2 PM" className={`h-20 print:h-auto max-w-48 min-w-44 print:min-w-0 rounded-lg px-3 py-2 text-center align-middle text-xs font-medium tracking-wide uppercase ${STATUS_CELL.closed}`}>
                         No classes
                       </td>
                     );
@@ -146,7 +146,7 @@ export function ScheduleGrid({ corner, slots, rows, hint }: { corner: string; sl
                     <td
                       key={s.id}
                       title={[c.subject, who, c.reason].filter(Boolean).join("\n") || "Free"}
-                      className={`relative h-20 max-w-48 min-w-44 rounded-lg align-top ${STATUS_CELL[c.status]} ${c.ended ? "opacity-45" : ""} ${r.date ? "p-0" : "px-3 py-2"}`}
+                      className={`relative h-20 print:h-auto max-w-48 min-w-44 print:min-w-0 rounded-lg align-top ${STATUS_CELL[c.status]} ${c.ended ? "opacity-45" : ""} ${r.date ? "p-0" : "px-3 py-2"}`}
                     >
                       {r.date ? (
                         <Link

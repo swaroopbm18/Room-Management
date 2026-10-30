@@ -8,6 +8,8 @@ import RequestStatus from "@/components/RequestStatus";
 import { displayName, requireStaff } from "@/lib/auth";
 import { getDaySchedule, getMySchedule, getSlots } from "@/lib/data";
 import { getWeekFor } from "@/lib/faculty";
+import { findSubstitutes } from "@/lib/substitutes";
+import Substitutes from "@/components/Substitutes";
 import WeekTable from "@/components/WeekTable";
 import { groupRequests, slotCount } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
@@ -47,6 +49,7 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
   const undoable = drops
     .filter((d) => latest.get(`${d.room_id}|${d.date}|${d.slot_id}`) === d.id && !slotStarted(d.date, slotById.get(d.slot_id)!))
     .sort((a, b) => a.date.localeCompare(b.date) || a.slot_id - b.slot_id);
+  const subs = await findSubstitutes(undoable, person.initials);
   const freeToday = todayRows.filter((r) => r.status === "free" && !r.ended).length;
   // One entry per request, however many slots it covers. A request is over once its first slot ends.
   const groups = groupRequests(requests, slotById).map((g) => ({
@@ -122,16 +125,21 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
       {undoable.length > 0 && (
         <section>
           <h2 className="text-lg font-semibold">Classes I dropped</h2>
-          <p className="muted mb-3 text-sm">Dropped one by mistake? Bring it back any time before it starts, as long as nobody has been given the room.</p>
+          <p className="muted mb-3 text-sm">
+            Dropped one by mistake? Bring it back any time before it starts, as long as nobody has been given the room. Faculty free then are listed, those who teach the
+            course or class first, in case someone can take it.
+          </p>
           <div className="card divide-y divide-brand-100 dark:divide-brand-900">
             {undoable.map((d) => (
               <form key={d.id} action={undoDrop} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                 <input type="hidden" name="room" value={d.room_id} />
                 <input type="hidden" name="date" value={d.date} />
                 <input type="hidden" name="slot" value={d.slot_id} />
-                <span className="text-sm">
+                <span className="min-w-0 flex-1 text-sm">
                   <span className="font-medium">{formatDate(d.date)}</span> · {slotById.get(d.slot_id)?.label} · Room {d.room_id}
+                  {subs.get(`${d.room_id}|${d.date}|${d.slot_id}`)?.subject && <> · {subs.get(`${d.room_id}|${d.date}|${d.slot_id}`)!.subject}</>}
                   <span className="muted block text-xs">Dropped: {d.reason}</span>
+                  <Substitutes people={subs.get(`${d.room_id}|${d.date}|${d.slot_id}`)?.people ?? []} />
                 </span>
                 <SubmitButton className="btn-secondary py-1.5" pendingText="Bringing back…" message="Bringing the class back…">
                   <IconRestore className="h-4 w-4" /> Undo drop
@@ -222,3 +230,4 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
     </div>
   );
 }
+
