@@ -3,6 +3,7 @@ import { IconCalendarCheck, IconClock, IconSearch, IconUsers } from "@/component
 import KpiCard from "@/components/KpiCard";
 import MeetingPicker from "@/components/MeetingPicker";
 import PageHeader from "@/components/PageHeader";
+import AvailabilityTabs from "@/components/AvailabilityTabs";
 import { getSlots } from "@/lib/data";
 import { cellKey, CLUSTERS, DAY_NAMES, DAY_SLOTS, DAYS, getFacultyWeeks, isFree, suggestMeetings, type ClusterKey } from "@/lib/faculty";
 
@@ -64,11 +65,12 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Faculty free time" subtitle="Who is free in each slot of the week, from every faculty member's timetable, and the best times for a meeting.">
+      <PageHeader title="Faculty availability" subtitle="Who is free in each slot of the week, from every faculty member's timetable, and the best times for a meeting.">
         <Link href="/admin/faculty" className="btn-secondary">
-          <IconUsers className="h-4 w-4" /> Faculty timetables
+          <IconUsers className="h-4 w-4" /> Faculty profiles
         </Link>
       </PageHeader>
+      <AvailabilityTabs view="week" cluster={cluster} showWeek />
 
       <div className="flex flex-wrap gap-2" role="tablist">
         {(["all", "A", "B"] as const).map((k) => (
@@ -103,7 +105,7 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
       </section>
 
       {!clustersReady && (
-        <div className="card muted p-4 text-sm">Run supabase/migrations/0014_faculty_clusters.sql in the Supabase SQL Editor, then put faculty into Cluster A and Cluster B on the Faculty timetables page.</div>
+        <div className="card muted p-4 text-sm">Run supabase/migrations/0014_faculty_clusters.sql in the Supabase SQL Editor, then put faculty into Cluster A and Cluster B on the Faculty profiles page.</div>
       )}
       {clustersReady && cluster !== "all" && total === 0 && (
         <div className="card p-4 text-sm">
@@ -111,7 +113,7 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
           <Link href="/admin/faculty" className="font-medium text-brand-600 underline dark:text-brand-400">
             Put faculty into clusters
           </Link>{" "}
-          on the Faculty timetables page.
+          on the Faculty profiles page.
         </div>
       )}
 

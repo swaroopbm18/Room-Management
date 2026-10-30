@@ -4,7 +4,7 @@ import { displayName, requireStaff } from "@/lib/auth";
 import { getDaySchedule, getFacultyStatus, getHolidays } from "@/lib/data";
 import { sectionRows } from "@/lib/clashes";
 import { createClient } from "@/lib/supabase/server";
-import { DATE_RE, formatDate } from "@/lib/time";
+import { addDays, bookableDates, DATE_RE, formatDate } from "@/lib/time";
 import RequestForm from "./RequestForm";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +40,9 @@ export default async function RequestPage({
   const supabase = await createClient();
   const { data: subjectRows } = await supabase.from("faculty_subjects").select("subject").eq("email", person.email).order("subject");
   const subjects = (subjectRows ?? []).map((r) => r.subject as string);
+  // The same weekday in the following weeks, while bookings are open (holidays are refused when sent)
+  const open = bookableDates();
+  const weeks = [1, 2, 3].map((k) => addDays(date, 7 * k)).filter((d) => open.includes(d) && !holidays.has(d)).map((d) => ({ date: d, label: formatDate(d) }));
   // What the requester is doing in each slot that day, for clash warnings
   const status = person.initials ? await getFacultyStatus(date) : null;
   const busy = (status ?? []).filter((f) => f.initials === person.initials && f.busy).map((f) => ({ slot_id: f.slot_id, activity: f.activity, room_id: f.room_id }));
@@ -58,7 +61,7 @@ export default async function RequestPage({
           </div>
         ))}
       </div>
-      <RequestForm room={row.room_id} date={date} initialSlot={row.slot_id} slots={roomDay} email={person.email} subjects={subjects} busy={busy} day={sectionRows(day)} />
+      <RequestForm room={row.room_id} date={date} initialSlot={row.slot_id} slots={roomDay} email={person.email} subjects={subjects} busy={busy} day={sectionRows(day)} weeks={weeks} />
     </div>
   );
 }

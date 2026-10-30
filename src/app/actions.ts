@@ -46,6 +46,10 @@ export async function dropClass(form: FormData) {
   );
 }
 
+export async function undoDrop(form: FormData) {
+  await run(form, "/faculty", "undo_drop", { p_room: s(form, "room"), p_date: s(form, "date"), p_slot: Number(s(form, "slot")) }, "Class brought back.");
+}
+
 export async function approveRequest(form: FormData) {
   await run(form, "/admin", "approve_request", { p_id: s(form, "id") }, "Request approved. Other requests for that slot were declined.");
 }

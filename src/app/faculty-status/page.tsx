@@ -3,13 +3,15 @@ import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import ClosedDay from "@/components/ClosedDay";
 import { IconClock } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
+import AvailabilityTabs from "@/components/AvailabilityTabs";
+import { getPerson } from "@/lib/auth";
 import { getFacultyStatus, getHolidays, getSlots, type FacultySlotStatus } from "@/lib/data";
 import { DATE_RE, dateOption, defaultSlot, formatDate, isSunday, nextWorkingDay, todayIST, viewableDates } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Free and busy faculty",
+  title: "Faculty availability",
   description: "Which faculty of the Department of Machine Learning, BMSCE, are free or busy in each slot, by cluster.",
   robots: { index: false },
 };
@@ -24,7 +26,7 @@ const GROUPS = [
 /** Free and busy faculty for one date: every slot at a glance, then who, by cluster, for the chosen slot. */
 export default async function FacultyStatus({ searchParams }: { searchParams: Promise<{ date?: string; slot?: string; c?: string }> }) {
   const sp = await searchParams;
-  const [slots, holidays] = await Promise.all([getSlots(), getHolidays()]);
+  const [slots, holidays, person] = await Promise.all([getSlots(), getHolidays(), getPerson().catch(() => null)]);
   const today = todayIST();
   const fallback = defaultSlot(slots, holidays);
   const date = sp.date && DATE_RE.test(sp.date) && !isSunday(sp.date) ? sp.date : fallback.date;
@@ -59,7 +61,7 @@ export default async function FacultyStatus({ searchParams }: { searchParams: Pr
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Free and busy faculty"
+        title="Faculty availability"
         subtitle={
           <span className="inline-flex items-center gap-1.5">
             <IconClock className="h-4 w-4" />
@@ -82,6 +84,7 @@ export default async function FacultyStatus({ searchParams }: { searchParams: Pr
           options={slots.map((s) => ({ value: String(s.id), label: s.label }))}
         />
       </PageHeader>
+      <AvailabilityTabs view="day" cluster={cluster} showWeek={person?.role === "admin"} />
 
       {holiday || isSunday(date) ? (
         <ClosedDay date={date} holiday={holiday} nextDate={nextWorkingDay(date, holidays)} nextHref={`/faculty-status?date=${nextWorkingDay(date, holidays)}&slot=${slotId}`} />

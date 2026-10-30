@@ -17,7 +17,7 @@ export function sectionOf(subject: string | null | undefined): string | null {
 }
 
 /** The same section, or a whole-semester class ("5") and one of its sections ("5A"). */
-function sameStudents(a: string, b: string): boolean {
+export function sameStudents(a: string, b: string): boolean {
   const sem = (x: string) => x.replace(/[A-Z]$/, "");
   return a === b || (/^\d+$/.test(a) && sem(b) === a) || (/^\d+$/.test(b) && sem(a) === b);
 }

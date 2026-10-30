@@ -1,19 +1,19 @@
 import SubmitButton from "@/components/SubmitButton";
 import Link from "next/link";
-import { IconCalendar, IconCalendarCheck, IconInbox, IconMinusCircle, IconPlus, IconX } from "@/components/Icons";
+import { IconCalendar, IconCalendarCheck, IconInbox, IconMinusCircle, IconPlus, IconRestore, IconX } from "@/components/Icons";
 import Flash from "@/components/Flash";
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
 import RequestStatus from "@/components/RequestStatus";
 import { displayName, requireStaff } from "@/lib/auth";
-import { getDaySchedule, getSlots } from "@/lib/data";
+import { getDaySchedule, getMySchedule, getSlots } from "@/lib/data";
 import { getWeekFor } from "@/lib/faculty";
 import WeekTable from "@/components/WeekTable";
 import { groupRequests, slotCount } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
 import type { RequestRow } from "@/lib/types";
-import { addDays, formatDate, formatDateTime, isSunday, slotEnded, todayIST, workingDay } from "@/lib/time";
-import { dropClass, withdrawRequest } from "../actions";
+import { addDays, formatDate, formatDateTime, isSunday, slotEnded, slotStarted, todayIST, workingDay } from "@/lib/time";
+import { dropClass, undoDrop, withdrawRequest } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -25,16 +25,28 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
 
   // My classes over the next 7 days
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i)).filter((d) => !isSunday(d));
-  const [slots, schedules, { data: reqData }, week] = await Promise.all([
+  const [slots, schedule, todayRows, { data: reqData }, week, { data: dropData }] = await Promise.all([
     getSlots(),
-    Promise.all(days.map(async (d) => ({ date: d, rows: await getDaySchedule(d) }))),
+    getMySchedule(today, addDays(today, 6), days),
+    getDaySchedule(workingDay(today)),
     supabase.from("requests").select("*").eq("requester_email", person.email).order("created_at", { ascending: false }).limit(50),
     person.initials ? getWeekFor(person.initials) : null,
+    supabase.from("allotments").select("id, room_id, date, slot_id, reason").eq("kind", "drop").eq("created_by", person.email).gte("date", today),
   ]);
   const requests = (reqData ?? []) as RequestRow[];
   const slotById = new Map(slots.map((s) => [s.id, s]));
-  const mine = schedules.flatMap(({ date, rows }) => rows.filter((r) => r.is_mine && !r.ended).map((r) => ({ ...r, date })));
-  const todayRows = schedules.find((s) => s.date === workingDay(today))?.rows ?? [];
+  const mine = schedule.filter((r) => !r.ended);
+  // Classes I dropped that can still be brought back: nothing has happened in the slot since, and it hasn't started
+  type Drop = { id: number; room_id: string; date: string; slot_id: number; reason: string };
+  const drops = (dropData ?? []) as Drop[];
+  const latestRes = drops.length
+    ? await supabase.from("allotments").select("id, room_id, date, slot_id").in("date", [...new Set(drops.map((d) => d.date))]).order("id", { ascending: false })
+    : { data: [] };
+  const latest = new Map<string, number>();
+  for (const a of (latestRes.data ?? []) as Drop[]) if (!latest.has(`${a.room_id}|${a.date}|${a.slot_id}`)) latest.set(`${a.room_id}|${a.date}|${a.slot_id}`, a.id);
+  const undoable = drops
+    .filter((d) => latest.get(`${d.room_id}|${d.date}|${d.slot_id}`) === d.id && !slotStarted(d.date, slotById.get(d.slot_id)!))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.slot_id - b.slot_id);
   const freeToday = todayRows.filter((r) => r.status === "free" && !r.ended).length;
   // One entry per request, however many slots it covers. A request is over once its first slot ends.
   const groups = groupRequests(requests, slotById).map((g) => ({
@@ -106,6 +118,29 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
           </div>
         )}
       </section>
+
+      {undoable.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold">Classes I dropped</h2>
+          <p className="muted mb-3 text-sm">Dropped one by mistake? Bring it back any time before it starts, as long as nobody has been given the room.</p>
+          <div className="card divide-y divide-brand-100 dark:divide-brand-900">
+            {undoable.map((d) => (
+              <form key={d.id} action={undoDrop} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                <input type="hidden" name="room" value={d.room_id} />
+                <input type="hidden" name="date" value={d.date} />
+                <input type="hidden" name="slot" value={d.slot_id} />
+                <span className="text-sm">
+                  <span className="font-medium">{formatDate(d.date)}</span> · {slotById.get(d.slot_id)?.label} · Room {d.room_id}
+                  <span className="muted block text-xs">Dropped: {d.reason}</span>
+                </span>
+                <SubmitButton className="btn-secondary py-1.5" pendingText="Bringing back…" message="Bringing the class back…">
+                  <IconRestore className="h-4 w-4" /> Undo drop
+                </SubmitButton>
+              </form>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="text-lg font-semibold">My week</h2>

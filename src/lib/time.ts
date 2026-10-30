@@ -49,6 +49,13 @@ export function minutes(time: string): number {
   return h * 60 + m;
 }
 
+export function slotStarted(date: string, slot: Pick<Slot, "starts">): boolean {
+  const today = todayIST();
+  if (date !== today) return date < today;
+  const n = istNow();
+  return n.getUTCHours() * 60 + n.getUTCMinutes() >= minutes(slot.starts);
+}
+
 export function slotEnded(date: string, slot: Pick<Slot, "ends">): boolean {
   const today = todayIST();
   if (date !== today) return date < today;
