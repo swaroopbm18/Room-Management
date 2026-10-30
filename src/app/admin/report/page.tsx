@@ -46,7 +46,7 @@ export default async function Report({ searchParams }: { searchParams: Promise<{
             <a href={`/admin/report/csv?${query}`} className="btn-secondary">
               Download CSV
             </a>
-            <PrintButton />
+            <PrintButton label="Print / save as PDF" className="btn-primary" />
           </div>
         </GetForm>
       </div>
