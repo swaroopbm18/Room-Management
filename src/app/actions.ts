@@ -184,6 +184,67 @@ export async function adminEditTimetable(form: FormData) {
   );
 }
 
+/**
+ * Save one class in the class timetable: fix its subject or faculty initials, move it to a free
+ * room, or add a class to an empty slot. Takes effect from tomorrow, like every timetable edit.
+ */
+export async function saveClassEntry(form: FormData) {
+  const supabase = await createClient();
+  const to = back(form, "/admin/class-timetable");
+  const weekday = Number(s(form, "weekday"));
+  const slotIds = s(form, "slots").split(",").map(Number).filter(Boolean);
+  const oldRoom = s(form, "old_room");
+  const room = s(form, "room");
+  const subject = s(form, "subject");
+  if (!subject) redirect(withParam(to, "error", "Type the subject and section, e.g. DBMS-3B. To remove the class, use Delete."));
+  if (!room) redirect(withParam(to, "error", "Pick a room."));
+  const edit = (r: string, subj: string, initials: string[]) =>
+    supabase.rpc("admin_edit_timetable", { p_room: r, p_weekday: weekday, p_slots: slotIds, p_subject: subj, p_initials: initials, p_is_department: false });
+
+  if (room !== oldRoom) {
+    // Never write over another class: the new room must be free in every slot
+    const { data } = await supabase.rpc("get_timetable_all", { p_date: addDays(todayIST(), 1) });
+    const clash = ((data ?? []) as { room_id: string; weekday: number; slot_id: number; subject: string }[]).find(
+      (t) => t.room_id === room && t.weekday === weekday && slotIds.includes(t.slot_id),
+    );
+    if (clash) redirect(withParam(to, "error", `${room} already has ${clash.subject} then. Pick a free room.`));
+  }
+  const { data, error } = await edit(room, subject, s(form, "initials").split(/[,\s]+/).filter(Boolean));
+  if (!error && oldRoom && room !== oldRoom) {
+    const moved = await edit(oldRoom, "", []);
+    if (moved.error) {
+      revalidatePath("/", "layout");
+      redirect(withParam(to, "error", `The class was added to ${room} but is still in ${oldRoom} too: ${moved.error.message}. Delete it from ${oldRoom}.`));
+    }
+  }
+  revalidatePath("/", "layout");
+  redirect(
+    error
+      ? withParam(to, "error", error.message)
+      : withParam(to, "msg", `${subject} saved. It takes effect from ${formatDate(String(data), { weekday: "long" })}; earlier days keep the old timetable.`),
+  );
+}
+
+/** Remove one class from the class timetable, from tomorrow on. The room becomes free. */
+export async function deleteClassEntry(form: FormData) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_edit_timetable", {
+    p_room: s(form, "old_room"),
+    p_weekday: Number(s(form, "weekday")),
+    p_slots: s(form, "slots").split(",").map(Number).filter(Boolean),
+    p_subject: "",
+    p_initials: [],
+    p_is_department: false,
+  });
+  revalidatePath("/", "layout");
+  const to = back(form, "/admin/class-timetable");
+  redirect(
+    error
+      ? withParam(to, "error", error.message)
+      : withParam(to, "msg", `${s(form, "old_subject")} removed. ${s(form, "old_room")} is free then from ${formatDate(String(data), { weekday: "long" })}.`),
+  );
+}
+
 export async function upsertPerson(form: FormData) {
   await run(
     form,

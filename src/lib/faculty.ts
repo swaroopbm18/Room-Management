@@ -104,10 +104,10 @@ export type Suggestion = { weekday: number; slotIds: number[]; free: FacultyMemb
 
 /**
  * Meeting times of `length` slots in a row, best first: the most faculty free for the whole
- * meeting, then earlier in the week and day. Runs of slots must be back to back (no tea break
- * in between, e.g. 9:50 to 10:20).
+ * meeting, then a day not already suggested, then earlier in the week and day. Runs of slots
+ * must be back to back (no tea break in between, e.g. 9:50 to 10:20).
  */
-export function suggestMeetings(weeks: Weeks, people: FacultyMember[], slots: Slot[], slotIds: number[], length: number, limit = 8): Suggestion[] {
+export function suggestMeetings(weeks: Weeks, people: FacultyMember[], slots: Slot[], slotIds: number[], length: number, limit = 3): Suggestion[] {
   const usable = slots.filter((s) => slotIds.includes(s.id)).sort((a, b) => a.starts.localeCompare(b.starts));
   const runs: number[][] = [];
   for (let i = 0; i + length <= usable.length; i++) {
@@ -121,5 +121,13 @@ export function suggestMeetings(weeks: Weeks, people: FacultyMember[], slots: Sl
       out.push({ weekday: wd, slotIds: run, free, busy: people.filter((p) => !free.includes(p)) });
     }
   }
-  return out.sort((a, b) => b.free.length - a.free.length).slice(0, limit);
+  const left = out.sort((a, b) => b.free.length - a.free.length);
+  // Among equally good times, spread the picks over different days
+  const picked: Suggestion[] = [];
+  while (picked.length < limit && left.length) {
+    const top = left[0].free.length;
+    const i = left.findIndex((m) => m.free.length === top && !picked.some((p) => p.weekday === m.weekday));
+    picked.push(left.splice(i === -1 ? 0 : i, 1)[0]);
+  }
+  return picked;
 }
