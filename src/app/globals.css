@@ -17,6 +17,17 @@
   --color-brand-900: #172554;
   --color-brand-950: #0b1533;
   --color-ink: #05070d; /* blue-black */
+  /* Spot colour for highlights that must stand out from the theme: green, or amber on green themes below */
+  --color-spot-100: #dcfce7;
+  --color-spot-200: #bbf7d0;
+  --color-spot-300: #86efac;
+  --color-spot-400: #4ade80;
+  --color-spot-500: #22c55e;
+  --color-spot-600: #16a34a;
+  --color-spot-700: #15803d;
+  --color-spot-800: #166534;
+  --color-spot-900: #14532d;
+  --color-spot-950: #052e16;
 }
 
 /* Colour themes picked from the navbar (ColorPicker). Blue is the default above.
@@ -174,6 +185,21 @@ html[data-color="slate"] {
   --color-brand-900: #020617;
   --color-brand-950: color-mix(in oklab, #020617 70%, #000);
   --color-ink: color-mix(in oklab, #020617 22%, #030406);
+}
+
+/* Green would blend into these themes, so their spot colour is amber */
+html[data-color="emerald"],
+html[data-color="teal"] {
+  --color-spot-100: #fef3c7;
+  --color-spot-200: #fde68a;
+  --color-spot-300: #fcd34d;
+  --color-spot-400: #fbbf24;
+  --color-spot-500: #f59e0b;
+  --color-spot-600: #d97706;
+  --color-spot-700: #b45309;
+  --color-spot-800: #92400e;
+  --color-spot-900: #78350f;
+  --color-spot-950: #451a03;
 }
 
 html {
