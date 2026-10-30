@@ -29,7 +29,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
   return (
     <div className="grid overflow-hidden rounded-2xl shadow-xl ring-1 ring-brand-900/40 lg:min-h-[640px] lg:grid-cols-[1.15fr_1fr]">
       {/* Left: what the site is for, on a dark navy grid */}
-      <section className="relative isolate flex flex-col justify-between gap-10 bg-gradient-to-br from-brand-950 via-[#0a1230] to-ink p-8 text-white sm:p-10 lg:p-12">
+      <section className="relative isolate flex flex-col justify-between gap-10 bg-gradient-to-br from-brand-950 via-brand-950 to-ink p-8 text-white sm:p-10 lg:p-12">
         <div
           aria-hidden
           className="absolute inset-0 -z-10"
@@ -49,7 +49,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         </div>
 
         <div className="max-w-xl">
-          <div className="text-xs font-semibold tracking-[0.25em] text-sky-300 uppercase">B.M.S. College of Engineering</div>
+          <div className="text-xs font-semibold tracking-[0.25em] text-brand-300 uppercase">B.M.S. College of Engineering</div>
           <h1 className="mt-4 text-3xl leading-tight font-semibold tracking-tight sm:text-4xl xl:text-[2.75rem]">
             Every classroom, every slot, with clarity and control.
           </h1>
@@ -59,7 +59,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
           <ul className="mt-8 space-y-3">
             {FEATURES.map(({ icon: Icon, title, text }) => (
               <li key={title} className="flex gap-4 rounded-xl border border-white/10 bg-white/[0.04] p-4">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white/10 text-sky-300">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white/10 text-brand-300">
                   <Icon className="h-5 w-5" />
                 </span>
                 <span>

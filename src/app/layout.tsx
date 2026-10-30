@@ -33,8 +33,8 @@ export const metadata: Metadata = {
   verification: process.env.GOOGLE_SITE_VERIFICATION ? { google: process.env.GOOGLE_SITE_VERIFICATION } : undefined,
 };
 
-// Applies the saved theme before first paint, so dark mode does not flash.
-const themeScript = `try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark')}catch(e){}`;
+// Applies the saved theme and colour before first paint, so neither flashes.
+const themeScript = `try{var d=document.documentElement,t=localStorage.getItem('theme'),c=localStorage.getItem('color');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches))d.classList.add('dark');if(c&&c!=='blue')d.dataset.color=c}catch(e){}`;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (

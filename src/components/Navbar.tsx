@@ -3,6 +3,7 @@ import Link from "next/link";
 import { displayName, getPerson } from "@/lib/auth";
 import { IconBuilding, IconCalendarCheck, IconDashboard, IconHome, IconLogin, IconLogout, IconShield } from "./Icons";
 import PendingLink from "./PendingLink";
+import ColorPicker from "./ColorPicker";
 import ThemeToggle from "./ThemeToggle";
 
 export default async function Navbar() {
@@ -55,6 +56,7 @@ export default async function Navbar() {
               </Link>
             </>
           )}
+          <ColorPicker />
           <ThemeToggle />
         </div>
       </nav>
