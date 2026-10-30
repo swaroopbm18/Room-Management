@@ -121,6 +121,36 @@ export async function saveFaculty(form: FormData) {
   );
 }
 
+/**
+ * The faculty profile's name form: saves the name and initials in the faculty directory and, for
+ * someone who signs in, on their sign-in record too, so the name is the same everywhere.
+ */
+export async function saveFacultyProfile(form: FormData) {
+  const supabase = await createClient();
+  const initials = s(form, "initials").toUpperCase();
+  const to = `/admin/faculty?f=${encodeURIComponent(initials)}`;
+  const saved = await supabase.rpc("admin_save_faculty", {
+    p_old_initials: s(form, "old_initials") || null,
+    p_initials: initials,
+    p_title: s(form, "title"),
+    p_full_name: s(form, "full_name"),
+  });
+  if (saved.error) redirect(withParam(back(form, "/admin/faculty"), "error", saved.error.message));
+  if (s(form, "email")) {
+    const { error } = await supabase.rpc("admin_upsert_person", {
+      p_email: s(form, "email"),
+      p_full_name: s(form, "full_name") || initials,
+      p_initials: initials,
+      p_title: s(form, "title"),
+      p_role: s(form, "role") === "admin" ? "admin" : "faculty",
+      p_active: s(form, "active") !== "false",
+    });
+    if (error) redirect(withParam(to, "error", error.message));
+  }
+  revalidatePath("/", "layout");
+  redirect(withParam(to, "msg", "Profile saved."));
+}
+
 export async function removeFaculty(form: FormData) {
   await run(form, "/admin/people", "admin_remove_faculty", { p_initials: s(form, "initials") }, "Faculty member removed from the directory.");
 }
@@ -307,11 +337,11 @@ export async function subjectsFromTimetable(form: FormData) {
 }
 
 export async function addHoliday(form: FormData) {
-  await run(form, "/admin/timetable", "admin_add_holiday", { p_date: s(form, "date"), p_name: s(form, "name") }, "Holiday added.");
+  await run(form, "/admin/holidays", "admin_add_holiday", { p_date: s(form, "date"), p_name: s(form, "name") }, "Holiday added.");
 }
 
 export async function removeHoliday(form: FormData) {
-  await run(form, "/admin/timetable", "admin_remove_holiday", { p_date: s(form, "date") }, "Holiday removed.");
+  await run(form, "/admin/holidays", "admin_remove_holiday", { p_date: s(form, "date") }, "Holiday removed.");
 }
 
 export type UploadChange = { room: string; weekday: number; slot: number; before: string; after: string };

@@ -7,6 +7,8 @@ import PageHeader from "@/components/PageHeader";
 import RequestStatus from "@/components/RequestStatus";
 import { displayName, requireStaff } from "@/lib/auth";
 import { getDaySchedule, getSlots } from "@/lib/data";
+import { getWeekFor } from "@/lib/faculty";
+import WeekTable from "@/components/WeekTable";
 import { groupRequests, slotCount } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
 import type { RequestRow } from "@/lib/types";
@@ -23,10 +25,11 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
 
   // My classes over the next 7 days
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i)).filter((d) => !isSunday(d));
-  const [slots, schedules, { data: reqData }] = await Promise.all([
+  const [slots, schedules, { data: reqData }, week] = await Promise.all([
     getSlots(),
     Promise.all(days.map(async (d) => ({ date: d, rows: await getDaySchedule(d) }))),
     supabase.from("requests").select("*").eq("requester_email", person.email).order("created_at", { ascending: false }).limit(50),
+    person.initials ? getWeekFor(person.initials) : null,
   ]);
   const requests = (reqData ?? []) as RequestRow[];
   const slotById = new Map(slots.map((s) => [s.id, s]));
@@ -101,6 +104,18 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
               </tbody>
             </table>
           </div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold">My week</h2>
+        <p className="muted mb-3 text-sm">Your regular timetable from tomorrow, Monday to Saturday. One-off bookings and dropped classes are in the list above.</p>
+        {week ? (
+          <div className="card overflow-hidden">
+            <WeekTable week={week} slots={slots} />
+          </div>
+        ) : (
+          <div className="card muted p-6 text-sm">Your timetable initials are not set yet, so your timetable can&apos;t be shown. Ask an admin to add them.</div>
         )}
       </section>
 
