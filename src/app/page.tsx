@@ -7,12 +7,15 @@ import StatusBadge from "@/components/StatusBadge";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { STATUS_CELL } from "@/lib/status";
 import ClosedDay from "@/components/ClosedDay";
+import DayNotes from "@/components/DayNotes";
 import SaturdayClosed from "@/components/SaturdayClosed";
 import UpcomingBookings from "@/components/UpcomingBookings";
 import {
+  getDayOrders,
   getDaySchedule,
   getFacultyStatus,
   getHolidays,
+  getNotices,
   getSlots,
   getUpcomingBookings,
   type FacultySlotStatus,
@@ -30,7 +33,7 @@ import {
   slotOpen,
   todayIST,
   viewableDates,
-  weekdayOf,
+  closingDay,
 } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +60,7 @@ export default async function Home({
   searchParams: Promise<{ date?: string; slot?: string; q?: string }>;
 }) {
   const sp = await searchParams;
-  const [slots, holidays] = await Promise.all([getSlots(), getHolidays()]);
+  const [slots, holidays, dayOrders] = await Promise.all([getSlots(), getHolidays(), getDayOrders()]);
   const today = todayIST();
   // On a Sunday or holiday, say so instead of jumping to the next working day on its own.
   if (!sp.date && (isSunday(today) || holidays.has(today))) {
@@ -96,15 +99,17 @@ export default async function Home({
     : fallback.slotId;
   const slot = slots.find((s) => s.id === slotId)!;
   // Saturday after 2 PM has no classes: no free faculty, no requests
-  const weekday = weekdayOf(date);
+  const order = dayOrders.get(date);
+  const weekday = closingDay(date, order?.follows);
   const closed = !slotOpen(weekday, slot);
   const lastOpen = [...slots].reverse().find((s) => slotOpen(weekday, s))!;
 
   const UPCOMING_DAYS = 14;
-  const [day, upcoming, status] = await Promise.all([
+  const [day, upcoming, status, notices] = await Promise.all([
     getDaySchedule(date),
     getUpcomingBookings(UPCOMING_DAYS),
     getFacultyStatus(date),
+    getNotices(today),
   ]);
   const inSlot = (status ?? []).filter((f) => f.slot_id === slotId);
   // Free and busy faculty in the chosen slot: the whole department (null) or one cluster
@@ -159,6 +164,7 @@ export default async function Home({
                 d === today
                   ? `Today, ${formatDate(d, { year: undefined })}`
                   : formatDate(d),
+                dayOrders.get(d)?.follows,
               ),
             }))}
           />
@@ -181,6 +187,8 @@ export default async function Home({
           )}
         </div>
       </section>
+
+      <DayNotes notices={notices} today={today} date={date} order={holiday ? undefined : order} />
 
       {/* A holiday shows that it can't be booked instead of a page of free rooms. */}
       {holiday ? (

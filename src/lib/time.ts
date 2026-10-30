@@ -35,6 +35,17 @@ export function slotOpen(weekday: number, slot: { starts: string }): boolean {
   return weekday !== 6 || slot.starts < SATURDAY_ENDS;
 }
 
+/**
+ * The weekday to check slotOpen() against for a date: a Saturday that runs another weekday's
+ * timetable (a day swap, `follows`) runs the full day. Same rule as slot_closed() in the database.
+ */
+export function closingDay(date: string, follows?: number): number {
+  const wd = weekdayOf(date);
+  return wd === 6 && follows && follows !== 6 ? follows : wd;
+}
+
+export const WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
 export function isSunday(date: string): boolean {
   return new Date(date + "T00:00:00Z").getUTCDay() === 0;
 }
@@ -137,8 +148,9 @@ export function viewableDates(): string[] {
 }
 
 /** How a date reads in a dropdown: holidays are marked so nobody picks one expecting free rooms. */
-export function dateOption(date: string, holidays: Map<string, string>, label = formatDate(date)): string {
-  return holidays.has(date) ? `${label} · Holiday, can't be booked` : label;
+export function dateOption(date: string, holidays: Map<string, string>, label = formatDate(date), follows?: number): string {
+  if (holidays.has(date)) return `${label} · Holiday, can't be booked`;
+  return follows ? `${label} · ${WEEKDAY_NAMES[follows - 1]} timetable` : label;
 }
 
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

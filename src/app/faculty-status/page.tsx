@@ -5,8 +5,10 @@ import { IconClock } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import SaturdayClosed from "@/components/SaturdayClosed";
 import AvailabilityTabs from "@/components/AvailabilityTabs";
+import DayNotes from "@/components/DayNotes";
 import { getPerson } from "@/lib/auth";
 import {
+  getDayOrders,
   getFacultyStatus,
   getHolidays,
   getSlots,
@@ -22,7 +24,7 @@ import {
   slotOpen,
   todayIST,
   viewableDates,
-  weekdayOf,
+  closingDay,
 } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -48,10 +50,11 @@ export default async function FacultyStatus({
   searchParams: Promise<{ date?: string; slot?: string; c?: string }>;
 }) {
   const sp = await searchParams;
-  const [slots, holidays, person] = await Promise.all([
+  const [slots, holidays, person, dayOrders] = await Promise.all([
     getSlots(),
     getHolidays(),
     getPerson().catch(() => null),
+    getDayOrders(),
   ]);
   const today = todayIST();
   const fallback = defaultSlot(slots, holidays);
@@ -63,7 +66,8 @@ export default async function FacultyStatus({
     ? Number(sp.slot)
     : fallback.slotId;
   const slot = slots.find((s) => s.id === slotId)!;
-  const weekday = weekdayOf(date);
+  const order = dayOrders.get(date);
+  const weekday = closingDay(date, order?.follows);
   const closed = !slotOpen(weekday, slot);
   const lastOpen = [...slots].reverse().find((s) => slotOpen(weekday, s))!;
   const cluster: Cluster = sp.c === "A" || sp.c === "B" ? sp.c : "all";
@@ -124,6 +128,7 @@ export default async function FacultyStatus({
               d === today
                 ? `Today, ${formatDate(d, { year: undefined })}`
                 : formatDate(d),
+              dayOrders.get(d)?.follows,
             ),
           }))}
         />
@@ -145,6 +150,7 @@ export default async function FacultyStatus({
         cluster={cluster}
         showWeek={person?.role === "admin"}
       />
+      <DayNotes notices={[]} today={today} date={date} order={holiday ? undefined : order} />
 
       {holiday || isSunday(date) ? (
         <ClosedDay

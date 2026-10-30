@@ -1,5 +1,6 @@
 import ClassWeek from "@/components/ClassWeek";
 import PageHeader from "@/components/PageHeader";
+import PrintButton from "@/components/PrintButton";
 import PendingLink from "@/components/PendingLink";
 import { buildClassTimetable, ordinal, OTHER, type Cell } from "@/lib/classTimetable";
 import { getFacultyStatus, getSlots } from "@/lib/data";
@@ -38,12 +39,14 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Class timetables" subtitle="Pick your class to see its regular week: the subject, faculty member and room in every slot. One-off changes show on the home page." />
+      <div className="print:hidden">
+        <PageHeader title="Class timetables" subtitle="Pick your class to see its regular week: the subject, faculty member and room in every slot. One-off changes show on the home page." />
+      </div>
       {allClasses.length === 0 ? (
         <p className="card muted p-6 text-sm">The timetable isn&apos;t available right now.</p>
       ) : (
         <>
-          <nav aria-label="Classes" className="card space-y-2 p-4">
+          <nav aria-label="Classes" className="card space-y-2 p-4 print:hidden">
             {semesters.map(({ sem, classes }) => (
               <div key={sem} className="flex flex-wrap items-center gap-1.5">
                 <span className="muted w-full shrink-0 text-xs font-medium tracking-wide uppercase sm:w-28">{ordinal(sem)}</span>
@@ -58,7 +61,13 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
             )}
           </nav>
           <section className="space-y-3">
-            <h2 className="text-lg font-semibold">{label(chosen)}</h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold print:text-2xl">
+                <span className="hidden print:inline">BMSCE · Machine Learning · </span>
+                {label(chosen)}
+              </h2>
+              <PrintButton label="Print for the notice board" />
+            </div>
             <ClassWeek slots={slots} days={days} names={names} />
           </section>
           {subjects.size > 0 && (

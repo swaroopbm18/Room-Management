@@ -247,3 +247,40 @@ export const IconPalette = (p: P) => (
     <circle cx="17" cy="11" r="1" />
   </Svg>
 );
+
+export const IconMegaphone = (p: P) => (
+  <Svg {...p}>
+    <path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1Z" />
+    <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />
+  </Svg>
+);
+
+export const IconPrinter = (p: P) => (
+  <Svg {...p}>
+    <path d="M6 9V3h12v6" />
+    <rect x="3" y="9" width="18" height="8" rx="2" />
+    <path d="M6 14h12v7H6z" />
+  </Svg>
+);
+
+export const IconQr = (p: P) => (
+  <Svg {...p}>
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+    <path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3" />
+  </Svg>
+);
+
+export const IconDownload = (p: P) => (
+  <Svg {...p}>
+    <path d="M12 3v12M7 10l5 5 5-5" />
+    <path d="M4 21h16" />
+  </Svg>
+);
+
+export const IconSwap = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 8h13l-3-3M20 16H7l3 3" />
+  </Svg>
+);
