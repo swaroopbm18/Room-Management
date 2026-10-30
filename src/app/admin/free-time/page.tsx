@@ -9,13 +9,18 @@ export const dynamic = "force-dynamic";
 
 type Search = { c?: string; d?: string; s?: string; who?: string; len?: string; p?: string | string[] };
 
-/** Background for a cell by where it sits between the least and most free slots: darker is more free. */
+/** Share of faculty free from which a slot is highlighted in the spot colour. */
+const HIGH = 0.6;
+
+/** Spot-colour shades for a highlighted slot: the more faculty free, the stronger it stands out. Quieter slots stay grey. */
 function heat(share: number) {
-  if (share >= 0.8) return "bg-brand-600 text-white dark:bg-brand-600";
-  if (share >= 0.6) return "bg-brand-400 text-white dark:bg-brand-700";
-  if (share >= 0.4) return "bg-brand-200 text-brand-950 dark:bg-brand-800 dark:text-white";
-  if (share >= 0.2) return "bg-brand-100 text-brand-900 dark:bg-brand-900 dark:text-brand-100";
-  return "bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300";
+  if (share < HIGH) return "bg-neutral-100 text-neutral-600 dark:bg-neutral-900 dark:text-neutral-400";
+  const step = (share - HIGH) / (1 - HIGH);
+  if (step >= 0.8) return "bg-spot-600 text-white dark:bg-spot-400 dark:text-spot-950";
+  if (step >= 0.6) return "bg-spot-500 text-spot-950 dark:bg-spot-600 dark:text-white";
+  if (step >= 0.4) return "bg-spot-300 text-spot-950 dark:bg-spot-800 dark:text-white";
+  if (step >= 0.2) return "bg-spot-200 text-spot-900 dark:bg-spot-900 dark:text-spot-100";
+  return "bg-spot-100 text-spot-800 dark:bg-spot-950 dark:text-spot-300";
 }
 
 export default async function FreeTime({ searchParams }: { searchParams: Promise<Search> }) {
@@ -32,9 +37,7 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
   const freeAt = (wd: number, slotId: number) => faculty.filter((f) => isFree(weeks, f.initials, wd, slotId));
   const cells = DAY_NAMES.flatMap((_, i) => daySlots.map((s) => ({ wd: i + 1, slot: s, free: freeAt(i + 1, s.id).length })));
   const best = [...cells].sort((a, b) => b.free - a.free)[0];
-  const fewest = Math.min(...cells.map((c) => c.free));
-  const most = Math.max(...cells.map((c) => c.free));
-  const shade = (n: number) => heat(most > fewest ? (n - fewest) / (most - fewest) : 1);
+  const shade = (n: number) => heat(total ? n / total : 0);
   const avg = cells.length ? cells.reduce((n, c) => n + c.free, 0) / cells.length : 0;
 
   const pickDay = Number(sp.d);
@@ -115,7 +118,14 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
           <span className="font-semibold">
             {cluster === "all" ? "Whole department" : CLUSTERS[cluster].label} · faculty free in each slot
           </span>
-          <span className="muted">Darker means more faculty free than in the other slots. Click a slot to see who.</span>
+          <span className="muted flex items-center gap-2">
+            <span className="flex overflow-hidden rounded" aria-hidden>
+              {["bg-spot-100 dark:bg-spot-950", "bg-spot-200 dark:bg-spot-900", "bg-spot-300 dark:bg-spot-800", "bg-spot-500 dark:bg-spot-600", "bg-spot-600 dark:bg-spot-400"].map((c) => (
+                <span key={c} className={`h-3 w-3 ${c}`} />
+              ))}
+            </span>
+            {Math.round(HIGH * 100)}% or more of faculty free, stronger means more. Click a slot to see who.
+          </span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] border-separate border-spacing-1.5 p-2 text-sm">
