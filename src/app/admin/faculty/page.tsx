@@ -7,7 +7,7 @@ import SubmitButton from "@/components/SubmitButton";
 import { getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { Person } from "@/lib/types";
-import { cellKey, CLUSTERS, DAY_NAMES, DAY_SLOTS, DAYS, getFacultyWeeks, type Busy, type ClusterKey, type FacultyMember } from "@/lib/faculty";
+import { cellKey, CLUSTERS, DAY_NAMES, DAY_SLOTS, DAYS, getFacultyWeeks, isFree, isOpen, type Busy, type ClusterKey, type FacultyMember } from "@/lib/faculty";
 import { addSubject, importFacultyDuties, removeSubject, saveFacultyProfile, setFacultyClusters, setFacultyDuty, upsertPerson } from "../../actions";
 import WeekTable from "@/components/WeekTable";
 import SlotRange from "../allot/SlotRange";
@@ -18,6 +18,7 @@ const CELL = {
   timetable: "bg-brand-600 dark:bg-brand-500",
   duty: "bg-amber-400 dark:bg-amber-500",
   free: "bg-brand-100 dark:bg-brand-950",
+  closed: "border border-dashed border-brand-200 dark:border-brand-900",
 };
 
 /** A faculty member's week as a 6 × 9 strip of squares: classes, other duties and free slots. */
@@ -29,7 +30,8 @@ function MiniWeek({ week }: { week?: Map<string, Busy[]> }) {
           <span className="muted leading-3">{d}</span>
           {DAY_SLOTS.map((s) => {
             const b = week?.get(cellKey(i + 1, s));
-            return <span key={s} className={`h-3 rounded-sm ${b?.length ? CELL[b.some((x) => x.source === "timetable") ? "timetable" : "duty"] : CELL.free}`} />;
+            const k = b?.length ? (b.some((x) => x.source === "timetable") ? "timetable" : "duty") : isOpen(i + 1, s) ? "free" : "closed";
+            return <span key={s} className={`h-3 rounded-sm ${CELL[k]}`} />;
           })}
         </div>
       ))}
@@ -44,6 +46,7 @@ function Legend() {
         ["timetable", "Class (room timetable)"],
         ["duty", "Other duty"],
         ["free", "Free"],
+        ["closed", "Saturday after 2 PM"],
       ].map(([k, l]) => (
         <span key={k} className="inline-flex items-center gap-1.5">
           <span className={`h-3 w-4 rounded-sm ${CELL[k as keyof typeof CELL]}`} />
@@ -60,6 +63,8 @@ export default async function FacultyTimetables({ searchParams }: { searchParams
   // Slots in the 8:00 to 4:45 day taken by a class (or by anything, with no source)
   const count = (ini: string, source?: Busy["source"]) =>
     [...(weeks.get(ini)?.entries() ?? [])].filter(([k, b]) => DAY_SLOTS.includes(Number(k.split("|")[1])) && (source ? b.some((x) => x.source === source) : b.length)).length;
+  // Free teaching slots in the week; Saturday's slots after 2 PM don't count
+  const freeSlots = (ini: string) => DAYS.reduce((n, _, i) => n + DAY_SLOTS.filter((s) => isFree(weeks, ini, i + 1, s)).length, 0);
   const q = (sp.q ?? "").trim().toLowerCase();
   const selected = faculty.find((f) => f.initials === sp.f);
   const cl = sp.cl === "A" || sp.cl === "B" || sp.cl === "none" ? sp.cl : "";
@@ -166,7 +171,7 @@ export default async function FacultyTimetables({ searchParams }: { searchParams
                     <div className="muted text-xs">other duties</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-semibold tracking-tight text-brand-600 dark:text-brand-400">{6 * DAY_SLOTS.length - busy}</div>
+                    <div className="text-2xl font-semibold tracking-tight text-brand-600 dark:text-brand-400">{freeSlots(f.initials)}</div>
                     <div className="muted text-xs">free slots</div>
                   </div>
                 </div>

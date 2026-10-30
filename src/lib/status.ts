@@ -8,6 +8,7 @@ export const STATUS_LABEL: Record<SlotStatus, string> = {
   booked: "Booked",
   cie: "CIE",
   event: "Event",
+  closed: "No classes",
 };
 
 export const STATUS_BADGE: Record<SlotStatus, string> = {
@@ -17,6 +18,7 @@ export const STATUS_BADGE: Record<SlotStatus, string> = {
   booked: "bg-brand-600 text-white ring-brand-600 dark:bg-brand-500 dark:text-black dark:ring-brand-500",
   cie: "bg-ink text-white ring-ink dark:bg-white dark:text-black dark:ring-white",
   event: "bg-brand-800 text-white ring-brand-800 dark:bg-brand-300 dark:text-brand-950 dark:ring-brand-300",
+  closed: "bg-neutral-50 text-neutral-400 ring-neutral-200 dark:bg-neutral-950 dark:text-neutral-500 dark:ring-neutral-800",
 };
 
 export const STATUS_CELL: Record<SlotStatus, string> = {
@@ -26,4 +28,6 @@ export const STATUS_CELL: Record<SlotStatus, string> = {
   booked: "bg-brand-600 text-white dark:bg-brand-500 dark:text-black",
   cie: "bg-ink text-white dark:bg-white dark:text-black",
   event: "bg-brand-800 text-white dark:bg-brand-300 dark:text-brand-950",
+  // Saturday after 2 PM: no classes are held, so the slot is neither free nor taken
+  closed: "bg-[repeating-linear-gradient(135deg,transparent_0_6px,rgba(115,115,115,0.08)_6px_12px)] bg-neutral-50 text-neutral-400 dark:bg-neutral-950 dark:text-neutral-600",
 };

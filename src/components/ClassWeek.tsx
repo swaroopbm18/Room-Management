@@ -1,6 +1,7 @@
 import type { Span } from "@/lib/classTimetable";
 import { DAY_NAMES } from "@/lib/faculty";
 import type { Slot } from "@/lib/types";
+import { slotOpen } from "@/lib/time";
 
 /** A class's week, days × slots, to read only: subject, faculty and room in each slot. */
 export default function ClassWeek({ slots, days, names }: { slots: Slot[]; days: Span[][]; names: Record<string, string> }) {
@@ -27,7 +28,11 @@ export default function ClassWeek({ slots, days, names }: { slots: Slot[]; days:
                   <span className="hidden sm:inline">{DAY_NAMES[i]}</span>
                 </th>
                 {spans.map((span) =>
-                  span.entries.length === 0 ? (
+                  span.entries.length === 0 && !slotOpen(span.weekday, slots.find((s) => s.id === span.slotIds[0])!) ? (
+                    <td key={span.slotIds[0]} title="Saturday classes end at 2 PM" className="h-16 min-w-36 rounded-lg text-center text-xs text-brand-300 dark:text-brand-800">
+                      No classes
+                    </td>
+                  ) : span.entries.length === 0 ? (
                     <td key={span.slotIds[0]} className="h-16 min-w-36 rounded-lg border border-dashed border-brand-200 text-center text-xs tracking-wide text-brand-400 uppercase dark:border-brand-900 dark:text-brand-700">
                       Free
                     </td>

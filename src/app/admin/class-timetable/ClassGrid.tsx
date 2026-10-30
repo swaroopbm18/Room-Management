@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { slotOpen } from "@/lib/time";
 import { IconAlert, IconCheck, IconPencil, IconPlus, IconX } from "@/components/Icons";
 import SubmitButton from "@/components/SubmitButton";
 import type { Slot } from "@/lib/types";
@@ -177,7 +178,7 @@ export default function ClassGrid({
                             aria-label={`Add a class on ${DAY_NAMES[span.weekday - 1]} at ${time(span.slotIds)}`}
                             className="group flex h-full min-h-20 w-full items-center justify-center rounded-lg text-xs font-medium tracking-wide text-brand-400 uppercase transition hover:bg-brand-50 hover:text-brand-700 dark:text-brand-700 dark:hover:bg-brand-950 dark:hover:text-brand-300"
                           >
-                            <span className="group-hover:hidden group-focus-visible:hidden">Free</span>
+                            <span className="group-hover:hidden group-focus-visible:hidden">{slotOpen(span.weekday, slotById.get(span.slotIds[0])!) ? "Free" : "No classes"}</span>
                             <span className="hidden items-center gap-1 group-hover:inline-flex group-focus-visible:inline-flex">
                               <IconPlus className="h-3.5 w-3.5" /> Add
                             </span>

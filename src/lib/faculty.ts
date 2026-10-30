@@ -13,8 +13,14 @@ export const CLUSTERS = {
 } as const;
 export type ClusterKey = keyof typeof CLUSTERS;
 
-/** The teaching day, 8:00 to 4:45. */
+/** The teaching day, 8:00 to 4:45 (Saturday ends at 2:00). */
 export const DAY_SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+/** Saturday classes end at 2 PM: slot 7 (2:00 PM) onwards is never a free slot that day. */
+export const SATURDAY_LAST_SLOT = 6;
+
+/** Whether the slot runs at all on that weekday (Monday = 1 … Saturday = 6). */
+export const isOpen = (weekday: number, slotId: number) => weekday !== 6 || slotId <= SATURDAY_LAST_SLOT;
 
 export type FacultyMember = { initials: string; name: string; email?: string; cluster?: ClusterKey };
 
@@ -97,7 +103,7 @@ export async function getWeekFor(initials: string): Promise<Map<string, Busy[]>>
 }
 
 export function isFree(weeks: Weeks, initials: string, weekday: number, slotId: number): boolean {
-  return !weeks.get(initials)?.get(cellKey(weekday, slotId))?.length;
+  return isOpen(weekday, slotId) && !weeks.get(initials)?.get(cellKey(weekday, slotId))?.length;
 }
 
 export type Suggestion = { weekday: number; slotIds: number[]; free: FacultyMember[]; busy: FacultyMember[] };
@@ -117,6 +123,7 @@ export function suggestMeetings(weeks: Weeks, people: FacultyMember[], slots: Sl
   const out: Suggestion[] = [];
   for (let wd = 1; wd <= 6; wd++) {
     for (const run of runs) {
+      if (!run.every((id) => isOpen(wd, id))) continue;
       const free = people.filter((p) => run.every((id) => isFree(weeks, p.initials, wd, id)));
       out.push({ weekday: wd, slotIds: run, free, busy: people.filter((p) => !free.includes(p)) });
     }

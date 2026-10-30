@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import SmoothNavigation from "@/components/SmoothNavigation";
 import type { Metadata } from "next";
 import { Rubik } from "next/font/google";
 import DeveloperCredit from "@/components/DeveloperCredit";
@@ -38,11 +40,14 @@ const themeScript = `try{var d=document.documentElement,t=localStorage.getItem('
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className={`${rubik.variable} flex min-h-screen flex-col font-sans`}>
+        <Suspense fallback={null}>
+          <SmoothNavigation />
+        </Suspense>
         <Navbar />
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8 print:max-w-none print:p-0">{children}</main>
         <DeveloperCredit />

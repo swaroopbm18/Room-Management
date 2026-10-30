@@ -30,6 +30,13 @@
   --color-spot-950: #052e16;
 }
 
+/* In-page jumps (links to #sections, scrollIntoView) glide; Next turns this off for page changes */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 /* Colour themes picked from the navbar (ColorPicker). Blue is the default above.
    Same shade mapping as blue: brand-600 is the family's 700, brand-950 a darker 950. */
 html[data-color="indigo"] {

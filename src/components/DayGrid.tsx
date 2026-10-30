@@ -2,7 +2,7 @@ import Link from "next/link";
 import { STATUS_CELL, STATUS_LABEL } from "@/lib/status";
 import type { PublicRequest, Room, ScheduleRow, Slot, SlotStatus } from "@/lib/types";
 
-const LEGEND: SlotStatus[] = ["class", "booked", "cie", "event", "department", "free"];
+const LEGEND: SlotStatus[] = ["class", "booked", "cie", "event", "department", "free", "closed"];
 
 /** One row of the grid: a room (day view) or a day (room week view). */
 export type GridRow = {
@@ -68,7 +68,7 @@ export function ScheduleGrid({ corner, slots, rows, hint }: { corner: string; sl
         {LEGEND.map((s) => (
           <span key={s} className="inline-flex items-center gap-1.5">
             <span className={`h-3.5 w-5 rounded ${STATUS_CELL[s]}`} />
-            {STATUS_LABEL[s]}
+            {s === "closed" ? "Saturday after 2 PM" : STATUS_LABEL[s]}
           </span>
         ))}
         <span className="muted ml-auto hidden sm:inline">
@@ -106,6 +106,12 @@ export function ScheduleGrid({ corner, slots, rows, hint }: { corner: string; sl
                   const c = r.cells.get(s.id);
                   if (!c) return <td key={s.id} />;
                   const who = c.status === "department" ? `${c.subject} department` : c.faculty_name;
+                  if (c.status === "closed")
+                    return (
+                      <td key={s.id} title="Saturday classes end at 2 PM" className={`h-20 max-w-48 min-w-44 rounded-lg px-3 py-2 text-center align-middle text-xs font-medium tracking-wide uppercase ${STATUS_CELL.closed}`}>
+                        No classes
+                      </td>
+                    );
                   const n = r.pending?.get(s.id) ?? 0;
                   const body =
                     c.status === "free" ? (
