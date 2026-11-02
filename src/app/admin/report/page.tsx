@@ -70,6 +70,7 @@ export default async function Report({ searchParams }: { searchParams: Promise<{
               <th>Room</th>
               <th>Faculty name</th>
               <th>Type</th>
+              <th>Mode of request</th>
               <th>Description</th>
               <th className="w-40">Faculty signature</th>
             </tr>
@@ -77,7 +78,7 @@ export default async function Report({ searchParams }: { searchParams: Promise<{
           <tbody>
             {entries.length === 0 && (
               <tr>
-                <td colSpan={8} className="text-center">
+                <td colSpan={9} className="text-center">
                   No events, dropped classes or extra classes in this period.
                 </td>
               </tr>
@@ -90,6 +91,7 @@ export default async function Report({ searchParams }: { searchParams: Promise<{
                 <td className="whitespace-nowrap">{e.room}</td>
                 <td>{e.faculty}</td>
                 <td className="whitespace-nowrap">{e.type}</td>
+                <td>{e.mode}</td>
                 <td>{e.description}</td>
                 <td className="h-10" />
               </tr>
