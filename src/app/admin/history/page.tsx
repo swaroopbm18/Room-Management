@@ -1,5 +1,6 @@
 import GetForm from "@/components/GetForm";
 import PageHeader from "@/components/PageHeader";
+import { mergeRuns } from "@/lib/bookings";
 import { getRooms, getSlots } from "@/lib/data";
 import { groupRequests } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
@@ -58,12 +59,21 @@ export default async function History({ searchParams }: { searchParams: Promise<
   ]);
   const slotById = new Map(slots.map((s) => [s.id, s]));
 
+  // One change over back-to-back slots (made together, e.g. an event from 8:00 AM to 4:45 PM) is one entry
+  const changeRuns = mergeRuns(
+    (changeRes.data ?? []) as AllotmentRow[],
+    slots,
+    (x, y) =>
+      x.created_at === y.created_at && x.kind === y.kind && x.title === y.title && x.reason === y.reason &&
+      x.faculty_name === y.faculty_name && x.created_by === y.created_by,
+  );
+
   const entries: Entry[] = [
-    ...((changeRes.data ?? []) as AllotmentRow[]).map((a) => ({
+    ...changeRuns.map(({ first: a, range, slotIds }) => ({
       key: `a${a.id}`,
       at: a.created_at,
       date: a.date,
-      slot: slotById.get(a.slot_id)?.label ?? "",
+      slot: slotIds.length > 1 ? `${range} · ${slotIds.length} slots` : (slotById.get(a.slot_id)?.label ?? ""),
       room: a.room_id,
       change: KIND[a.kind],
       sub: a.title && !["Class", "Event"].includes(a.title) ? a.title : null,

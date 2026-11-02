@@ -5,12 +5,13 @@ import ClosedDay from "@/components/ClosedDay";
 import DayGrid from "@/components/DayGrid";
 import Flash from "@/components/Flash";
 import PageHeader from "@/components/PageHeader";
-import RenameBooking from "@/components/RenameBooking";
+import EditBooking from "@/components/EditBooking";
+import { mergeRuns } from "@/lib/bookings";
 import { getDaySchedule, getHolidays, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { AllotmentRow } from "@/lib/types";
 import { bookableDates, DATE_RE, dateOption, formatDate, formatDateTime, isSunday, slotEnded, todayIST, workingDay } from "@/lib/time";
-import { adminFree, adminOverride, adminRestore } from "../../actions";
+import { adminFree, adminOverride, adminRestoreSlots } from "../../actions";
 import SlotRange from "./SlotRange";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +51,10 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
   const active = [...latest.values()]
     .filter((a) => a.kind !== "restore" && !slotEnded(a.date, slotById.get(a.slot_id)!))
     .sort((a, b) => a.date.localeCompare(b.date) || a.slot_id - b.slot_id || a.room_id.localeCompare(b.room_id));
+  // Back-to-back slots of the same booking in a room show as one record, e.g. 8:00 AM – 4:45 PM
+  const runs = mergeRuns(active, slots, (x, y) =>
+    x.kind === y.kind && x.title === y.title && x.reason === y.reason && x.faculty_email === y.faculty_email,
+  );
 
   return (
     <div className="space-y-8">
@@ -157,23 +162,26 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-100 dark:divide-brand-900">
-              {active.length === 0 && (
+              {runs.length === 0 && (
                 <tr>
                   <td className="td muted" colSpan={6}>No upcoming changes. Every room follows the timetable.</td>
                 </tr>
               )}
-              {active.map((a) => (
+              {runs.map(({ first: a, slotIds, range }) => (
                 <tr key={a.id}>
                   <td className="td whitespace-nowrap">
                     {formatDate(a.date)}
-                    <div className="muted text-xs">{slotById.get(a.slot_id)?.label}</div>
+                    <div className="muted text-xs">
+                      {range}
+                      {slotIds.length > 1 && <> · {slotIds.length} slots</>}
+                    </div>
                   </td>
                   <td className="td font-medium whitespace-nowrap">{a.room_id}</td>
                   <td className="td">
                     {KIND_LABEL[a.kind]}
                     {a.title && <div className="muted text-xs">{a.title}</div>}
                     {a.kind !== "drop" && (
-                      <RenameBooking room={a.room_id} date={a.date} slot={a.slot_id} title={a.title} back={`/admin/allot?date=${date}`} />
+                      <EditBooking room={a.room_id} date={a.date} slot={a.slot_id} title={a.title} reason={a.reason} back={`/admin/allot?date=${date}`} />
                     )}
                   </td>
                   <td className="td">
@@ -182,10 +190,10 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
                   </td>
                   <td className="td max-w-xs">{a.reason}</td>
                   <td className="td">
-                    <form action={adminRestore} className="flex justify-end gap-2">
+                    <form action={adminRestoreSlots} className="flex justify-end gap-2">
                       <input type="hidden" name="room" value={a.room_id} />
                       <input type="hidden" name="date" value={a.date} />
-                      <input type="hidden" name="slot" value={a.slot_id} />
+                      <input type="hidden" name="slots" value={slotIds.join(",")} />
                       <input type="hidden" name="back" value={`/admin/allot?date=${date}`} />
                       <input name="reason" placeholder="Why (optional)" className="input w-36 py-1.5" />
                       <SubmitButton className="btn-secondary py-1.5 whitespace-nowrap" pendingText="Restoring…" message="Restoring the timetable…">
