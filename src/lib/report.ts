@@ -16,7 +16,7 @@ type ReportRow = {
   subject: string | null;
 };
 
-export type ReportEntry = { date: string; time: string; room: string; faculty: string; type: string; description: string };
+export type ReportEntry = { date: string; time: string; room: string; faculty: string; type: string; mode: string; description: string };
 
 const TYPE: Partial<Record<AllotmentRow["kind"], string>> = {
   cie: "CIE",
@@ -25,6 +25,24 @@ const TYPE: Partial<Record<AllotmentRow["kind"], string>> = {
   class_request: "Extra class",
   drop: "Class dropped",
 };
+
+/**
+ * How the change came about: a faculty member requested that date and time (and an admin approved it),
+ * an admin allotted it directly, or the class was dropped by its faculty or removed by an admin.
+ */
+function modeOf(r: Pick<ReportRow, "kind" | "reason">): string {
+  switch (r.kind) {
+    case "class_request":
+    case "event_request":
+      return "Faculty request";
+    case "cie":
+    case "event":
+      return "Admin allotment";
+    default:
+      // admin_free_slots (0005) writes "Removed by admin: …"; drop_class is the faculty's own
+      return r.reason.startsWith("Removed by admin") ? "Removed by admin" : "Dropped by faculty";
+  }
+}
 
 const clock = (t: string) => {
   const [h, m] = t.split(":").map(Number);
@@ -73,6 +91,7 @@ export async function getReport(start: string, end: string, fromSlot: number, to
         room: m.room_id,
         faculty: m.faculty_name ?? "",
         type: TYPE[m.kind]!,
+        mode: modeOf(m),
         description: what,
       };
     });
@@ -81,8 +100,8 @@ export async function getReport(start: string, end: string, fromSlot: number, to
 export function reportCsv(entries: ReportEntry[]): string {
   const cell = (v: string) => `"${v.replace(/"/g, '""')}"`;
   const lines = [
-    ["Sl. No", "Date", "Time", "Room", "Faculty", "Type", "Description", "Faculty signature"].map(cell).join(","),
-    ...entries.map((e, i) => [String(i + 1), formatDate(e.date), e.time, e.room, e.faculty, e.type, e.description, ""].map(cell).join(",")),
+    ["Sl. No", "Date", "Time", "Room", "Faculty", "Type", "Mode of request", "Description", "Faculty signature"].map(cell).join(","),
+    ...entries.map((e, i) => [String(i + 1), formatDate(e.date), e.time, e.room, e.faculty, e.type, e.mode, e.description, ""].map(cell).join(",")),
   ];
   return "﻿" + lines.join("\r\n");
 }
