@@ -104,14 +104,37 @@ export async function adminFree(form: FormData) {
   redirect(error ? withParam(to, "error", error.message) : withParam(to, "msg", data === 1 ? "Room freed for 1 slot." : `Room freed for ${data} slots.`));
 }
 
-export async function adminRenameBooking(form: FormData) {
-  await run(
-    form,
-    "/admin/allot",
-    "admin_rename_booking",
-    { p_room: s(form, "room"), p_date: s(form, "date"), p_slot: Number(s(form, "slot")), p_title: s(form, "title") },
-    "Booking renamed.",
-  );
+/** Changes a booking's name and description, across all of its back-to-back slots. */
+export async function adminEditBooking(form: FormData) {
+  const args = { p_room: s(form, "room"), p_date: s(form, "date"), p_slot: Number(s(form, "slot")), p_title: s(form, "title") };
+  const supabase = await createClient();
+  const reason = s(form, "reason");
+  const changed = reason !== s(form, "old_reason");
+  const { error } = changed
+    ? await supabase.rpc("admin_edit_booking", { ...args, p_reason: reason })
+    : await supabase.rpc("admin_rename_booking", args);
+  revalidatePath("/", "layout");
+  const to = back(form, "/admin/allot");
+  if (error) {
+    // Before migration 0021 the description can't be changed yet
+    const missing = error.code === "PGRST202" || /admin_edit_booking/.test(error.message);
+    redirect(withParam(to, "error", missing ? "Changing the description needs database update 0021. Ask the site admin to run it." : error.message));
+  }
+  redirect(withParam(to, "msg", "Booking updated."));
+}
+
+/** Restores every slot of a booking to the timetable. */
+export async function adminRestoreSlots(form: FormData) {
+  const supabase = await createClient();
+  const slots = s(form, "slots").split(",").map(Number).filter(Boolean);
+  let error: { message: string } | null = null;
+  for (const slot of slots) {
+    ({ error } = await supabase.rpc("admin_restore", { p_room: s(form, "room"), p_date: s(form, "date"), p_slot: slot, p_reason: s(form, "reason") }));
+    if (error) break;
+  }
+  revalidatePath("/", "layout");
+  const to = back(form, "/admin/allot");
+  redirect(withParam(to, error ? "error" : "msg", error ? error.message : slots.length === 1 ? "Slot restored to the timetable." : `${slots.length} slots restored to the timetable.`));
 }
 
 export async function saveFaculty(form: FormData) {
@@ -157,16 +180,6 @@ export async function saveFacultyProfile(form: FormData) {
 
 export async function removeFaculty(form: FormData) {
   await run(form, "/admin/people", "admin_remove_faculty", { p_initials: s(form, "initials") }, "Faculty member removed from the directory.");
-}
-
-export async function adminRestore(form: FormData) {
-  await run(
-    form,
-    "/admin/allot",
-    "admin_restore",
-    { p_room: s(form, "room"), p_date: s(form, "date"), p_slot: Number(s(form, "slot")), p_reason: s(form, "reason") },
-    "Slot restored to the timetable.",
-  );
 }
 
 export async function adminEditTimetable(form: FormData) {

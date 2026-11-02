@@ -4,12 +4,13 @@ import { IconClock, IconInbox, IconPlus } from "@/components/Icons";
 import Flash from "@/components/Flash";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
-import RenameBooking from "@/components/RenameBooking";
+import EditBooking from "@/components/EditBooking";
 import RequestStatus from "@/components/RequestStatus";
 import StatusBadge from "@/components/StatusBadge";
 import Substitutes from "@/components/Substitutes";
 import { getPerson } from "@/lib/auth";
-import { getDaySchedule, getHolidays, getSlotRequests } from "@/lib/data";
+import { mergeRuns } from "@/lib/bookings";
+import { getDaySchedule, getHolidays, getSlotRequests, getSlots } from "@/lib/data";
 import { findSubstitutes } from "@/lib/substitutes";
 import { bookableDates, DATE_RE, formatDate, formatDateTime, mondayOf } from "@/lib/time";
 
@@ -25,7 +26,7 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
   const sp = await searchParams;
   if (!sp.room || !sp.date || !DATE_RE.test(sp.date) || !sp.slot) notFound();
   const date = sp.date;
-  const [person, holidays, day, all] = await Promise.all([getPerson(), getHolidays(), getDaySchedule(date), getSlotRequests(sp.room, date, date)]);
+  const [person, holidays, day, all, slots] = await Promise.all([getPerson(), getHolidays(), getDaySchedule(date), getSlotRequests(sp.room, date, date), getSlots()]);
   const row = day.find((r) => r.room_id === sp.room && String(r.slot_id) === sp.slot);
   if (!row) notFound();
   const holiday = holidays.get(date);
@@ -36,6 +37,15 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
   // A dropped class: who is free to take it, for signed-in faculty
   const dropped = !!person && !row.ended && row.status === "free" && !!row.reason?.startsWith("Class dropped");
   const subs = dropped ? (await findSubstitutes([{ room_id: row.room_id, date, slot_id: row.slot_id }], person?.initials)).values().next().value : undefined;
+  // A booking over back-to-back slots (an event, CIE or approved request): its whole time
+  const booking =
+    row.status === "booked" || row.status === "cie" || row.status === "event"
+      ? mergeRuns(
+          day.filter((r) => r.room_id === row.room_id && r.status === row.status).map((r) => ({ ...r, date })),
+          slots,
+          (x, y) => x.subject === y.subject && x.reason === y.reason && x.faculty_name === y.faculty_name,
+        ).find((g) => g.slotIds.includes(row.slot_id))
+      : undefined;
   const who = row.status === "department" ? `${row.subject} department` : row.faculty_name;
 
   const item = (r: (typeof requests)[number], place?: number) => (
@@ -94,6 +104,11 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
             </div>
           )}
           {row.reason && <div className="muted mt-1 text-sm">{row.reason}</div>}
+          {booking && booking.slotIds.length > 1 && (
+            <div className="muted mt-1 text-sm">
+              Booked {booking.range} ({booking.slotIds.length} slots in a row)
+            </div>
+          )}
           {subs && (
             <div className="mt-1">
               {subs.subject && <span className="muted text-xs">The class was {subs.subject}. </span>}
@@ -104,11 +119,12 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
           {row.ended && <div className="muted mt-1 text-sm">This slot has ended.</div>}
           {person?.role === "admin" && !row.ended && !holiday && (row.status === "booked" || row.status === "cie" || row.status === "event") && (
             <div className="mt-2">
-              <RenameBooking
+              <EditBooking
                 room={row.room_id}
                 date={date}
                 slot={row.slot_id}
                 title={row.subject ?? ""}
+                reason={row.reason ?? ""}
                 back={`/slot?room=${encodeURIComponent(row.room_id)}&date=${date}&slot=${row.slot_id}`}
               />
             </div>
