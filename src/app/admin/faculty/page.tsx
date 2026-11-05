@@ -145,11 +145,11 @@ export default async function FacultyTimetables({ searchParams }: { searchParams
             const classes = count(f.initials, "timetable");
             const busy = count(f.initials);
             return (
+              <div key={f.initials} className="relative">
               <Link
-                key={f.initials}
                 href={`${link({ f: f.initials })}#timetable`}
                 scroll={false}
-                className={`card block p-4 transition hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700 ${selected?.initials === f.initials ? "ring-2 ring-brand-500" : ""}`}
+                className={`card block h-full p-4 pb-12 transition hover:border-brand-300 hover:shadow-md dark:hover:border-brand-700 ${selected?.initials === f.initials ? "ring-2 ring-brand-500" : ""}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -179,6 +179,25 @@ export default async function FacultyTimetables({ searchParams }: { searchParams
                   <MiniWeek week={weeks.get(f.initials)} />
                 </div>
               </Link>
+              <form action={deleteFaculty} className="absolute right-3 bottom-3">
+                <input type="hidden" name="initials" value={f.initials} />
+                <input type="hidden" name="back" value={link({})} />
+                <input type="hidden" name="done" value={link({ f: "" })} />
+                <SubmitButton
+                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"
+                  pendingText="Deleting…"
+                  message={`Deleting ${f.initials}…`}
+                  confirm={
+                    classes > 0
+                      ? `${f.initials} still teaches ${classes} class slot${classes === 1 ? "" : "s"}, so they can't be deleted yet. Give those classes to someone else in Class timetables first. Try anyway?`
+                      : `Delete ${f.name} (${f.initials})? Their name, cluster and duties go${f.email ? `, and ${f.email} can no longer sign in` : ""}. This can't be undone.`
+                  }
+                  aria-label={`Delete ${f.initials}`}
+                >
+                  <IconTrash className="h-3.5 w-3.5" /> Delete
+                </SubmitButton>
+              </form>
+              </div>
             );
           })}
           {shown.length === 0 && <div className="card muted p-6 text-sm sm:col-span-2 lg:col-span-3">Nobody matches “{sp.q}”.</div>}
