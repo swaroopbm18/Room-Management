@@ -311,3 +311,16 @@ export const IconLeave = (p: P) => (
     <path d="M3 9.5h18M8 3v3M16 3v3M9.5 13.5l5 5M14.5 13.5l-5 5" />
   </Svg>
 );
+
+export const IconPlug = (p: P) => (
+  <Svg {...p}>
+    <path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0V8ZM12 17v4" />
+  </Svg>
+);
+
+export const IconArchive = (p: P) => (
+  <Svg {...p}>
+    <rect x="3" y="4" width="18" height="4" rx="1" />
+    <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4" />
+  </Svg>
+);
