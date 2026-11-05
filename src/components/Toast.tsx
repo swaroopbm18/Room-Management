@@ -1,12 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { undoLast } from "@/app/actions";
-import { IconAlert, IconCheck, IconRestore, IconX } from "./Icons";
+import { IconAlert, IconArrowRight, IconCheck, IconRestore, IconX } from "./Icons";
 import SubmitButton from "./SubmitButton";
 
-type Note = { msg?: string; error?: string; undo?: string; back: string; key: number };
+type Note = { msg?: string; error?: string; undo?: string; fix?: { href: string; label: string }; back: string; key: number };
 
 /**
  * The message after an action, as a small card at the bottom of the screen. A success fades
@@ -21,15 +22,19 @@ function ToastInner() {
   const msg = params.get("msg") ?? undefined;
   const error = params.get("error") ?? undefined;
   const undo = params.get("undo") ?? undefined;
+  // Where the problem can be fixed; only a path on this site
+  const fixHref = params.get("fix") ?? "";
+  const fixLabel = params.get("fixlabel") ?? "Go there";
 
   useEffect(() => {
     if (skip || (!msg && !error)) return;
     const rest = new URLSearchParams(window.location.search);
-    ["msg", "error", "undo"].forEach((k) => rest.delete(k));
+    ["msg", "error", "undo", "fix", "fixlabel"].forEach((k) => rest.delete(k));
     const clean = `${window.location.pathname}${rest.size ? `?${rest}` : ""}${window.location.hash}`;
-    setNote({ msg, error, undo, back: clean, key: Date.now() });
+    const fix = fixHref.startsWith("/") && !fixHref.startsWith("//") ? { href: fixHref, label: fixLabel } : undefined;
+    setNote({ msg, error, undo, fix, back: clean, key: Date.now() });
     window.history.replaceState(window.history.state, "", clean);
-  }, [skip, msg, error, undo]);
+  }, [skip, msg, error, undo, fixHref, fixLabel]);
 
   useEffect(() => {
     if (!note || note.error) return;
@@ -40,7 +45,7 @@ function ToastInner() {
   if (!note) return null;
   const bad = !!note.error;
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4 print:hidden">
+    <div className="pointer-events-none fixed inset-x-0 bottom-[5.5rem] z-50 flex justify-center px-4 print:hidden">
       <div
         key={note.key}
         role={bad ? "alert" : "status"}
@@ -52,7 +57,17 @@ function ToastInner() {
         }`}
       >
         {bad ? <IconAlert className="mt-0.5 h-4 w-4 shrink-0" /> : <IconCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />}
-        <span className="min-w-0 flex-1 break-words">{note.error ?? note.msg}</span>
+        {note.fix ? (
+          // The whole message is a link to where the problem can be fixed
+          <Link href={note.fix.href} onClick={() => setNote(null)} className="group min-w-0 flex-1 break-words">
+            {note.error ?? note.msg}
+            <span className="mt-1.5 flex w-fit items-center gap-1 rounded-lg bg-red-100 px-2.5 py-1 text-xs font-semibold group-hover:bg-red-200 dark:bg-red-900/60 dark:group-hover:bg-red-900">
+              {note.fix.label} <IconArrowRight className="h-3.5 w-3.5" />
+            </span>
+          </Link>
+        ) : (
+          <span className="min-w-0 flex-1 break-words">{note.error ?? note.msg}</span>
+        )}
         {note.undo && (
           <form action={undoLast} className="-my-1">
             <input type="hidden" name="token" value={note.undo} />

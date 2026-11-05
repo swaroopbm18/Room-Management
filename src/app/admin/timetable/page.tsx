@@ -19,7 +19,7 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 type Entry = { room_id: string; slot_id: number; subject: string; faculty_initials: string[]; faculty_name: string | null; is_department: boolean };
 type Change = { id: number; room_id: string; weekday: number; slot_ids: number[]; old_value: string; new_value: string; effective_from: string; changed_by: string; created_at: string };
 
-export default async function EditTimetable({ searchParams }: { searchParams: Promise<{ day?: string }> }) {
+export default async function EditTimetable({ searchParams }: { searchParams: Promise<{ day?: string; find?: string }> }) {
   const sp = await searchParams;
   const today = todayIST();
   const tomorrow = addDays(today, 1);
@@ -96,7 +96,7 @@ export default async function EditTimetable({ searchParams }: { searchParams: Pr
         subtitle={`Changes take effect from tomorrow, ${formatDate(tomorrow, { weekday: "long" })}. Today and every earlier day keep the old subject and faculty.`}
       />
 
-      <FacultyFinder people={finderPeople} classes={finderClasses} />
+      <FacultyFinder key={sp.find ?? ""} people={finderPeople} classes={finderClasses} initialQuery={sp.find ?? ""} />
 
       <form action={adminEditTimetable} className="card grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4">
         <input type="hidden" name="back" value={`/admin/timetable?day=${day}`} />

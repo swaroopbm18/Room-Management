@@ -30,6 +30,12 @@ export default function ListSearch({ target, placeholder = "Search", className =
     setCounts({ shown, total: rows.length });
   }, [q, target]);
 
+  // A link can open the page already searching, e.g. ?find=AKN
+  useEffect(() => {
+    const find = new URLSearchParams(window.location.search).get("find");
+    if (find) setQ(find);
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
