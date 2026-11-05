@@ -32,6 +32,9 @@ async function run(form: FormData, fallback: string, fn: string, args: Record<st
 
 const s = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
 
+/** A missing function means migration 0022 hasn't been run yet. */
+const missing0022 = (m: string, fn: string) => (m.includes(fn) ? "Run supabase/migrations/0022_delete_faculty_and_rooms.sql in the Supabase SQL Editor first." : m);
+
 export async function withdrawRequest(form: FormData) {
   await run(form, "/faculty", "withdraw_request", { p_id: s(form, "id") }, "Request withdrawn.");
 }
@@ -180,6 +183,23 @@ export async function saveFacultyProfile(form: FormData) {
 
 export async function removeFaculty(form: FormData) {
   await run(form, "/admin/people", "admin_remove_faculty", { p_initials: s(form, "initials") }, "Faculty member removed from the directory.");
+}
+
+/**
+ * Deletes a faculty member everywhere: name, cluster, duties, subjects and sign-in. Someone who
+ * still teaches in the timetable can't be deleted; someone with past requests keeps a row with
+ * no access, so the history still names them.
+ */
+export async function deleteFaculty(form: FormData) {
+  const supabase = await createClient();
+  const initials = (s(form, "delete_initials") || s(form, "initials")).toUpperCase();
+  const { data, error } = await supabase.rpc("admin_delete_faculty", { p_initials: initials });
+  revalidatePath("/", "layout");
+  if (error) {
+    redirect(withParam(back(form, "/admin/faculty"), "error", missing0022(error.message, "admin_delete_faculty")));
+  }
+  const kept = data === "kept_history" ? " Their past requests are kept, but they can no longer sign in." : "";
+  redirect(withParam(s(form, "done") || "/admin/faculty", "msg", `${initials} deleted.${kept}`));
 }
 
 export async function adminEditTimetable(form: FormData) {
@@ -393,6 +413,31 @@ export async function updateRoom(form: FormData) {
   revalidateTag("rooms");
   revalidatePath("/", "layout");
   redirect(withParam(back(form, "/admin/rooms"), error ? "error" : "msg", error ? error.message : `Room ${s(form, "room")} saved.`));
+}
+
+/** An extra room, with its details; it shows everywhere rooms are listed. */
+export async function addRoom(form: FormData) {
+  const supabase = await createClient();
+  const capacity = Number(s(form, "capacity"));
+  const { data, error } = await supabase.rpc("admin_add_room", {
+    p_room: s(form, "room"),
+    p_capacity: capacity > 0 ? capacity : null,
+    p_kind: s(form, "kind") || "classroom",
+    p_projector: form.get("projector") === "on",
+    p_notes: s(form, "notes"),
+  });
+  revalidateTag("rooms");
+  revalidatePath("/", "layout");
+  redirect(withParam(back(form, "/admin/rooms"), error ? "error" : "msg", error ? missing0022(error.message, "admin_add_room") : `Room ${data} added.`));
+}
+
+/** Deletes a room that has no classes, requests or bookings on record. */
+export async function deleteRoom(form: FormData) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_delete_room", { p_room: s(form, "room") });
+  revalidateTag("rooms");
+  revalidatePath("/", "layout");
+  redirect(withParam(back(form, "/admin/rooms"), error ? "error" : "msg", error ? missing0022(error.message, "admin_delete_room") : `Room ${s(form, "room")} deleted.`));
 }
 
 /**

@@ -1,11 +1,14 @@
+import ClassGrid from "@/app/admin/class-timetable/ClassGrid";
 import ClassWeek from "@/components/ClassWeek";
+import Flash from "@/components/Flash";
 import PageHeader from "@/components/PageHeader";
 import PrintButton from "@/components/PrintButton";
 import PendingLink from "@/components/PendingLink";
 import { buildClassTimetable, ordinal, OTHER, type Cell } from "@/lib/classTimetable";
-import { getFacultyStatus, getSlots } from "@/lib/data";
+import { getPerson } from "@/lib/auth";
+import { getFacultyStatus, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
-import { todayIST } from "@/lib/time";
+import { addDays, todayIST } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -14,16 +17,38 @@ export const metadata = {
   alternates: { canonical: "/classes" },
 };
 
-/** Each class's regular week, for students. Read only; admins edit it under Timetables. */
-export default async function Classes({ searchParams }: { searchParams: Promise<{ class?: string }> }) {
+/**
+ * Each class's regular week, for students. An admin sees the week as it runs from tomorrow and
+ * can assign a class to any free slot, or edit or delete one, right here.
+ */
+export default async function Classes({ searchParams }: { searchParams: Promise<{ class?: string; msg?: string; error?: string }> }) {
   const sp = await searchParams;
   const today = todayIST();
   const supabase = await createClient();
-  const [slots, ttRes, status] = await Promise.all([getSlots(), supabase.rpc("get_timetable_all", { p_date: today }), getFacultyStatus(today)]);
+  const person = await getPerson();
+  const admin = person?.role === "admin";
+  // Timetable edits apply from tomorrow, so that is the week an admin edits
+  const date = admin ? addDays(today, 1) : today;
+  const [slots, ttRes, status, rooms, dirRes, peopleRes] = await Promise.all([
+    getSlots(),
+    supabase.rpc("get_timetable_all", { p_date: date }),
+    getFacultyStatus(today),
+    admin ? getRooms() : Promise.resolve([]),
+    admin ? supabase.from("faculty_directory").select("initials, title, full_name") : Promise.resolve({ data: [] }),
+    admin ? supabase.from("people").select("initials, title, full_name").not("initials", "is", null) : Promise.resolve({ data: [] }),
+  ]);
   const cells = (ttRes.data ?? []) as Cell[];
   const names: Record<string, string> = {};
   for (const f of status ?? []) names[f.initials] = f.name;
   const { semesters, hasOther, allClasses, chosen, label, days, subjects } = buildClassTimetable(cells, slots, sp.class);
+  // Which room has what in each slot, so a class only goes into a free room
+  const busy: Record<string, Record<string, string>> = {};
+  if (admin) for (const c of cells) (busy[`${c.weekday}|${c.slot_id}`] ??= {})[c.room_id] = c.subject;
+  // The editor suggests every named faculty member and flags initials with no name ("Check")
+  const named: Record<string, string> = {};
+  for (const p of [...(dirRes.data ?? []), ...(peopleRes.data ?? [])] as { initials: string; title: string | null; full_name: string }[]) {
+    if (p.full_name.trim()) named[p.initials] = `${p.title ? p.title + " " : ""}${p.full_name}`;
+  }
   const chip = (k: string, text: string) => (
     <PendingLink
       key={k}
@@ -40,7 +65,15 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
   return (
     <div className="space-y-6">
       <div className="print:hidden">
-        <PageHeader title="Class timetables" subtitle="Pick your class to see its regular week: the subject, faculty member and room in every slot. One-off changes show on the home page." />
+        <PageHeader
+          title="Class timetables"
+          subtitle={
+            admin
+              ? "Pick a class, then click a free slot to assign a class to it, or the pencil on a class to change or delete it. Changes take effect from tomorrow."
+              : "Pick your class to see its regular week: the subject, faculty member and room in every slot. One-off changes show on the home page."
+          }
+        />
+        <Flash msg={sp.msg} error={sp.error} />
       </div>
       {allClasses.length === 0 ? (
         <p className="card muted p-6 text-sm">The timetable isn&apos;t available right now.</p>
@@ -68,7 +101,27 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
               </h2>
               <PrintButton label="Print for the notice board" />
             </div>
-            <ClassWeek slots={slots} days={days} names={names} />
+            {admin ? (
+              <>
+                <div className="print:hidden">
+                  <ClassGrid
+                    key={chosen}
+                    slots={slots}
+                    days={days}
+                    rooms={rooms.map((r) => ({ id: r.id, name: r.name }))}
+                    busy={busy}
+                    names={named}
+                    back={`/classes?class=${encodeURIComponent(chosen)}`}
+                    defaultSubjectSuffix={chosen !== OTHER ? `-${chosen}` : ""}
+                  />
+                </div>
+                <div className="hidden print:block">
+                  <ClassWeek slots={slots} days={days} names={names} />
+                </div>
+              </>
+            ) : (
+              <ClassWeek slots={slots} days={days} names={names} />
+            )}
           </section>
           {subjects.size > 0 && (
             <section>
