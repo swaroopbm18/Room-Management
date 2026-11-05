@@ -1,7 +1,9 @@
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { displayName, requireStaff } from "@/lib/auth";
-import { getDaySchedule, getFacultyStatus, getHolidays } from "@/lib/data";
+import RoomSuggestions from "@/components/RoomSuggestions";
+import { getDaySchedule, getFacultyStatus, getHolidays, getRooms } from "@/lib/data";
+import { suggestRooms } from "@/lib/rooms";
 import { sectionRows } from "@/lib/clashes";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, bookableDates, DATE_RE, formatDate } from "@/lib/time";
@@ -20,15 +22,26 @@ export default async function RequestPage({
   const holidays = await getHolidays();
   const day = date && !holidays.has(date) ? await getDaySchedule(date) : [];
   const row = day.find((r) => r.room_id === sp.room && String(r.slot_id) === sp.slot);
+  const rooms = await getRooms();
+  // Free rooms like the one asked for, at the same time
+  const isFree = (roomId: string, slotId: number) => day.some((r) => r.room_id === roomId && r.slot_id === slotId && r.status === "free" && !r.ended);
+  const like = rooms.find((r) => r.id === sp.room);
+  const alternatives = row ? suggestRooms(rooms, isFree, [row.slot_id], like) : [];
+  const requestHref = (roomId: string) => `/request?room=${encodeURIComponent(roomId)}&date=${date}&slot=${row?.slot_id}`;
 
   if (!row || row.status !== "free" || row.ended) {
     return (
-      <div className="card mx-auto max-w-lg p-8 text-center">
-        <h1 className="text-xl font-semibold">This slot is not free</h1>
-        <p className="muted mt-2 text-sm">Only free slots can be requested. Pick another one from the list.</p>
-        <Link href={`/free${date ? `?date=${date}` : ""}`} className="btn-primary mt-6">
-          See free slots
-        </Link>
+      <div className="mx-auto max-w-2xl space-y-4">
+        <div className="card p-8 text-center">
+          <h1 className="text-xl font-semibold">This slot is not free</h1>
+          <p className="muted mt-2 text-sm">
+            {alternatives.length ? `${like?.name ?? "This room"} is taken then, but these rooms are free at the same time.` : "Only free slots can be requested. Pick another one from the list."}
+          </p>
+          <Link href={`/free${date ? `?date=${date}` : ""}`} className={alternatives.length ? "btn-secondary mt-6" : "btn-primary mt-6"}>
+            See all free slots
+          </Link>
+        </div>
+        {!row?.ended && <RoomSuggestions title={`Free at ${row?.slot_label ?? "that time"}`} hint="Most like the room you picked first: same kind of room, enough seats, projector, same block." items={alternatives} href={requestHref} />}
       </div>
     );
   }
@@ -62,6 +75,14 @@ export default async function RequestPage({
         ))}
       </div>
       <RequestForm room={row.room_id} date={date} initialSlot={row.slot_id} slots={roomDay} email={person.email} subjects={subjects} busy={busy} day={sectionRows(day)} weeks={weeks} />
+      <div className="mt-6">
+        <RoomSuggestions
+          title="Other rooms free then"
+          hint={`Rooms like ${row.room_name} that are free at ${row.slot_label}, in case another suits you better.`}
+          items={alternatives}
+          href={requestHref}
+        />
+      </div>
     </div>
   );
 }
