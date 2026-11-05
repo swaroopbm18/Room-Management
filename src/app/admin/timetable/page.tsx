@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { ScheduleRow } from "@/lib/types";
 import { addDays, formatDate, formatDateTime, slotOpen, todayIST } from "@/lib/time";
 import { adminEditTimetable } from "../../actions";
+import FacultyFinder, { type FinderClass } from "./FacultyFinder";
 import TimetableUpload from "./TimetableUpload";
 import SlotRange from "../allot/SlotRange";
 
@@ -43,6 +44,18 @@ export default async function EditTimetable({ searchParams }: { searchParams: Pr
   for (const p of [...(dirRes.data ?? []), ...(peopleRes.data ?? [])] as { initials: string; title: string | null; full_name: string }[]) {
     if (p.full_name.trim()) names.set(p.initials, `${p.title ? p.title + " " : ""}${p.full_name}`);
   }
+
+  // Every weekday's timetable from tomorrow on, for finding one person's week
+  const weekDates = [1, 2, 3, 4, 5, 6].map((d) => addDays(tomorrow, (d - isoDay(tomorrow) + 7) % 7));
+  const weekRes = await Promise.all(weekDates.map((d, i) => (i + 1 === day ? Promise.resolve(ttRes) : supabase.rpc("get_timetable", { p_date: d }))));
+  const finderClasses: FinderClass[] = weekRes.flatMap((res, i) =>
+    ((res.data ?? []) as Entry[])
+      .filter((e) => !e.is_department && e.faculty_initials.length)
+      .map((e) => ({ day: i + 1, room: e.room_id, slotId: e.slot_id, time: slotById.get(e.slot_id)?.label ?? "", subject: e.subject, initials: e.faculty_initials })),
+  );
+  const finderPeople = [...new Set([...names.keys(), ...finderClasses.flatMap((c) => c.initials)])]
+    .map((ini) => ({ initials: ini, name: names.get(ini) ?? ini }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const byCell = new Map(entries.map((e) => [`${e.room_id}|${e.slot_id}`, e]));
   const gridRows: GridRow[] = rooms.map((r) => ({
@@ -82,6 +95,8 @@ export default async function EditTimetable({ searchParams }: { searchParams: Pr
         title="Edit the regular timetable"
         subtitle={`Changes take effect from tomorrow, ${formatDate(tomorrow, { weekday: "long" })}. Today and every earlier day keep the old subject and faculty.`}
       />
+
+      <FacultyFinder people={finderPeople} classes={finderClasses} />
 
       <form action={adminEditTimetable} className="card grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4">
         <input type="hidden" name="back" value={`/admin/timetable?day=${day}`} />
@@ -130,7 +145,7 @@ export default async function EditTimetable({ searchParams }: { searchParams: Pr
 
       <TimetableUpload slots={slots} roomIds={rooms.map((r) => r.id)} effective={formatDate(tomorrow, { weekday: "long", year: undefined })} />
 
-      <section>
+      <section id="grid" className="scroll-mt-4">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <h2 className="text-lg font-semibold">
             Regular timetable for {DAYS[day - 1]}s <span className="muted text-sm font-normal">from {formatDate(showDate)}</span>
