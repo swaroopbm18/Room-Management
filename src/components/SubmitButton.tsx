@@ -27,7 +27,7 @@ export default function SubmitButton({
   confirm?: string;
   /** Submits to this action instead of the form's own. */
   formAction?: (form: FormData) => void | Promise<void>;
-} & React.AriaAttributes) {
+} & React.AriaAttributes & Pick<React.ButtonHTMLAttributes<HTMLButtonElement>, "name" | "value" | "title">) {
   const { pending } = useFormStatus();
   return (
     <>

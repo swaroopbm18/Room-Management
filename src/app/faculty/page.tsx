@@ -2,6 +2,7 @@ import SubmitButton from "@/components/SubmitButton";
 import Link from "next/link";
 import { IconCalendar, IconCalendarCheck, IconInbox, IconMinusCircle, IconPlus, IconRestore, IconX } from "@/components/Icons";
 import Flash from "@/components/Flash";
+import InlineEdit, { Field } from "@/components/InlineEdit";
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
 import RequestStatus from "@/components/RequestStatus";
@@ -15,7 +16,7 @@ import { groupRequests, slotCount } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
 import type { RequestRow } from "@/lib/types";
 import { addDays, formatDate, formatDateTime, isSunday, slotEnded, slotStarted, todayIST, workingDay } from "@/lib/time";
-import { dropClass, undoDrop, withdrawRequest } from "../actions";
+import { dropClass, editRequest, undoDrop, withdrawRequest } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -27,14 +28,16 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
 
   // My classes over the next 7 days
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i)).filter((d) => !isSunday(d));
-  const [slots, schedule, todayRows, { data: reqData }, week, { data: dropData }] = await Promise.all([
+  const [slots, schedule, todayRows, { data: reqData }, week, { data: dropData }, { data: subjectData }] = await Promise.all([
     getSlots(),
     getMySchedule(today, addDays(today, 6), days),
     getDaySchedule(workingDay(today)),
     supabase.from("requests").select("*").eq("requester_email", person.email).order("created_at", { ascending: false }).limit(50),
     person.initials ? getWeekFor(person.initials) : null,
     supabase.from("allotments").select("id, room_id, date, slot_id, reason").eq("kind", "drop").eq("created_by", person.email).gte("date", today),
+    supabase.from("faculty_subjects").select("subject").eq("email", person.email).order("subject"),
   ]);
+  const mySubjects = ((subjectData ?? []) as { subject: string }[]).map((x) => x.subject);
   const requests = (reqData ?? []) as RequestRow[];
   const slotById = new Map(slots.map((s) => [s.id, s]));
   const mine = schedule.filter((r) => !r.ended);
@@ -203,7 +206,29 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
                         {r.type === "event" ? "Event" : "Class"}
                         {r.subject && <div className="muted text-xs">{r.subject}</div>}
                       </td>
-                      <td className="td max-w-xs">{r.description}</td>
+                      <td className="td max-w-xs">
+                        {r.description}
+                        {r.status === "pending" && !ended && (
+                          <InlineEdit action={editRequest} back="/faculty" title="Edit this request" message="Saving your request…" className="mt-1">
+                            <input type="hidden" name="id" value={g.group_id} />
+                            {r.type === "class" && mySubjects.length > 0 && (
+                              <Field label="Subject">
+                                <select name="subject" defaultValue={r.subject ?? ""} className="input py-1.5 font-normal">
+                                  {!r.subject && <option value="">Pick a subject</option>}
+                                  {[...new Set([...(r.subject ? [r.subject] : []), ...mySubjects])].map((x) => (
+                                    <option key={x} value={x}>
+                                      {x}
+                                    </option>
+                                  ))}
+                                </select>
+                              </Field>
+                            )}
+                            <Field label="Description" className="min-w-56 flex-1">
+                              <textarea name="description" required minLength={5} maxLength={500} rows={2} defaultValue={r.description} className="input py-1.5 font-normal" />
+                            </Field>
+                          </InlineEdit>
+                        )}
+                      </td>
                       <td className="td">
                         <RequestStatus status={r.status} expired={ended} />
                         {r.decision_note && <div className="muted mt-1 text-xs">{r.decision_note}</div>}
@@ -213,7 +238,7 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
                         {r.status === "pending" && !ended && (
                           <form action={withdrawRequest}>
                             <input type="hidden" name="id" value={g.group_id} />
-                            <SubmitButton className="btn-secondary py-1.5" pendingText="Withdrawing…" message="Withdrawing your request…">
+                            <SubmitButton className="btn-secondary py-1.5" pendingText="Withdrawing…" message="Withdrawing your request…" confirm="Withdraw this request? You can request the room again later if it's still free.">
                               <IconX className="h-4 w-4" /> Withdraw
                             </SubmitButton>
                           </form>

@@ -1,4 +1,5 @@
 import Flash from "@/components/Flash";
+import InlineEdit, { Field } from "@/components/InlineEdit";
 import { IconLeave, IconPlus, IconX } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
@@ -8,7 +9,7 @@ import { findSubstitutes } from "@/lib/substitutes";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDate, isSunday, todayIST } from "@/lib/time";
 import type { ScheduleRow } from "@/lib/types";
-import { addLeave, removeLeave } from "../../actions";
+import { addLeave, removeLeave, updateLeave } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -131,6 +132,18 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
                     {l.starts_on === l.ends_on ? formatDate(l.starts_on) : `${formatDate(l.starts_on)} to ${formatDate(l.ends_on)}`}
                     {l.reason && ` · ${l.reason}`} · added by {l.created_by}
                   </div>
+                  <InlineEdit action={updateLeave} back={BACK} title={`Edit ${l.initials}'s leave`} message="Saving the leave…" className="mt-1">
+                    <input type="hidden" name="id" value={l.id} />
+                    <Field label="From">
+                      <input name="from" type="date" required defaultValue={l.starts_on} className="input py-1.5 font-normal" />
+                    </Field>
+                    <Field label="To">
+                      <input name="to" type="date" required defaultValue={l.ends_on} className="input py-1.5 font-normal" />
+                    </Field>
+                    <Field label="Reason" className="min-w-48 flex-1">
+                      <input name="reason" maxLength={120} defaultValue={l.reason ?? ""} className="input py-1.5 font-normal" />
+                    </Field>
+                  </InlineEdit>
                 </div>
                 <form action={removeLeave}>
                   <input type="hidden" name="id" value={l.id} />

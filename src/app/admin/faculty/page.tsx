@@ -2,13 +2,14 @@ import Link from "next/link";
 import Flash from "@/components/Flash";
 import { IconCalendar, IconCalendarCheck, IconCheck, IconPlus, IconTrash, IconUpload, IconUsers, IconX } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
+import InlineEdit, { Field } from "@/components/InlineEdit";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
 import { getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { Person } from "@/lib/types";
 import { cellKey, CLUSTERS, DAY_NAMES, DAY_SLOTS, DAYS, getFacultyWeeks, isFree, isOpen, type Busy, type ClusterKey, type FacultyMember } from "@/lib/faculty";
-import { addSubject, deleteFaculty, importFacultyDuties, removeSubject, saveFacultyProfile, setFacultyClusters, setFacultyDuty, upsertPerson } from "../../actions";
+import { addSubject, clearFacultyDuties, deleteFaculty, importFacultyDuties, removeSubject, renameSubject, saveFacultyProfile, setFacultyClusters, setFacultyDuty, upsertPerson } from "../../actions";
 import WeekTable from "@/components/WeekTable";
 import SlotRange from "../allot/SlotRange";
 
@@ -454,12 +455,30 @@ function FacultyProfile({
                       pendingText=""
                       message="Removing the subject…"
                       aria-label={`Remove ${a.subject}`}
+                      confirm={`Remove ${a.subject} from their subjects? Past requests keep it.`}
                     >
                       <IconX className="h-3.5 w-3.5" />
                     </SubmitButton>
                   </form>
                 ))}
               </div>
+              {profile.subjects.length > 0 && (
+                <InlineEdit action={renameSubject} back={back} label="Rename a subject" message="Renaming the subject…">
+                  <input type="hidden" name="email" value={account.email} />
+                  <Field label="Subject">
+                    <select name="old" className="input py-1.5 font-normal">
+                      {profile.subjects.map((a) => (
+                        <option key={a.subject} value={a.subject}>
+                          {a.subject}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="New name" className="min-w-40 flex-1">
+                    <input name="subject" required maxLength={40} className="input py-1.5 font-normal uppercase" placeholder="e.g. DBMS-3B" />
+                  </Field>
+                </InlineEdit>
+              )}
               {missing.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2 text-sm">
                   <span className="muted text-xs">In the timetable:</span>
@@ -494,7 +513,21 @@ function FacultyProfile({
         <h3 className="font-semibold">Weekly timetable</h3>
         <p className="muted text-xs">From tomorrow, with classes from the room timetable and other duties added below.</p>
       </div>
-      <WeekTable week={week} slots={slots} />
+      <WeekTable week={week} slots={slots} edit={dutiesReady ? { initials: person.initials, back } : undefined} />
+      {dutiesReady && [...(week?.values() ?? [])].some((b) => b.some((x) => x.source === "duty")) && (
+        <form action={clearFacultyDuties} className="flex justify-end px-4 pb-2">
+          <input type="hidden" name="initials" value={person.initials} />
+          <input type="hidden" name="back" value={back} />
+          <SubmitButton
+            className="btn-secondary py-1 text-xs text-red-700 dark:text-red-300"
+            pendingText="Clearing…"
+            message="Clearing all duties…"
+            confirm={`Clear all of ${person.initials}'s other duties? Classes from the timetable stay.`}
+          >
+            <IconX className="h-3.5 w-3.5" /> Clear all duties
+          </SubmitButton>
+        </form>
+      )}
       {dutiesReady && (
         <form action={setFacultyDuty} className="grid gap-3 border-t border-brand-100 bg-brand-50/50 p-4 sm:grid-cols-2 lg:grid-cols-[10rem_minmax(0,2fr)_minmax(0,2fr)_auto] dark:border-brand-900 dark:bg-brand-950/40">
           <input type="hidden" name="initials" value={person.initials} />

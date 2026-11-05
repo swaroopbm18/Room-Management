@@ -14,7 +14,7 @@ export type Slot = { id: number; starts: string; ends: string; label: string };
 export type RoomKind = "classroom" | "lab" | "seminar";
 
 /** Capacity, kind, projector and notes come with migration 0020; before it they are missing. */
-export type Room = { id: string; name: string; sort_order: number; capacity?: number | null; kind?: RoomKind; projector?: boolean; notes?: string };
+export type Room = { id: string; name: string; sort_order: number; capacity?: number | null; kind?: RoomKind; projector?: boolean; notes?: string; archived?: boolean };
 
 export type SlotStatus = "free" | "class" | "department" | "booked" | "cie" | "event" | "closed";
 

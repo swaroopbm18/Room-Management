@@ -1,11 +1,12 @@
 import Flash from "@/components/Flash";
+import InlineEdit, { Field } from "@/components/InlineEdit";
 import { IconCalendar, IconPlus, IconX } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
 import { displayName } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Person } from "@/lib/types";
-import { addSubject, removeSubject, subjectsFromTimetable } from "../../actions";
+import { addSubject, removeSubject, renameSubject, subjectsFromTimetable } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -146,12 +147,30 @@ export default async function Subjects({ searchParams }: { searchParams: Promise
                                 pendingText=""
                                 message="Removing the subject…"
                                 aria-label={`Remove ${a.subject} from ${displayName(p)}`}
+                                confirm={`Remove ${a.subject} from ${displayName(p)}? Past requests keep it.`}
                               >
                                 <IconX className="h-3.5 w-3.5" />
                               </SubmitButton>
                             </form>
                           ))}
                         </div>
+                      )}
+                      {subs.length > 0 && (
+                        <InlineEdit action={renameSubject} back="/admin/subjects" label="Rename" title={`Rename one of ${displayName(p)}'s subjects`} message="Renaming the subject…" className="mt-1.5">
+                          <input type="hidden" name="email" value={p.email} />
+                          <Field label="Subject">
+                            <select name="old" className="input py-1.5 font-normal">
+                              {subs.map((a) => (
+                                <option key={a.subject} value={a.subject}>
+                                  {a.subject}
+                                </option>
+                              ))}
+                            </select>
+                          </Field>
+                          <Field label="New name" className="min-w-40 flex-1">
+                            <input name="subject" required maxLength={40} className="input py-1.5 font-normal uppercase" placeholder="e.g. DBMS-3B" />
+                          </Field>
+                        </InlineEdit>
                       )}
                     </td>
                   </tr>

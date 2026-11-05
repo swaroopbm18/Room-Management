@@ -7,7 +7,7 @@ import PageHeader from "@/components/PageHeader";
 import PrintButton from "@/components/PrintButton";
 import PendingLink from "@/components/PendingLink";
 import { getPerson } from "@/lib/auth";
-import { getDayOrders, getDaySchedule, getHolidays, getRooms, getSlots, getSlotRequests } from "@/lib/data";
+import { getDayOrders, getDaySchedule, getHolidays, getAllRooms, getSlots, getSlotRequests } from "@/lib/data";
 import { roomSummary } from "@/lib/rooms";
 import { addDays, bookableDates, DATE_RE, formatDate, mondayOf, todayIST, WEEKDAY_NAMES } from "@/lib/time";
 
@@ -31,7 +31,7 @@ export default async function RoomWeek({ params, searchParams }: { params: Promi
 
   const [person, rooms, slots, holidays, schedules, dayOrders, requests] = await Promise.all([
     getPerson(),
-    getRooms(),
+    getAllRooms(),
     getSlots(),
     getHolidays(),
     Promise.all(days.map((d) => getDaySchedule(d))),

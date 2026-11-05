@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Flash from "@/components/Flash";
-import { IconCheck, IconPlus, IconX } from "@/components/Icons";
+import { IconCheck, IconPlus, IconTrash, IconX } from "@/components/Icons";
+import InlineEdit, { Field } from "@/components/InlineEdit";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
 import { requireStaff } from "@/lib/auth";
@@ -8,7 +9,7 @@ import { getHolidays, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { bookableDates, DATE_RE, formatDate, slotEnded, slotOpen, todayIST, weekdayOf, workingDay } from "@/lib/time";
 import SlotRange from "../admin/allot/SlotRange";
-import { bookEquipment, cancelEquipment, saveEquipment } from "../actions";
+import { bookEquipment, cancelEquipment, deleteEquipment, editEquipmentBooking, saveEquipment } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -25,11 +26,14 @@ export default async function Equipment({ searchParams }: { searchParams: Promis
   const dates = bookableDates().filter((d) => !holidays.has(d));
   const date = sp.date && DATE_RE.test(sp.date) && dates.includes(sp.date) ? sp.date : workingDay(today, holidays);
   const supabase = await createClient();
-  const [itemsRes, dayRes, mineRes] = await Promise.all([
+  const [itemsRes, dayRes, mineRes, usedRes] = await Promise.all([
     supabase.from("equipment").select("id, name, notes, active").order("name"),
     supabase.from("equipment_bookings").select("*").eq("date", date).is("cancelled_at", null),
     supabase.from("equipment_bookings").select("*").eq("booked_by", person.email).gte("date", today).is("cancelled_at", null).order("date").order("slot_id"),
+    // Items that were ever booked keep their history, so only the others can be deleted
+    admin ? supabase.from("equipment_bookings").select("equipment_id") : Promise.resolve({ data: [] }),
   ]);
+  const everBooked = new Set(((usedRes.data ?? []) as { equipment_id: number }[]).map((b) => b.equipment_id));
   const ready = !itemsRes.error;
   const items = (itemsRes.data ?? []) as Item[];
   const live = items.filter((i) => i.active);
@@ -166,6 +170,22 @@ export default async function Equipment({ searchParams }: { searchParams: Promis
                         {g[0].room_id && ` · ${g[0].room_id}`}
                         {g[0].purpose && ` · ${g[0].purpose}`}
                       </span>
+                      <InlineEdit action={editEquipmentBooking} back={back} title="Edit this booking" message="Saving the booking…" className="mt-1">
+                        <input type="hidden" name="id" value={g[0].id} />
+                        <Field label="Room">
+                          <select name="room" defaultValue={g[0].room_id ?? ""} className="input py-1.5 font-normal">
+                            <option value="">No room</option>
+                            {rooms.map((r) => (
+                              <option key={r.id} value={r.id}>
+                                {r.name}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                        <Field label="Purpose" className="min-w-48 flex-1">
+                          <input name="purpose" maxLength={120} defaultValue={g[0].purpose} className="input py-1.5 font-normal" />
+                        </Field>
+                      </InlineEdit>
                     </span>
                     <form action={cancelEquipment}>
                       <input type="hidden" name="id" value={g[0].id} />
@@ -223,6 +243,19 @@ export default async function Equipment({ searchParams }: { searchParams: Promis
                     <SubmitButton className="btn-secondary py-1.5" pendingText="Saving…" message="Saving…">
                       <IconCheck className="h-4 w-4" /> Save
                     </SubmitButton>
+                    {!everBooked.has(i.id) && (
+                      <SubmitButton
+                        formAction={deleteEquipment}
+                        className="btn-secondary px-2.5 py-1.5 text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"
+                        pendingText=""
+                        message={`Deleting ${i.name}…`}
+                        confirm={`Delete ${i.name}? It has never been booked, so nothing else changes.`}
+                        aria-label={`Delete ${i.name}`}
+                        title="Delete"
+                      >
+                        <IconTrash className="h-4 w-4" />
+                      </SubmitButton>
+                    )}
                   </form>
                 ))}
                 <form action={saveEquipment} className="flex flex-wrap items-center gap-2 px-4 py-3">
@@ -234,7 +267,7 @@ export default async function Equipment({ searchParams }: { searchParams: Promis
                   </SubmitButton>
                 </form>
               </div>
-              <p className="muted text-xs">Retiring an item hides it and cancels its future bookings.</p>
+              <p className="muted text-xs">Retiring an item hides it and cancels its future bookings. An item that was never booked can be deleted.</p>
             </section>
           )}
         </>
