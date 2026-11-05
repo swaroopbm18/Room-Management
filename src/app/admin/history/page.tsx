@@ -134,7 +134,7 @@ export default async function History({ searchParams }: { searchParams: Promise<
       </GetForm>
       {entries.length > 5 && <ListSearch target="history-rows" placeholder="Search these entries" />}
       <div className="card overflow-x-auto">
-        <table className="w-full min-w-[900px]">
+        <table className="table-cards w-full sm:min-w-[900px]">
           <thead className="thead-ink">
             <tr>
               <th className="th">Changed at</th>
@@ -154,19 +154,19 @@ export default async function History({ searchParams }: { searchParams: Promise<
             )}
             {entries.map((e) => (
               <tr key={e.key} data-search="">
-                <td className="td whitespace-nowrap">{formatDateTime(e.at)}</td>
-                <td className="td whitespace-nowrap">
+                <td data-label="Changed at" className="td whitespace-nowrap">{formatDateTime(e.at)}</td>
+                <td data-label="Date &amp; slot" className="td whitespace-nowrap">
                   {formatDate(e.date)}
                   <div className="muted text-xs">{e.slot}</div>
                 </td>
-                <td className="td font-medium">{e.room}</td>
-                <td className="td">
+                <td data-label="Room" className="td font-medium">{e.room}</td>
+                <td data-label="Change" className="td">
                   <span className={e.rejected ? "text-red-700 dark:text-red-400" : ""}>{e.change}</span>
                   {e.sub && <div className="muted text-xs">{e.sub}</div>}
                 </td>
-                <td className="td">{e.faculty}</td>
-                <td className="td max-w-xs">{e.description}</td>
-                <td className="td text-xs">{e.by}</td>
+                <td data-label="Faculty" className="td">{e.faculty}</td>
+                <td data-label="Description" className="td max-w-xs">{e.description}</td>
+                <td data-label="By" className="td text-xs">{e.by}</td>
               </tr>
             ))}
           </tbody>

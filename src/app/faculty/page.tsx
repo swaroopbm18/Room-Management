@@ -83,7 +83,7 @@ export default async function FacultyDashboard() {
           </div>
         ) : (
           <div className="card overflow-x-auto">
-            <table className="w-full min-w-[640px]">
+            <table className="table-cards w-full sm:min-w-[640px]">
               <thead className="thead-ink">
                 <tr>
                   <th className="th">Date</th>
@@ -96,14 +96,14 @@ export default async function FacultyDashboard() {
               <tbody className="divide-y divide-brand-100 dark:divide-brand-900">
                 {mine.map((r) => (
                   <tr key={`${r.date}-${r.slot_id}-${r.room_id}`}>
-                    <td className="td whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td className="td whitespace-nowrap">{r.slot_label}</td>
-                    <td className="td font-medium">{r.room_name}</td>
-                    <td className="td">
+                    <td data-label="Date" className="td whitespace-nowrap">{formatDate(r.date)}</td>
+                    <td data-label="Slot" className="td whitespace-nowrap">{r.slot_label}</td>
+                    <td data-label="Room" className="td font-medium">{r.room_name}</td>
+                    <td data-label="Subject" className="td">
                       {r.subject}
                       {r.status === "booked" && <span className="muted"> · your booking</span>}
                     </td>
-                    <td className="td">
+                    <td data-label="Drop this class" className="td">
                       <form action={dropClass} className="flex justify-end gap-2">
                         <input type="hidden" name="room" value={r.room_id} />
                         <input type="hidden" name="date" value={r.date} />
@@ -171,7 +171,7 @@ export default async function FacultyDashboard() {
           </EmptyState>
         ) : (
           <div className="card overflow-x-auto">
-            <table className="w-full min-w-[720px]">
+            <table className="table-cards w-full sm:min-w-[720px]">
               <thead className="thead-ink">
                 <tr>
                   <th className="th">Date & slot</th>
@@ -188,19 +188,19 @@ export default async function FacultyDashboard() {
                   const ended = g.ended;
                   return (
                     <tr key={g.group_id}>
-                      <td className="td whitespace-nowrap">
+                      <td data-label="Date &amp; slot" className="td whitespace-nowrap">
                         {formatDate(r.date)}
                         <div className="muted text-xs">
                           {g.range}
                           {g.rows.length > 1 && <> · {slotCount(g)}</>}
                         </div>
                       </td>
-                      <td className="td font-medium">{r.room_id}</td>
-                      <td className="td">
+                      <td data-label="Room" className="td font-medium">{r.room_id}</td>
+                      <td data-label="Type" className="td">
                         {r.type === "event" ? "Event" : "Class"}
                         {r.subject && <div className="muted text-xs">{r.subject}</div>}
                       </td>
-                      <td className="td max-w-xs">
+                      <td data-label="Description" className="td max-w-xs">
                         {r.description}
                         {r.status === "pending" && !ended && (
                           <InlineEdit action={editRequest} back="/faculty" title="Edit this request" message="Saving your request…" className="mt-1">
@@ -223,7 +223,7 @@ export default async function FacultyDashboard() {
                           </InlineEdit>
                         )}
                       </td>
-                      <td className="td">
+                      <td data-label="Status" className="td">
                         <RequestStatus status={r.status} expired={ended} />
                         {r.decision_note && <div className="muted mt-1 text-xs">{r.decision_note}</div>}
                         {r.decided_at && <div className="muted text-xs">{formatDateTime(r.decided_at)}</div>}

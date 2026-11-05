@@ -270,7 +270,7 @@ function ClusterForm({ faculty, back }: { faculty: FacultyMember[]; back: string
               </fieldset>
             ))}
           </div>
-          <div className="flex justify-end p-4">
+          <div className="sticky-save flex justify-end p-4">
             <SubmitButton pendingText="Saving…" message="Saving the clusters…">
               <IconCheck className="h-4 w-4" /> Save clusters
             </SubmitButton>

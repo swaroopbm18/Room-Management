@@ -112,7 +112,7 @@ export default async function Subjects() {
           <ListSearch target="subject-rows" placeholder="Find a person or subject" />
         </div>
         <div className="card overflow-x-auto">
-          <table className="w-full min-w-[640px]">
+          <table className="table-cards w-full sm:min-w-[640px]">
             <thead className="thead-ink">
               <tr>
                 <th className="th">Faculty</th>
@@ -124,11 +124,11 @@ export default async function Subjects() {
                 const subs = byEmail.get(p.email) ?? [];
                 return (
                   <tr key={p.email} data-search={`${displayName(p)} ${p.initials ?? ""} ${p.email} ${subs.map((a) => a.subject).join(" ")}`}>
-                    <td className="td whitespace-nowrap">
+                    <td data-label="Faculty" className="td whitespace-nowrap">
                       <span className="font-medium">{displayName(p)}</span>
                       <div className="muted text-xs">{p.initials ?? "No initials"} · {p.email}</div>
                     </td>
-                    <td className="td">
+                    <td data-label="Subjects" className="td">
                       {subs.length === 0 ? (
                         <span className="muted text-sm">None yet, so they can&apos;t request a room for a class.</span>
                       ) : (
