@@ -75,7 +75,7 @@ export default async function CieWeek() {
           </div>
         </div>
         <p className="muted text-xs">Days can be picked up to {dates.length} days ahead, the same window as single allotments.</p>
-        <div className="flex justify-end">
+        <div className="sticky-save flex justify-end">
           <SubmitButton pendingText="Booking…" message="Booking the rooms for every day…">
             <IconFlag className="h-4 w-4" /> Book all
           </SubmitButton>

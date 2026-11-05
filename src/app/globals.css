@@ -355,3 +355,69 @@ select,
     border-radius: 0.375rem;
   }
 }
+
+/* Phones: a table marked table-cards shows each row as a card, each cell under its column name */
+@media (max-width: 639px) {
+  .table-cards thead {
+    display: none;
+  }
+  .table-cards,
+  .table-cards tbody,
+  .table-cards tr,
+  .table-cards td {
+    display: block;
+    width: 100%;
+  }
+  .table-cards tr {
+    padding: 0.75rem 1rem;
+  }
+  .table-cards td {
+    padding: 0.2rem 0;
+    max-width: none;
+    white-space: normal;
+    text-align: left;
+  }
+  .table-cards td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    opacity: 0.55;
+  }
+  .table-cards td > form {
+    justify-content: flex-start;
+  }
+}
+
+/* Phones: comfortable tap targets for buttons */
+@media (max-width: 639px) and (pointer: coarse) {
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    min-height: 2.5rem;
+  }
+}
+
+/* Phones: the Save row of a long form stays at the bottom of the screen while scrolling */
+@media (max-width: 639px) {
+  .sticky-save {
+    position: sticky;
+    /* just above the "Developed by" footer, which also sticks to the bottom */
+    bottom: var(--footer-h, 4.75rem);
+    z-index: 10;
+    margin-inline: -1rem;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--color-brand-100);
+    background: color-mix(in oklab, white 92%, transparent);
+    backdrop-filter: blur(6px);
+  }
+  .dark .sticky-save {
+    border-color: var(--color-brand-900);
+    background: color-mix(in oklab, var(--color-ink) 92%, transparent);
+  }
+  .sticky-save > * {
+    flex: 1;
+  }
+}

@@ -16,7 +16,7 @@ export default async function Navbar() {
     { href: "/classes", label: "Class timetables", icon: <IconCalendar className="h-4 w-4" /> },
     ...(person ? [{ href: "/faculty", label: "My dashboard", icon: <IconDashboard className="h-4 w-4" /> }] : []),
     ...(person ? [{ href: "/equipment", label: "Equipment", icon: <IconPlug className="h-4 w-4" /> }] : []),
-    ...(person?.role === "admin" ? [{ href: "/admin", label: "Admin", icon: <IconShield className="h-4 w-4" />, badge: pending }] : []),
+    ...(person?.role === "admin" ? [{ href: "/admin/home", label: "Admin", icon: <IconShield className="h-4 w-4" />, badge: pending }] : []),
   ];
   return (
     <header className="sticky top-0 z-30 print:hidden bg-gradient-to-r from-ink via-brand-950 to-brand-800 text-white shadow-lg shadow-brand-950/20 dark:border-b dark:border-brand-900/60 dark:from-black dark:via-black dark:to-brand-950">

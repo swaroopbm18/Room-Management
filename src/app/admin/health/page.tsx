@@ -2,31 +2,15 @@ import Link from "next/link";
 import { IconAlert, IconCheck, IconPencil } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
-import type { Cell } from "@/lib/classTimetable";
-import { getSlots } from "@/lib/data";
-import { checkTimetable, KINDS, type Problem } from "@/lib/health";
-import { createClient } from "@/lib/supabase/server";
-import { addDays, formatDate, todayIST } from "@/lib/time";
+import { KINDS, type Problem } from "@/lib/health";
+import { loadHealth } from "@/lib/healthData";
+import { formatDate } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
 /** The timetable from tomorrow, checked for clashes and loose ends. */
 export default async function Health() {
-  const tomorrow = addDays(todayIST(), 1);
-  const supabase = await createClient();
-  const [slots, ttRes, dirRes, peopleRes, dutyRes] = await Promise.all([
-    getSlots(),
-    supabase.rpc("get_timetable_all", { p_date: tomorrow }),
-    supabase.from("faculty_directory").select("initials, title, full_name"),
-    supabase.from("people").select("initials, title, full_name").not("initials", "is", null),
-    supabase.from("faculty_duties").select("initials, weekday, slot_id, activity"),
-  ]);
-  const names: Record<string, string> = {};
-  for (const p of [...(dirRes.data ?? []), ...(peopleRes.data ?? [])] as { initials: string; title: string | null; full_name: string }[]) {
-    names[p.initials] = p.full_name.trim() ? `${p.title ? p.title + " " : ""}${p.full_name}` : (names[p.initials] ?? p.initials);
-  }
-  const cells = (ttRes.data ?? []) as Cell[];
-  const problems = checkTimetable(cells, slots, names, (dutyRes.data ?? []) as { initials: string; weekday: number; slot_id: number; activity: string }[]);
+  const { tomorrow, slots, cells, problems } = await loadHealth();
   const byKind = new Map<Problem["kind"], Problem[]>();
   for (const p of problems) byKind.set(p.kind, [...(byKind.get(p.kind) ?? []), p]);
   const must = problems.filter((p) => p.level === "problem").length;
