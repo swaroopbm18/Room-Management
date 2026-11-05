@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { ScheduleRow } from "@/lib/types";
 import { addDays, formatDate, formatDateTime, slotOpen, todayIST } from "@/lib/time";
 import { adminEditTimetable } from "../../actions";
-import FacultyFinder, { type FinderClass } from "./FacultyFinder";
+import FacultyFinder, { type FinderClass } from "@/components/FacultyFinder";
 import TimetableUpload from "./TimetableUpload";
 import SlotRange from "../allot/SlotRange";
 
@@ -51,7 +51,7 @@ export default async function EditTimetable({ searchParams }: { searchParams: Pr
   const finderClasses: FinderClass[] = weekRes.flatMap((res, i) =>
     ((res.data ?? []) as Entry[])
       .filter((e) => !e.is_department && e.faculty_initials.length)
-      .map((e) => ({ day: i + 1, room: e.room_id, slotId: e.slot_id, time: slotById.get(e.slot_id)?.label ?? "", subject: e.subject, initials: e.faculty_initials })),
+      .map((e) => ({ day: i + 1, room: e.room_id, slotId: e.slot_id, time: slotById.get(e.slot_id)?.label ?? "", subject: e.subject, initials: e.faculty_initials, href: `/admin/timetable?day=${i + 1}#grid`, linkLabel: `Show ${DAYS[i]}` })),
   );
   const finderPeople = [...new Set([...names.keys(), ...finderClasses.flatMap((c) => c.initials)])]
     .map((ini) => ({ initials: ini, name: names.get(ini) ?? ini }))
