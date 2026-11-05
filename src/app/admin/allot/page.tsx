@@ -1,9 +1,9 @@
+import RememberFields from "@/components/RememberFields";
 import SubmitButton from "@/components/SubmitButton";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { IconFlag, IconMinusCircle, IconRestore } from "@/components/Icons";
 import ClosedDay from "@/components/ClosedDay";
 import DayGrid from "@/components/DayGrid";
-import Flash from "@/components/Flash";
 import PageHeader from "@/components/PageHeader";
 import EditBooking from "@/components/EditBooking";
 import { mergeRuns } from "@/lib/bookings";
@@ -26,7 +26,7 @@ const KIND_LABEL: Record<AllotmentRow["kind"], string> = {
   restore: "Restored",
 };
 
-export default async function Allot({ searchParams }: { searchParams: Promise<{ date?: string; msg?: string; error?: string }> }) {
+export default async function Allot({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const sp = await searchParams;
   const holidays = await getHolidays();
   const dates = bookableDates();
@@ -59,7 +59,6 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
   return (
     <div className="space-y-8">
       <PageHeader title="Allot or free a room" subtitle="Pick a start and end time between 8:00 AM and 5:40 PM. This overrides the regular classes and bookings in those slots, and pending requests for them are declined." />
-      <Flash msg={sp.msg} error={sp.error} />
 
       <form action={adminOverride} className="card grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3">
         <input type="hidden" name="back" value={`/admin/allot?date=${date}`} />
@@ -82,6 +81,7 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
         </div>
         <div>
           <label className="label" htmlFor="kind">Reason</label>
+          <RememberFields scope="allot" fields={["room", "kind"]} />
           <select id="kind" name="kind" className="input">
             <option value="cie">CIE (exam)</option>
             <option value="event">College event</option>
@@ -121,6 +121,7 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
           <SlotRange slots={slots} idPrefix="free-" />
           <div>
             <label className="label" htmlFor="free-room">Room</label>
+            <RememberFields scope="free" fields={["room"]} />
             <select id="free-room" name="room" className="input">
               {rooms.map((r) => (
                 <option key={r.id} value={r.id}>{r.name}</option>
@@ -132,7 +133,13 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
             <input id="free-reason" name="reason" required minLength={5} className="input" placeholder="e.g. Class cancelled, faculty on leave" />
           </div>
           <div className="flex justify-end sm:col-span-2 lg:col-span-4">
-            <SubmitButton className="btn-danger" pendingText="Freeing…" message="Freeing the room…">
+            <SubmitButton
+              className="btn-danger"
+              pendingText="Freeing…"
+              message="Freeing the room…"
+              confirm="Free this room for the chosen slots? Whatever is there (a class or a booking) is taken off, and the room shows as free."
+              confirmLabel="Free room"
+            >
               <IconMinusCircle className="h-4 w-4" /> Free room
             </SubmitButton>
           </div>

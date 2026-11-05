@@ -1,6 +1,6 @@
-import Flash from "@/components/Flash";
 import InlineEdit, { Field } from "@/components/InlineEdit";
 import { IconLeave, IconPlus, IconX } from "@/components/Icons";
+import EmptyState from "@/components/EmptyState";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
 import Substitutes from "@/components/Substitutes";
@@ -22,8 +22,7 @@ type Cell = { room_id: string; slot_id: number; subject: string; faculty_initial
 type Class = { room_id: string; date: string; slot_id: number; subject: string };
 
 /** Faculty on leave, and for each day they're away, their classes and who is free to take them. */
-export default async function LeavePage({ searchParams }: { searchParams: Promise<{ msg?: string; error?: string }> }) {
-  const sp = await searchParams;
+export default async function LeavePage() {
   const today = todayIST();
   const supabase = await createClient();
   const [leaveRes, dirRes, peopleRes, slots, holidays] = await Promise.all([
@@ -77,7 +76,6 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
         title="Leave & substitutes"
         subtitle="Mark a faculty member on leave and they show as busy everywhere, so they're never suggested as a substitute. Their classes in the next two weeks are listed here with the colleagues free to take each one."
       />
-      <Flash msg={sp.msg} error={sp.error} />
       {!ready && <div className="card muted p-4 text-sm">Run supabase/migrations/0023_leave_and_activity_log.sql in the Supabase SQL Editor to record leave.</div>}
 
       {ready && (
@@ -120,7 +118,7 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
           <h2 className="text-lg font-semibold">
             On leave now and coming up <span className="muted text-sm font-normal">· {current.length}{toCover ? ` · ${toCover} class${toCover === 1 ? "" : "es"} to cover` : ""}</span>
           </h2>
-          {current.length === 0 && <p className="card muted p-4 text-sm">Nobody is on leave.</p>}
+          {current.length === 0 && <EmptyState icon={<IconLeave />} title="Nobody is on leave">When you add someone&apos;s leave above, their classes and who is free to cover them show here.</EmptyState>}
           {current.map(({ l, days }) => (
             <article key={l.id} className="card overflow-hidden">
               <header className="flex flex-wrap items-center justify-between gap-3 border-b border-brand-100 bg-brand-50/60 px-4 py-3 dark:border-brand-900 dark:bg-brand-950/40">
@@ -147,6 +145,10 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
                 </div>
                 <form action={removeLeave}>
                   <input type="hidden" name="id" value={l.id} />
+                  <input type="hidden" name="initials" value={l.initials} />
+                  <input type="hidden" name="from" value={l.starts_on} />
+                  <input type="hidden" name="to" value={l.ends_on} />
+                  <input type="hidden" name="reason" value={l.reason ?? ""} />
                   <input type="hidden" name="back" value={BACK} />
                   <SubmitButton className="btn-secondary py-1 text-xs" pendingText="Removing…" message="Removing the leave…" confirm={`Remove ${l.initials}'s leave? They'll show as free again.`}>
                     <IconX className="h-3.5 w-3.5" /> Remove

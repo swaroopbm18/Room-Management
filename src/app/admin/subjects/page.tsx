@@ -1,6 +1,6 @@
-import Flash from "@/components/Flash";
 import InlineEdit, { Field } from "@/components/InlineEdit";
 import { IconCalendar, IconPlus, IconX } from "@/components/Icons";
+import ListSearch from "@/components/ListSearch";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
 import { displayName } from "@/lib/auth";
@@ -12,8 +12,7 @@ export const dynamic = "force-dynamic";
 
 type Allotted = { email: string; subject: string; source: "admin" | "timetable" };
 
-export default async function Subjects({ searchParams }: { searchParams: Promise<{ msg?: string; error?: string }> }) {
-  const sp = await searchParams;
+export default async function Subjects() {
   const supabase = await createClient();
   const [peopleRes, allottedRes, ttRes] = await Promise.all([
     supabase.from("people").select("*").eq("active", true).order("full_name"),
@@ -44,7 +43,6 @@ export default async function Subjects({ searchParams }: { searchParams: Promise
         title="Subjects"
         subtitle="Faculty pick one of their subjects when they request a room for a class. Removing a subject never changes past requests."
       />
-      <Flash msg={sp.msg} error={sp.error} />
 
       <section className="card space-y-3 p-6">
         <div>
@@ -109,7 +107,10 @@ export default async function Subjects({ searchParams }: { searchParams: Promise
       </section>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Allotted subjects</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">Allotted subjects</h2>
+          <ListSearch target="subject-rows" placeholder="Find a person or subject" />
+        </div>
         <div className="card overflow-x-auto">
           <table className="w-full min-w-[640px]">
             <thead className="thead-ink">
@@ -118,11 +119,11 @@ export default async function Subjects({ searchParams }: { searchParams: Promise
                 <th className="th">Subjects</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-brand-100 dark:divide-brand-900">
+            <tbody id="subject-rows" className="divide-y divide-brand-100 dark:divide-brand-900">
               {people.map((p) => {
                 const subs = byEmail.get(p.email) ?? [];
                 return (
-                  <tr key={p.email}>
+                  <tr key={p.email} data-search={`${displayName(p)} ${p.initials ?? ""} ${p.email} ${subs.map((a) => a.subject).join(" ")}`}>
                     <td className="td whitespace-nowrap">
                       <span className="font-medium">{displayName(p)}</span>
                       <div className="muted text-xs">{p.initials ?? "No initials"} · {p.email}</div>

@@ -333,3 +333,25 @@ select,
 [contenteditable="true"] {
   caret-color: auto;
 }
+
+/* Toast messages slide up into view */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[toast-in_\.2s_ease-out\] {
+    animation: none;
+  }
+}
+
+/* A clear ring on whatever has keyboard focus (mouse clicks don't show it) */
+@layer base {
+  :where(a, button, summary, [tabindex], input[type="checkbox"], input[type="radio"]):focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+    border-radius: 0.375rem;
+  }
+}

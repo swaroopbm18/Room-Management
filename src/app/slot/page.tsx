@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { IconClock, IconInbox, IconPlus } from "@/components/Icons";
-import Flash from "@/components/Flash";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
 import EditBooking from "@/components/EditBooking";
@@ -22,7 +21,7 @@ export const metadata = {
 };
 
 /** One room, one date, one slot: what's on, and every request for it. Open to everyone. */
-export default async function SlotPage({ searchParams }: { searchParams: Promise<{ room?: string; date?: string; slot?: string; msg?: string; error?: string }> }) {
+export default async function SlotPage({ searchParams }: { searchParams: Promise<{ room?: string; date?: string; slot?: string }> }) {
   const sp = await searchParams;
   if (!sp.room || !sp.date || !DATE_RE.test(sp.date) || !sp.slot) notFound();
   const date = sp.date;
@@ -89,7 +88,6 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
         </PendingLink>
       </PageHeader>
 
-      <Flash msg={sp.msg} error={sp.error} />
 
       <section className="card flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5">
         <div className="min-w-0">

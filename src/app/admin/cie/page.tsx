@@ -1,4 +1,4 @@
-import Flash from "@/components/Flash";
+import RememberFields from "@/components/RememberFields";
 import { IconFlag } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
@@ -11,8 +11,7 @@ import SlotRange from "../allot/SlotRange";
 export const dynamic = "force-dynamic";
 
 /** Book the same slots in several rooms over several days at once, e.g. for a CIE week. */
-export default async function CieWeek({ searchParams }: { searchParams: Promise<{ msg?: string; error?: string }> }) {
-  const sp = await searchParams;
+export default async function CieWeek() {
   const [rooms, slots, holidays] = await Promise.all([getRooms(), getSlots(), getHolidays()]);
   const dates = bookableDates();
   const first = workingDay(todayIST(), holidays);
@@ -23,7 +22,6 @@ export default async function CieWeek({ searchParams }: { searchParams: Promise<
         title="CIE week"
         subtitle="Take the same slots in several rooms over several days in one go. Sundays and holidays are skipped. Like a single allotment, it overrides classes and bookings and declines pending requests for those slots."
       />
-      <Flash msg={sp.msg} error={sp.error} />
 
       <form action={blockCieWeek} className="card space-y-5 p-6">
         <input type="hidden" name="back" value="/admin/cie" />
@@ -59,6 +57,7 @@ export default async function CieWeek({ searchParams }: { searchParams: Promise<
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <label className="label" htmlFor="kind">Reason</label>
+            <RememberFields scope="cie" fields={["kind", "title"]} />
             <select id="kind" name="kind" className="input">
               <option value="cie">CIE (exam)</option>
               <option value="event">College event</option>

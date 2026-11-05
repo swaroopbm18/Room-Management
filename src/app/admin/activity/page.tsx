@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { IconActivity } from "@/components/Icons";
+import ListSearch from "@/components/ListSearch";
 import PageHeader from "@/components/PageHeader";
 import { AREAS, tablesOf, toActions, type Area, type LogRow } from "@/lib/activity";
 import { createClient } from "@/lib/supabase/server";
@@ -74,12 +75,14 @@ export default async function Activity({ searchParams }: { searchParams: Promise
 
       {!error && actions.length === 0 && <p className="card muted p-6 text-sm">Nothing recorded yet. Changes show here from the moment migration 0023 was run.</p>}
 
+      {actions.length > 5 && <ListSearch target="activity-list" placeholder="Search this page" />}
+      <div id="activity-list" className="space-y-6">
       {[...byDay.entries()].map(([d, list]) => (
-        <section key={d} className="space-y-2">
+        <section key={d} className="space-y-2" data-search-group="">
           <h2 className="text-sm font-semibold">{d}</h2>
           <ol className="card divide-y divide-brand-100 dark:divide-brand-900">
             {list.map((a) => (
-              <li key={a.id} className="grid gap-x-4 gap-y-1 px-4 py-3 sm:grid-cols-[5.5rem_minmax(0,1fr)_14rem]">
+              <li key={a.id} data-search="" className="grid gap-x-4 gap-y-1 px-4 py-3 sm:grid-cols-[5.5rem_minmax(0,1fr)_14rem]">
                 <span className="muted text-xs tabular-nums sm:pt-0.5">{formatDateTime(a.at).split(", ").pop()}</span>
                 <div className="min-w-0 space-y-0.5 text-sm">
                   {a.lines.map((l, i) => (
@@ -103,6 +106,7 @@ export default async function Activity({ searchParams }: { searchParams: Promise
           </ol>
         </section>
       ))}
+      </div>
 
       {oldest > 0 && (
         <div className="flex justify-center">

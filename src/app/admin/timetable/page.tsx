@@ -1,6 +1,5 @@
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { ScheduleGrid, type GridRow } from "@/components/DayGrid";
-import Flash from "@/components/Flash";
 import { IconCheck } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
@@ -19,7 +18,7 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 type Entry = { room_id: string; slot_id: number; subject: string; faculty_initials: string[]; faculty_name: string | null; is_department: boolean };
 type Change = { id: number; room_id: string; weekday: number; slot_ids: number[]; old_value: string; new_value: string; effective_from: string; changed_by: string; created_at: string };
 
-export default async function EditTimetable({ searchParams }: { searchParams: Promise<{ day?: string; msg?: string; error?: string }> }) {
+export default async function EditTimetable({ searchParams }: { searchParams: Promise<{ day?: string }> }) {
   const sp = await searchParams;
   const today = todayIST();
   const tomorrow = addDays(today, 1);
@@ -83,7 +82,6 @@ export default async function EditTimetable({ searchParams }: { searchParams: Pr
         title="Edit the regular timetable"
         subtitle={`Changes take effect from tomorrow, ${formatDate(tomorrow, { weekday: "long" })}. Today and every earlier day keep the old subject and faculty.`}
       />
-      <Flash msg={sp.msg} error={sp.error} />
 
       <form action={adminEditTimetable} className="card grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4">
         <input type="hidden" name="back" value={`/admin/timetable?day=${day}`} />

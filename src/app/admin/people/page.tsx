@@ -1,6 +1,6 @@
 import SubmitButton from "@/components/SubmitButton";
-import Flash from "@/components/Flash";
 import { IconPlus, IconTrash, IconUpload } from "@/components/Icons";
+import ListSearch from "@/components/ListSearch";
 import PageHeader from "@/components/PageHeader";
 import { createClient } from "@/lib/supabase/server";
 import { displayName } from "@/lib/auth";
@@ -76,7 +76,7 @@ function PeopleList({ title, people, empty, choices }: { title: string; people: 
       <div className="card divide-y divide-brand-100 dark:divide-brand-900">
         {people.length === 0 && <p className="muted px-4 py-3 text-sm">{empty}</p>}
         {people.map((p) => (
-          <details key={p.email} className={`group ${p.active ? "" : "opacity-60"}`}>
+          <details key={p.email} data-search={`${displayName(p)} ${p.initials ?? ""} ${p.email}`} className={`group ${p.active ? "" : "opacity-60"}`}>
             <summary className="grid cursor-pointer list-none grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-brand-50 sm:grid-cols-[minmax(0,2fr)_6rem_minmax(0,2fr)_6rem_3rem] dark:hover:bg-brand-950 [&::-webkit-details-marker]:hidden">
               <span className="font-medium">{displayName(p)}</span>
               {p.initials && !choices.some((c) => c.initials === p.initials) ? (
@@ -119,8 +119,7 @@ function PeopleList({ title, people, empty, choices }: { title: string; people: 
   );
 }
 
-export default async function People({ searchParams }: { searchParams: Promise<{ msg?: string; error?: string }> }) {
-  const sp = await searchParams;
+export default async function People() {
   const supabase = await createClient();
   const [{ data }, dirRes, ttRes] = await Promise.all([
     supabase.from("people").select("*").order("role").order("full_name"),
@@ -144,13 +143,15 @@ export default async function People({ searchParams }: { searchParams: Promise<{
         title="Sign-in list & names"
         subtitle={`${people.filter((p) => p.active).length} people can sign in. Initials link each person to their classes in the timetable. To change one person's details, cluster or subjects, open their Faculty profile.`}
       />
-      <Flash msg={sp.msg} error={sp.error} />
 
+      <ListSearch target="people-lists" placeholder="Find by name, initials or email" />
+      <div id="people-lists" className="space-y-8">
       <PeopleList title="Admins" people={people.filter((p) => p.role === "admin")} empty="No admins yet." choices={choices} />
       <AddPerson role="admin" choices={choices} />
 
       <PeopleList title="Faculty" people={people.filter((p) => p.role === "faculty")} empty="No faculty yet." choices={choices} />
       <AddPerson role="faculty" choices={choices} />
+      </div>
 
       <FacultyNames directory={directory} inTimetable={inTimetable} owner={owner} />
 

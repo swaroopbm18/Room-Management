@@ -1,3 +1,4 @@
+import DateInput from "@/components/DateInput";
 import Flash from "@/components/Flash";
 import { IconCalendarCheck, IconFlag } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
@@ -47,11 +48,10 @@ export default async function Seating({
     <div className="space-y-6">
       <div className="space-y-6 print:hidden">
         <PageHeader title="CIE seating planner" subtitle="Type each class and its number of students. The planner fills the rooms free at that time, biggest first, prints a seating sheet for each room's door and can book the rooms for the CIE." />
-        <Flash msg={sp.msg} error={sp.error} />
         <form className="card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label className="label" htmlFor="st-date">Date</label>
-            <input id="st-date" name="date" type="date" defaultValue={date} className="input" />
+            <DateInput id="st-date" name="date" defaultValue={date} holidays={Object.fromEntries(holidays)} />
           </div>
           <div className="sm:col-span-1 lg:col-span-2">
             <SlotRange slots={slots} idPrefix="st-" initialFrom={fromI} initialTo={toI} />

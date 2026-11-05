@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Flash from "@/components/Flash";
 import { IconAlert, IconArchive, IconArrowRight, IconCalendar, IconDownload, IconTag, IconUpload } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
@@ -29,8 +28,7 @@ function Step({ n, title, hint, icon, children }: { n: number; title: string; hi
 }
 
 /** Starting a new semester, step by step. Past days always keep the timetable they had. */
-export default async function Rollover({ searchParams }: { searchParams: Promise<{ msg?: string; error?: string }> }) {
-  const sp = await searchParams;
+export default async function Rollover() {
   const today = todayIST();
   const supabase = await createClient();
   const [duties, subjects, timetableSubjects, leave, holidays] = await Promise.all([
@@ -50,7 +48,6 @@ export default async function Rollover({ searchParams }: { searchParams: Promise
         title="New semester"
         subtitle="Everything to start a new semester, in order. The old timetable and every booking stay in the history: past days always show the timetable they had."
       />
-      <Flash msg={sp.msg} error={sp.error} />
 
       <Step n={1} icon={<IconDownload className="h-5 w-5" />} title="Download a backup" hint="One Excel workbook with the timetable, bookings, requests, faculty, leave and the activity log, to keep a copy of the semester.">
         <a href="/admin/backup" download className="btn-primary">

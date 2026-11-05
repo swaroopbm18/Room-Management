@@ -53,6 +53,7 @@ export default function WeekTable({ week, slots, edit }: { week?: Map<string, Bu
                                 <input type="hidden" name="from" value={s.id} />
                                 <input type="hidden" name="to" value={s.id} />
                                 <input type="hidden" name="activity" value="" />
+                                <input type="hidden" name="old_activity" value={x.activity} />
                                 <input type="hidden" name="back" value={edit.back} />
                                 <SubmitButton
                                   className="rounded p-0.5 hover:bg-amber-200 dark:hover:bg-amber-900"

@@ -101,16 +101,16 @@ export default function ClassGrid({
             <IconCheck className="h-3.5 w-3.5" /> Save
           </SubmitButton>
           {entry && (
-            <button
+            <SubmitButton
               formAction={deleteClassEntry}
-              formNoValidate
               className="btn-danger px-2.5 py-1 text-xs"
-              onClick={(e) => {
-                if (!confirm(`Delete ${entry.subject} in ${entry.room} on ${DAY_NAMES[span.weekday - 1]}s at ${time(span.slotIds)}? The room becomes free from tomorrow.`)) e.preventDefault();
-              }}
+              pendingText="Deleting…"
+              message="Deleting the class…"
+              confirm={`Delete ${entry.subject} in ${entry.room} on ${DAY_NAMES[span.weekday - 1]}s at ${time(span.slotIds)}? The room becomes free from tomorrow.`}
+              confirmLabel="Delete"
             >
               <IconX className="h-3.5 w-3.5" /> Delete
-            </button>
+            </SubmitButton>
           )}
           <button type="button" onClick={() => setEditing(null)} className="ml-auto px-1.5 py-1 text-xs text-neutral-500 hover:underline dark:text-neutral-400">
             Cancel
