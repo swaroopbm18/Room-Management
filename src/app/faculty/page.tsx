@@ -164,7 +164,7 @@ export default async function FacultyDashboard() {
       </section>
 
       <section>
-        <h2 className="mb-3 text-lg font-semibold">My requests</h2>
+        <h2 id="requests" className="mb-3 scroll-mt-4 text-lg font-semibold">My requests</h2>
         {requests.length === 0 ? (
           <EmptyState icon={<IconInbox />} title="You haven't requested any rooms yet" action={{ href: "/free", label: "Find a free slot" }}>
             Need a room for an extra class or an event? Pick a free slot and send a request; you&apos;ll see its status here.

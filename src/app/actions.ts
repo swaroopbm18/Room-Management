@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getHolidays, getSlots } from "@/lib/data";
 import { addDays, formatDate, todayIST } from "@/lib/time";
 import { createClient } from "@/lib/supabase/server";
+import { fixFor } from "@/lib/fixLinks";
 import type { ParsedEntry } from "@/lib/timetableDocx";
 
 function back(form: FormData, fallback: string) {
@@ -18,8 +19,16 @@ function withParam(path: string, key: string, value: string, undo?: string) {
   params.delete("msg");
   params.delete("error");
   params.delete("undo");
+  params.delete("fix");
+  params.delete("fixlabel");
   params.set(key, value);
   if (undo && key === "msg") params.set("undo", undo);
+  // An error that names something to fix links to where it can be fixed
+  const fix = key === "error" ? fixFor(value) : undefined;
+  if (fix) {
+    params.set("fix", fix.href);
+    params.set("fixlabel", fix.label);
+  }
   return `${base}?${params.toString()}`;
 }
 

@@ -10,8 +10,8 @@ export type FinderClass = { day: number; room: string; slotId: number; time: str
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 /** Find a faculty member by name or initials and see every class they have in the week. */
-export default function FacultyFinder({ people, classes }: { people: { initials: string; name: string }[]; classes: FinderClass[] }) {
-  const [q, setQ] = useState("");
+export default function FacultyFinder({ people, classes, initialQuery = "" }: { people: { initials: string; name: string }[]; classes: FinderClass[]; initialQuery?: string }) {
+  const [q, setQ] = useState(initialQuery);
   const [picked, setPicked] = useState<string | null>(null);
   const query = q.trim().toLowerCase();
 
@@ -30,7 +30,7 @@ export default function FacultyFinder({ people, classes }: { people: { initials:
   const week = chosen ? classes.filter((c) => c.initials.includes(chosen)).sort((a, b) => a.day - b.day || a.slotId - b.slotId) : [];
 
   return (
-    <section className="card space-y-3 p-4">
+    <section id="finder" className="card scroll-mt-4 space-y-3 p-4">
       <label className="relative block sm:max-w-md">
         <span className="label">Find a faculty member</span>
         <IconSearch className="pointer-events-none absolute bottom-2.5 left-3 h-4 w-4 text-brand-400" />

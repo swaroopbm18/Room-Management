@@ -9,7 +9,7 @@ import { buildClassTimetable, classesOf, ordinal, OTHER, type Cell } from "@/lib
 
 export const dynamic = "force-dynamic";
 
-export default async function ClassTimetable({ searchParams }: { searchParams: Promise<{ class?: string }> }) {
+export default async function ClassTimetable({ searchParams }: { searchParams: Promise<{ class?: string; find?: string }> }) {
   const sp = await searchParams;
   const tomorrow = addDays(todayIST(), 1);
   const supabase = await createClient();
@@ -70,7 +70,7 @@ export default async function ClassTimetable({ searchParams }: { searchParams: P
         <p className="card muted p-6 text-sm">There is no timetable from tomorrow yet. Upload one under Edit timetable first.</p>
       ) : (
         <>
-          <FacultyFinder people={finderPeople} classes={finderClasses} />
+          <FacultyFinder key={sp.find ?? ""} people={finderPeople} classes={finderClasses} initialQuery={sp.find ?? ""} />
 
           <nav aria-label="Classes" className="card space-y-2 p-4">
             {semesters.map(({ sem, classes }) => (

@@ -229,7 +229,7 @@ export default async function Equipment({ searchParams }: { searchParams: Promis
 
           {admin && (
             <section className="space-y-2">
-              <h2 className="text-lg font-semibold">Manage equipment</h2>
+              <h2 id="manage" className="scroll-mt-4 text-lg font-semibold">Manage equipment</h2>
               <div className="card divide-y divide-brand-100 dark:divide-brand-900">
                 {items.map((i) => (
                   <form key={i.id} action={saveEquipment} className="flex flex-wrap items-center gap-2 px-4 py-2.5">
