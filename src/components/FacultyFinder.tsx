@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { IconSearch, IconX } from "@/components/Icons";
 
-export type FinderClass = { day: number; room: string; slotId: number; time: string; subject: string; initials: string[] };
+/** One class slot; `href` and `linkLabel` say where its link goes, e.g. that day's grid. */
+export type FinderClass = { day: number; room: string; slotId: number; time: string; subject: string; initials: string[]; href: string; linkLabel: string };
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -88,8 +89,8 @@ export default function FacultyFinder({ people, classes }: { people: { initials:
                       <span className="font-medium">{DAYS[c.day - 1]}</span> · {c.time} · {c.subject} · {c.room}
                       {c.initials.length > 1 && <span className="muted"> · with {c.initials.filter((i) => i !== person.initials).join(", ")}</span>}
                     </span>
-                    <Link href={`/admin/timetable?day=${c.day}#grid`} scroll={false} className="text-xs font-medium text-brand-600 hover:underline dark:text-brand-400">
-                      Show {DAYS[c.day - 1]}
+                    <Link href={c.href} scroll={false} className="text-xs font-medium text-brand-600 hover:underline dark:text-brand-400">
+                      {c.linkLabel}
                     </Link>
                   </li>
                 ))}

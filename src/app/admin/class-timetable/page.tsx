@@ -4,7 +4,8 @@ import { getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDate, todayIST } from "@/lib/time";
 import ClassGrid from "./ClassGrid";
-import { buildClassTimetable, ordinal, OTHER, type Cell } from "@/lib/classTimetable";
+import FacultyFinder, { type FinderClass } from "@/components/FacultyFinder";
+import { buildClassTimetable, classesOf, ordinal, OTHER, type Cell } from "@/lib/classTimetable";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,32 @@ export default async function ClassTimetable({ searchParams }: { searchParams: P
 
   const { semesters, hasOther, allClasses, chosen, label, days, wholeSemester, subjects } = buildClassTimetable(cells, slots, sp.class);
 
+  // Each person's classes in the week, linked to the class whose timetable shows them
+  const slotLabel = new Map(slots.map((s) => [s.id, s.label]));
+  const classFor = (subject: string) => {
+    const k = classesOf(subject)[0];
+    if (!k) return OTHER;
+    return allClasses.includes(k) ? k : (allClasses.find((c) => c.startsWith(k)) ?? OTHER);
+  };
+  const finderClasses: FinderClass[] = cells
+    .filter((c) => !c.is_department && c.faculty_initials.length)
+    .map((c) => {
+      const k = classFor(c.subject);
+      return {
+        day: c.weekday,
+        room: c.room_id,
+        slotId: c.slot_id,
+        time: slotLabel.get(c.slot_id) ?? "",
+        subject: c.subject,
+        initials: c.faculty_initials,
+        href: `/admin/class-timetable?class=${encodeURIComponent(k)}`,
+        linkLabel: k === OTHER ? "Show other classes" : `Show ${k}`,
+      };
+    });
+  const finderPeople = [...new Set([...Object.keys(names), ...finderClasses.flatMap((c) => c.initials)])]
+    .map((ini) => ({ initials: ini, name: names[ini] ?? ini }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   // Which room has what in each slot, so a class is only moved to a free room
   const busy: Record<string, Record<string, string>> = {};
   for (const c of cells) (busy[`${c.weekday}|${c.slot_id}`] ??= {})[c.room_id] = c.subject;
@@ -43,6 +70,8 @@ export default async function ClassTimetable({ searchParams }: { searchParams: P
         <p className="card muted p-6 text-sm">There is no timetable from tomorrow yet. Upload one under Edit timetable first.</p>
       ) : (
         <>
+          <FacultyFinder people={finderPeople} classes={finderClasses} />
+
           <nav aria-label="Classes" className="card space-y-2 p-4">
             {semesters.map(({ sem, classes }) => (
               <div key={sem} className="flex flex-wrap items-center gap-1.5">
