@@ -2,6 +2,7 @@ import Link from "next/link";
 import Flash from "@/components/Flash";
 import { IconCalendar, IconCalendarCheck, IconCheck, IconPlus, IconTrash, IconUpload, IconUsers, IconX } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
+import ListSearch from "@/components/ListSearch";
 import InlineEdit, { Field } from "@/components/InlineEdit";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
@@ -93,7 +94,6 @@ export default async function FacultyTimetables({ searchParams }: { searchParams
           <IconCalendarCheck className="h-4 w-4" /> Free time & meetings
         </Link>
       </PageHeader>
-      <Flash msg={sp.msg} error={sp.error} />
       {!clustersReady && <Flash error="Run supabase/migrations/0014_faculty_clusters.sql in the Supabase SQL Editor to put faculty into Cluster A and Cluster B." />}
       {!dutiesReady && (
         <Flash error="Run supabase/migrations/0013_faculty_timetables.sql in the Supabase SQL Editor to add duties other than classes. Classes from the room timetable already show." />
@@ -131,22 +131,17 @@ export default async function FacultyTimetables({ searchParams }: { searchParams
               </Link>
             ))}
           </div>
-          <form className="flex gap-2">
-            {selected && <input type="hidden" name="f" value={selected.initials} />}
-            {cl && <input type="hidden" name="cl" value={cl} />}
-            <input name="q" defaultValue={sp.q} placeholder="Find by name or initials" className="input w-56 py-1.5" />
-            <button className="btn-secondary py-1.5">Find</button>
-          </form>
+          <ListSearch target="faculty-cards" placeholder="Find by name, initials or email" className="w-full sm:w-auto" />
         </div>
         <div className="mb-3">
           <Legend />
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div id="faculty-cards" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((f) => {
             const classes = count(f.initials, "timetable");
             const busy = count(f.initials);
             return (
-              <div key={f.initials} className="relative">
+              <div key={f.initials} className="relative" data-search={`${f.name} ${f.initials} ${f.email ?? ""}`}>
               <Link
                 href={`${link({ f: f.initials })}#timetable`}
                 scroll={false}
@@ -201,7 +196,7 @@ export default async function FacultyTimetables({ searchParams }: { searchParams
               </div>
             );
           })}
-          {shown.length === 0 && <div className="card muted p-6 text-sm sm:col-span-2 lg:col-span-3">Nobody matches “{sp.q}”.</div>}
+          {shown.length === 0 && <div className="card muted p-6 text-sm sm:col-span-2 lg:col-span-3">Nobody matches “{sp.q}”. <Link href={link({ q: "" })} className="underline">Show everyone</Link></div>}
         </div>
       </section>
 

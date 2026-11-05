@@ -30,10 +30,18 @@ export default function InlineEdit({
 }) {
   const ref = useRef<HTMLDetailsElement>(null);
   const close = () => {
-    if (ref.current) ref.current.open = false;
+    if (!ref.current) return;
+    ref.current.open = false;
+    ref.current.querySelector("summary")?.focus();
   };
   return (
-    <details ref={ref} className={`group w-full ${className}`} onKeyDown={(e) => e.key === "Escape" && close()}>
+    <details
+      ref={ref}
+      className={`group w-full ${className}`}
+      onKeyDown={(e) => e.key === "Escape" && close()}
+      // Start typing straight away: focus the first field when it opens
+      onToggle={(e) => e.currentTarget.open && e.currentTarget.querySelector<HTMLElement>("form input:not([type=hidden]), form select, form textarea")?.focus()}
+    >
       <summary
         aria-label={title}
         className="inline-flex cursor-pointer list-none items-center gap-1 text-xs font-medium text-brand-600 hover:underline group-open:hidden dark:text-brand-400 [&::-webkit-details-marker]:hidden"

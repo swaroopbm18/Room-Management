@@ -1,6 +1,5 @@
 import ClassGrid from "@/app/admin/class-timetable/ClassGrid";
 import ClassWeek from "@/components/ClassWeek";
-import Flash from "@/components/Flash";
 import PageHeader from "@/components/PageHeader";
 import PrintButton from "@/components/PrintButton";
 import PendingLink from "@/components/PendingLink";
@@ -21,7 +20,7 @@ export const metadata = {
  * Each class's regular week, for students. An admin sees the week as it runs from tomorrow and
  * can assign a class to any free slot, or edit or delete one, right here.
  */
-export default async function Classes({ searchParams }: { searchParams: Promise<{ class?: string; msg?: string; error?: string }> }) {
+export default async function Classes({ searchParams }: { searchParams: Promise<{ class?: string }> }) {
   const sp = await searchParams;
   const today = todayIST();
   const supabase = await createClient();
@@ -79,7 +78,6 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
             </PendingLink>
           )}
         </PageHeader>
-        <Flash msg={sp.msg} error={sp.error} />
       </div>
       {allClasses.length === 0 ? (
         <p className="card muted p-6 text-sm">The timetable isn&apos;t available right now.</p>

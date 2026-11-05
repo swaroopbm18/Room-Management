@@ -1,9 +1,9 @@
 import SubmitButton from "@/components/SubmitButton";
 import Link from "next/link";
 import { IconCalendar, IconCalendarCheck, IconInbox, IconMinusCircle, IconPlus, IconRestore, IconX } from "@/components/Icons";
-import Flash from "@/components/Flash";
 import InlineEdit, { Field } from "@/components/InlineEdit";
 import KpiCard from "@/components/KpiCard";
+import EmptyState from "@/components/EmptyState";
 import PageHeader from "@/components/PageHeader";
 import RequestStatus from "@/components/RequestStatus";
 import { displayName, requireStaff } from "@/lib/auth";
@@ -20,8 +20,7 @@ import { dropClass, editRequest, undoDrop, withdrawRequest } from "../actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function FacultyDashboard({ searchParams }: { searchParams: Promise<{ msg?: string; error?: string }> }) {
-  const sp = await searchParams;
+export default async function FacultyDashboard() {
   const person = await requireStaff();
   const supabase = await createClient();
   const today = todayIST();
@@ -68,7 +67,6 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
           <IconPlus className="h-4 w-4" /> Request a free room
         </Link>
       </PageHeader>
-      <Flash msg={sp.msg} error={sp.error} />
 
       <section className="grid grid-cols-3 gap-2 sm:gap-4">
         <KpiCard label="Free slots today" value={freeToday} href="/free" linkText="Explore free slots" tone="navy" icon={<IconCalendarCheck />} />
@@ -168,13 +166,9 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
       <section>
         <h2 className="mb-3 text-lg font-semibold">My requests</h2>
         {requests.length === 0 ? (
-          <div className="card muted p-6 text-sm">
-            You haven&apos;t requested any rooms yet.{" "}
-            <Link className="text-brand-600 underline" href="/free">
-              Find a free slot
-            </Link>
-            .
-          </div>
+          <EmptyState icon={<IconInbox />} title="You haven't requested any rooms yet" action={{ href: "/free", label: "Find a free slot" }}>
+            Need a room for an extra class or an event? Pick a free slot and send a request; you&apos;ll see its status here.
+          </EmptyState>
         ) : (
           <div className="card overflow-x-auto">
             <table className="w-full min-w-[720px]">

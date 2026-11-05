@@ -1,5 +1,4 @@
 import SubmitButton from "@/components/SubmitButton";
-import Flash from "@/components/Flash";
 import { IconAlert, IconCheck, IconChevronDown, IconChevronUp, IconClock, IconFile, IconHistory, IconInbox, IconRestore, IconUsers, IconX } from "@/components/Icons";
 import PendingLink from "@/components/PendingLink";
 import KpiCard from "@/components/KpiCard";
@@ -14,8 +13,7 @@ import { approveRequest, bulkDecide, moveRequest, rejectRequest, undoDecision } 
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminRequests({ searchParams }: { searchParams: Promise<{ msg?: string; error?: string }> }) {
-  const sp = await searchParams;
+export default async function AdminRequests() {
   const supabase = await createClient();
   const today = todayIST();
   const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString();
@@ -94,7 +92,6 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
           <IconHistory className="h-4 w-4" /> Decided requests
         </PendingLink>
       </PageHeader>
-      <Flash msg={sp.msg} error={sp.error} />
 
       <section className="grid grid-cols-3 gap-2 sm:gap-4">
         <KpiCard

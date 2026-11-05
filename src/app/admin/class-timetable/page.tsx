@@ -1,4 +1,3 @@
-import Flash from "@/components/Flash";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
 import { getRooms, getSlots } from "@/lib/data";
@@ -9,7 +8,7 @@ import { buildClassTimetable, ordinal, OTHER, type Cell } from "@/lib/classTimet
 
 export const dynamic = "force-dynamic";
 
-export default async function ClassTimetable({ searchParams }: { searchParams: Promise<{ class?: string; msg?: string; error?: string }> }) {
+export default async function ClassTimetable({ searchParams }: { searchParams: Promise<{ class?: string }> }) {
   const sp = await searchParams;
   const tomorrow = addDays(todayIST(), 1);
   const supabase = await createClient();
@@ -39,7 +38,6 @@ export default async function ClassTimetable({ searchParams }: { searchParams: P
         title="Class timetable"
         subtitle={`Each class's week, as it runs from tomorrow, ${formatDate(tomorrow, { weekday: "long" })}. Click the pencil on a class to fix its subject, faculty initials or room, or to delete it. Today and earlier days keep the old timetable.`}
       />
-      <Flash msg={sp.msg} error={sp.error} />
 
       {allClasses.length === 0 ? (
         <p className="card muted p-6 text-sm">There is no timetable from tomorrow yet. Upload one under Edit timetable first.</p>

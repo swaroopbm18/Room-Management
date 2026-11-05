@@ -12,22 +12,65 @@ function back(form: FormData, fallback: string) {
   return to.startsWith("/") && !to.startsWith("//") ? to : fallback;
 }
 
-function withParam(path: string, key: string, value: string) {
+function withParam(path: string, key: string, value: string, undo?: string) {
   const [base, query = ""] = path.split("?");
   const params = new URLSearchParams(query);
   params.delete("msg");
   params.delete("error");
+  params.delete("undo");
   params.set(key, value);
+  if (undo && key === "msg") params.set("undo", undo);
   return `${base}?${params.toString()}`;
 }
 
-/** Runs an RPC and redirects back with a success or error message. */
-async function run(form: FormData, fallback: string, fn: string, args: Record<string, unknown>, ok: string) {
+/**
+ * What the Undo button on a message puts back. Each kind is one RPC with its arguments, so an
+ * undo can only do what the person could already do from the page (the RPC checks again).
+ */
+const UNDO_RPC = {
+  holiday: "admin_add_holiday",
+  notice: "admin_add_notice",
+  swap: "admin_set_day_order",
+  leave: "admin_add_leave",
+  subject: "admin_add_subject",
+  duty: "admin_set_faculty_duty",
+  drop: "undo_drop",
+  decision: "admin_undo_decision",
+} as const;
+type UndoKind = keyof typeof UNDO_RPC;
+
+function undoToken(kind: UndoKind, args: Record<string, unknown>) {
+  return Buffer.from(JSON.stringify({ k: kind, a: args })).toString("base64url");
+}
+
+/** Runs an RPC and redirects back with a success or error message (and an Undo, when given). */
+async function run(form: FormData, fallback: string, fn: string, args: Record<string, unknown>, ok: string, undo?: string) {
   const supabase = await createClient();
   const { error } = await supabase.rpc(fn, args);
   const to = back(form, fallback);
   revalidatePath("/", "layout");
-  redirect(withParam(to, error ? "error" : "msg", error ? error.message : ok));
+  redirect(withParam(to, error ? "error" : "msg", error ? error.message : ok, undo));
+}
+
+/** The Undo button on a message: puts back what was just removed. */
+export async function undoLast(form: FormData) {
+  const to = back(form, "/");
+  let kind: UndoKind | undefined;
+  let args: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(Buffer.from(s(form, "token"), "base64url").toString()) as { k: string; a: Record<string, unknown> };
+    if (parsed.k in UNDO_RPC && parsed.a && typeof parsed.a === "object") {
+      kind = parsed.k as UndoKind;
+      args = parsed.a;
+    }
+  } catch {
+    // fall through to the error below
+  }
+  if (!kind) redirect(withParam(to, "error", "That can no longer be undone."));
+  const supabase = await createClient();
+  const { error } = await supabase.rpc(UNDO_RPC[kind], args);
+  revalidatePath("/", "layout");
+  redirect(withParam(to, error ? "error" : "msg", error ? `Couldn't undo: ${error.message}` : "Undone."));
 }
 
 const s = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
@@ -40,13 +83,8 @@ export async function withdrawRequest(form: FormData) {
 }
 
 export async function dropClass(form: FormData) {
-  await run(
-    form,
-    "/faculty",
-    "drop_class",
-    { p_room: s(form, "room"), p_date: s(form, "date"), p_slot: Number(s(form, "slot")), p_reason: s(form, "reason") },
-    "Class dropped. The room is now free for others to request.",
-  );
+  const slot = { p_room: s(form, "room"), p_date: s(form, "date"), p_slot: Number(s(form, "slot")) };
+  await run(form, "/faculty", "drop_class", { ...slot, p_reason: s(form, "reason") }, "Class dropped. The room is now free for others to request.", undoToken("drop", slot));
 }
 
 export async function undoDrop(form: FormData) {
@@ -54,11 +92,11 @@ export async function undoDrop(form: FormData) {
 }
 
 export async function approveRequest(form: FormData) {
-  await run(form, "/admin", "approve_request", { p_id: s(form, "id") }, "Request approved. Other requests for that slot were declined.");
+  await run(form, "/admin", "approve_request", { p_id: s(form, "id") }, "Request approved. Other requests for that slot were declined.", undoToken("decision", { p_id: s(form, "id") }));
 }
 
 export async function rejectRequest(form: FormData) {
-  await run(form, "/admin", "reject_request", { p_id: s(form, "id"), p_note: s(form, "note") }, "Request rejected.");
+  await run(form, "/admin", "reject_request", { p_id: s(form, "id"), p_note: s(form, "note") }, "Request rejected.", undoToken("decision", { p_id: s(form, "id") }));
 }
 
 export async function moveRequest(form: FormData) {
@@ -358,7 +396,8 @@ export async function addSubject(form: FormData) {
 }
 
 export async function removeSubject(form: FormData) {
-  await run(form, "/admin/subjects", "admin_remove_subject", { p_email: s(form, "email"), p_subject: s(form, "subject") }, "Subject removed. Past requests keep it.");
+  const args = { p_email: s(form, "email"), p_subject: s(form, "subject") };
+  await run(form, "/admin/subjects", "admin_remove_subject", args, `${args.p_subject} removed. Past requests keep it.`, undoToken("subject", args));
 }
 
 export async function subjectsFromTimetable(form: FormData) {
@@ -378,17 +417,19 @@ export async function addHoliday(form: FormData) {
 }
 
 export async function removeHoliday(form: FormData) {
-  await run(form, "/admin/holidays", "admin_remove_holiday", { p_date: s(form, "date") }, "Holiday removed.");
+  await run(form, "/admin/holidays", "admin_remove_holiday", { p_date: s(form, "date") }, "Holiday removed.", s(form, "name") ? undoToken("holiday", { p_date: s(form, "date"), p_name: s(form, "name") }) : undefined);
 }
 
 export async function setDayOrder(form: FormData) {
   const follows = Number(s(form, "follows")) || null;
+  const was = Number(s(form, "old_follows")) || null;
   await run(
     form,
     "/admin/holidays",
     "admin_set_day_order",
     { p_date: s(form, "date"), p_follows: follows, p_note: s(form, "note") },
     follows ? "Day swap saved." : "Day swap removed.",
+    !follows && was ? undoToken("swap", { p_date: s(form, "date"), p_follows: was, p_note: s(form, "old_note") }) : undefined,
   );
 }
 
@@ -397,7 +438,8 @@ export async function addNotice(form: FormData) {
 }
 
 export async function removeNotice(form: FormData) {
-  await run(form, "/admin/holidays", "admin_remove_notice", { p_id: Number(s(form, "id")) }, "Notice removed.");
+  const undo = s(form, "message") ? undoToken("notice", { p_message: s(form, "message"), p_starts: s(form, "starts"), p_ends: s(form, "ends") }) : undefined;
+  await run(form, "/admin/holidays", "admin_remove_notice", { p_id: Number(s(form, "id")) }, "Notice removed.", undo);
 }
 
 export async function updateRoom(form: FormData) {
@@ -541,6 +583,10 @@ export async function setFacultyDuty(form: FormData) {
     "admin_set_faculty_duty",
     { p_initials: s(form, "initials"), p_weekday: Number(s(form, "weekday")), p_slots: await slotRange(form), p_activity: s(form, "activity") },
     s(form, "activity") ? "Duty saved." : "Slots cleared.",
+    // Clearing one duty from the week table can be undone
+    !s(form, "activity") && s(form, "old_activity")
+      ? undoToken("duty", { p_initials: s(form, "initials"), p_weekday: Number(s(form, "weekday")), p_slots: [Number(s(form, "from"))], p_activity: s(form, "old_activity") })
+      : undefined,
   );
 }
 
@@ -609,7 +655,8 @@ export async function addLeave(form: FormData) {
 }
 
 export async function removeLeave(form: FormData) {
-  await run(form, "/admin/leave", "admin_remove_leave", { p_id: Number(s(form, "id")) }, "Leave removed.");
+  const undo = s(form, "initials") ? undoToken("leave", { p_initials: s(form, "initials"), p_from: s(form, "from"), p_to: s(form, "to"), p_reason: s(form, "reason") }) : undefined;
+  await run(form, "/admin/leave", "admin_remove_leave", { p_id: Number(s(form, "id")) }, "Leave removed.", undo);
 }
 
 const missing0024 = (m: string, fn: string) => (m.includes(fn) ? "Run supabase/migrations/0024_equipment_and_rollover.sql in the Supabase SQL Editor first." : m);

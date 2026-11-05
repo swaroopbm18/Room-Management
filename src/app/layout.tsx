@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { Rubik } from "next/font/google";
 import DeveloperCredit from "@/components/DeveloperCredit";
 import Navbar from "@/components/Navbar";
+import Toast from "@/components/Toast";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
@@ -48,9 +49,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <Suspense fallback={null}>
           <SmoothNavigation />
         </Suspense>
+        <a
+          href="#main"
+          className="sr-only z-50 rounded-lg bg-brand-700 px-4 py-2 font-medium text-white focus:not-sr-only focus:fixed focus:top-3 focus:left-3 print:hidden"
+        >
+          Skip to content
+        </a>
         <Navbar />
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8 print:max-w-none print:p-0">{children}</main>
+        <main id="main" tabIndex={-1} className="outline-none mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8 print:max-w-none print:p-0">{children}</main>
         <DeveloperCredit />
+        <Toast />
       </body>
     </html>
   );

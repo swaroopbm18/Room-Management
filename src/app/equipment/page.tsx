@@ -1,7 +1,8 @@
+import RememberFields from "@/components/RememberFields";
 import Link from "next/link";
-import Flash from "@/components/Flash";
 import { IconCheck, IconPlus, IconTrash, IconX } from "@/components/Icons";
 import InlineEdit, { Field } from "@/components/InlineEdit";
+import EmptyState from "@/components/EmptyState";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
 import { requireStaff } from "@/lib/auth";
@@ -17,7 +18,7 @@ type Item = { id: number; name: string; notes: string; active: boolean };
 type Booking = { id: number; equipment_id: number; date: string; slot_id: number; room_id: string | null; purpose: string; booked_by: string; booked_name: string; created_at: string };
 
 /** Portable projectors, mics, speakers and kits: who has what when, and booking one. */
-export default async function Equipment({ searchParams }: { searchParams: Promise<{ date?: string; msg?: string; error?: string }> }) {
+export default async function Equipment({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const sp = await searchParams;
   const person = await requireStaff();
   const admin = person.role === "admin";
@@ -53,7 +54,6 @@ export default async function Equipment({ searchParams }: { searchParams: Promis
   return (
     <div className="space-y-6">
       <PageHeader title="Equipment" subtitle="Book a portable projector, mic, speaker or kit for your class or event. Each item can be booked by one person per slot, first come first served." />
-      <Flash msg={sp.msg} error={sp.error} />
       {!ready && <div className="card muted p-4 text-sm">Equipment booking isn&apos;t set up yet. An admin needs to run supabase/migrations/0024_equipment_and_rollover.sql.</div>}
 
       {ready && (
@@ -122,6 +122,7 @@ export default async function Equipment({ searchParams }: { searchParams: Promis
               <input type="hidden" name="date" value={date} />
               <div>
                 <label className="label" htmlFor="eq-item">Equipment</label>
+                <RememberFields scope="equipment" fields={["equipment", "room", "purpose"]} />
                 <select id="eq-item" name="equipment" className="input">
                   {live.map((i) => (
                     <option key={i.id} value={i.id}>
@@ -157,7 +158,7 @@ export default async function Equipment({ searchParams }: { searchParams: Promis
               Your bookings <span className="muted text-sm font-normal">· {mine.length}</span>
             </h2>
             {mine.length === 0 ? (
-              <p className="muted text-sm">Nothing booked.</p>
+              <EmptyState title="You have nothing booked">Pick an item, a time and a room in the form above.</EmptyState>
             ) : (
               <ul className="card divide-y divide-brand-100 dark:divide-brand-900">
                 {mine.map((g) => (

@@ -1,4 +1,3 @@
-import Flash from "@/components/Flash";
 import { IconArchive, IconCheck, IconPlus, IconQr, IconTrash } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
@@ -11,8 +10,7 @@ import { addRoom, archiveRoom, deleteRoom, updateRoom } from "../../actions";
 export const dynamic = "force-dynamic";
 
 /** Each room's seats, kind and projector, used to filter free rooms. */
-export default async function RoomDetails({ searchParams }: { searchParams: Promise<{ msg?: string; error?: string }> }) {
-  const sp = await searchParams;
+export default async function RoomDetails() {
   const supabase = await createClient();
   const [rooms, usedRes] = await Promise.all([getAllRooms(), supabase.rpc("admin_rooms_in_use")]);
   const ready = rooms.some((r) => r.kind !== undefined);
@@ -29,7 +27,6 @@ export default async function RoomDetails({ searchParams }: { searchParams: Prom
           <IconQr className="h-4 w-4" /> QR posters
         </PendingLink>
       </PageHeader>
-      <Flash msg={sp.msg} error={sp.error} />
       {!ready && <div className="card muted p-4 text-sm">Run supabase/migrations/0020_day_swaps_notices_rooms.sql in the Supabase SQL Editor to save room details.</div>}
       {ready && !canAddDelete && <div className="card muted p-4 text-sm">Run supabase/migrations/0022_delete_faculty_and_rooms.sql in the Supabase SQL Editor to add and delete rooms.</div>}
 

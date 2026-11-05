@@ -1,4 +1,5 @@
 import GetForm from "@/components/GetForm";
+import ListSearch from "@/components/ListSearch";
 import PageHeader from "@/components/PageHeader";
 import { mergeRuns } from "@/lib/bookings";
 import { getAllRooms, getSlots } from "@/lib/data";
@@ -131,6 +132,7 @@ export default async function History({ searchParams }: { searchParams: Promise<
         <button className="btn-primary">Filter</button>
         <span className="muted ml-auto self-center text-sm">{entries.length === 1 ? "1 entry" : `${entries.length} entries`}</span>
       </GetForm>
+      {entries.length > 5 && <ListSearch target="history-rows" placeholder="Search these entries" />}
       <div className="card overflow-x-auto">
         <table className="w-full min-w-[900px]">
           <thead className="thead-ink">
@@ -144,14 +146,14 @@ export default async function History({ searchParams }: { searchParams: Promise<
               <th className="th">By</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-brand-100 dark:divide-brand-900">
+          <tbody id="history-rows" className="divide-y divide-brand-100 dark:divide-brand-900">
             {entries.length === 0 && (
               <tr>
                 <td className="td muted" colSpan={7}>Nothing matches these filters.</td>
               </tr>
             )}
             {entries.map((e) => (
-              <tr key={e.key}>
+              <tr key={e.key} data-search="">
                 <td className="td whitespace-nowrap">{formatDateTime(e.at)}</td>
                 <td className="td whitespace-nowrap">
                   {formatDate(e.date)}
