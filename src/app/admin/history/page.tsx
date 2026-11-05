@@ -1,7 +1,7 @@
 import GetForm from "@/components/GetForm";
 import PageHeader from "@/components/PageHeader";
 import { mergeRuns } from "@/lib/bookings";
-import { getRooms, getSlots } from "@/lib/data";
+import { getAllRooms, getSlots } from "@/lib/data";
 import { groupRequests } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
 import type { AllotmentRow, RequestRow } from "@/lib/types";
@@ -53,7 +53,7 @@ export default async function History({ searchParams }: { searchParams: Promise<
 
   const [slots, rooms, changeRes, rejectedRes] = await Promise.all([
     getSlots(),
-    getRooms(),
+    getAllRooms(),
     show === "rejected" ? Promise.resolve({ data: [] }) : changes,
     show === "all" || show === "rejected" ? rejected : Promise.resolve({ data: [] }),
   ]);

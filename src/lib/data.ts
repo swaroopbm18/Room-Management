@@ -14,12 +14,18 @@ export const getSlots = unstable_cache(async (): Promise<Slot[]> => {
   return (data ?? []).map((s) => ({ ...s, starts: s.starts.slice(0, 5), ends: s.ends.slice(0, 5) }));
 }, ["slots"], { revalidate: 3600 });
 
-export const getRooms = unstable_cache(async (): Promise<Room[]> => {
+/** Every room, archived ones included (for history, usage and the Room details page). */
+export const getAllRooms = unstable_cache(async (): Promise<Room[]> => {
   const supabase = publicClient();
   const { data, error } = await supabase.from("rooms").select("*").order("sort_order");
   if (error) throw new Error(error.message);
   return data ?? [];
 }, ["rooms"], { revalidate: 3600, tags: ["rooms"] });
+
+/** The rooms in use: archived rooms are left out of booking and schedule pages. */
+export async function getRooms(): Promise<Room[]> {
+  return (await getAllRooms()).filter((r) => !r.archived);
+}
 
 export async function getDaySchedule(date: string): Promise<ScheduleRow[]> {
   const supabase = await createClient();

@@ -1,6 +1,6 @@
 import SubmitButton from "@/components/SubmitButton";
 import Flash from "@/components/Flash";
-import { IconAlert, IconCheck, IconChevronDown, IconChevronUp, IconClock, IconFile, IconHistory, IconInbox, IconUsers, IconX } from "@/components/Icons";
+import { IconAlert, IconCheck, IconChevronDown, IconChevronUp, IconClock, IconFile, IconHistory, IconInbox, IconRestore, IconUsers, IconX } from "@/components/Icons";
 import PendingLink from "@/components/PendingLink";
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
@@ -10,7 +10,7 @@ import { groupRequests, slotCount } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
 import type { RequestRow } from "@/lib/types";
 import { formatDate, formatDateTime, slotEnded, todayIST } from "@/lib/time";
-import { approveRequest, moveRequest, rejectRequest } from "../actions";
+import { approveRequest, bulkDecide, moveRequest, rejectRequest, undoDecision } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +33,24 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
       .order("created_at"),
     supabase.from("requests").select("group_id").eq("status", "approved").gte("decided_at", weekAgo),
   ]);
+  // Decided in the last two days and not started yet, so a slip can be undone
+  const { data: recentData } = await supabase
+    .from("requests")
+    .select("*")
+    .in("status", ["approved", "rejected"])
+    .gte("date", today)
+    .gte("decided_at", new Date(Date.now() - 2 * 864e5).toISOString())
+    .order("decided_at", { ascending: false })
+    .limit(60);
   const slotById = new Map(slots.map((s) => [s.id, s]));
   const pending = groupRequests((pendingRes.data ?? []) as RequestRow[], slotById)
     .filter((g) => !slotEnded(g.first.date, slotById.get(g.first.slot_id)!))
     .sort((a, b) => a.first.priority - b.first.priority || a.first.created_at.localeCompare(b.first.created_at));
+  // Requests declined only because another was approved come back when that approval is undone
+  const recent = groupRequests(((recentData ?? []) as RequestRow[]).filter((r) => r.decision_note !== "Another request was approved for this slot"), slotById)
+    .filter((g) => !g.rows.some((r) => slotEnded(r.date, slotById.get(r.slot_id)!)))
+    .sort((a, b) => (b.first.decided_at ?? "").localeCompare(a.first.decided_at ?? ""))
+    .slice(0, 10);
   const approvedThisWeek = new Set((approvedRes.data ?? []).map((r) => r.group_id)).size;
   const oldest = pending.reduce<string | null>((o, g) => (!o || g.first.created_at < o ? g.first.created_at : o), null);
   const waitingDays = oldest ? Math.floor((Date.now() - new Date(oldest).getTime()) / 864e5) : 0;
@@ -95,9 +109,31 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
       </section>
 
       {groups.size === 0 ? (
-        <div className="card muted p-10 text-center">No pending requests.</div>
+        <div className="card muted p-10 text-center">
+          <IconCheck className="mx-auto mb-2 h-8 w-8 text-emerald-500" />
+          All caught up: no requests are waiting.
+        </div>
       ) : (
         <div className="space-y-4">
+          {pending.length > 1 && (
+            <form id="bulk" action={bulkDecide} className="card flex flex-wrap items-center gap-2 p-3 text-sm">
+              <span className="muted mr-auto">Tick requests below to approve or reject several at once.</span>
+              <SubmitButton name="decision" value="approve" className="btn-primary py-1.5" pendingText="Approving…" message="Approving the ticked requests…">
+                <IconCheck className="h-4 w-4" /> Approve ticked
+              </SubmitButton>
+              <input name="note" placeholder="Reason (optional)" aria-label="Reason for rejecting the ticked requests" className="input w-44 py-1.5" />
+              <SubmitButton
+                name="decision"
+                value="reject"
+                className="btn-danger py-1.5"
+                pendingText="Rejecting…"
+                message="Rejecting the ticked requests…"
+                confirm="Reject every ticked request?"
+              >
+                <IconX className="h-4 w-4" /> Reject ticked
+              </SubmitButton>
+            </form>
+          )}
           {sortedGroups.map(([key, reqs]) => {
             const r0 = reqs[0].first;
             return (
@@ -116,6 +152,16 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
                     return (
                       <li key={g.group_id} className="flex flex-col gap-3 p-4 sm:px-5 md:flex-row md:items-start md:gap-5">
                         <div className="flex items-center gap-2 md:w-12 md:flex-col md:items-start md:gap-0.5">
+                          {pending.length > 1 && (
+                            <input
+                              type="checkbox"
+                              form="bulk"
+                              name="ids"
+                              value={g.group_id}
+                              aria-label={`Tick ${r.requester_name}'s request for ${g.range}`}
+                              className="h-4 w-4 accent-brand-600"
+                            />
+                          )}
                           <span className="grid h-7 w-7 place-items-center rounded-full bg-brand-100 text-sm font-semibold text-brand-800 dark:bg-brand-900/70 dark:text-brand-100">{i + 1}</span>
                           {reqs.length > 1 && (
                             <div className="flex gap-1 md:flex-col">
@@ -198,6 +244,41 @@ export default async function AdminRequests({ searchParams }: { searchParams: Pr
             );
           })}
         </div>
+      )}
+
+      {recent.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-lg font-semibold">
+            Recently decided <span className="muted text-sm font-normal">· undo a slip before the class starts</span>
+          </h2>
+          <ul className="card divide-y divide-brand-100 text-sm dark:divide-brand-900">
+            {recent.map((g) => {
+              const r = g.first;
+              const approved = r.status === "approved";
+              return (
+                <li key={g.group_id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5">
+                  <span className="min-w-0">
+                    <span className={approved ? "font-medium text-emerald-700 dark:text-emerald-300" : "font-medium text-red-700 dark:text-red-300"}>{approved ? "Approved" : "Rejected"}</span>
+                    {" · "}
+                    {r.requester_name} · {r.room_id} · {formatDate(r.date, { year: undefined })} {g.range}
+                    <span className="muted"> · {r.decided_at && formatDateTime(r.decided_at)}</span>
+                  </span>
+                  <form action={undoDecision}>
+                    <input type="hidden" name="id" value={g.group_id} />
+                    <SubmitButton
+                      className="btn-secondary py-1 text-xs"
+                      pendingText="Undoing…"
+                      message="Putting the request back in the queue…"
+                      confirm={approved ? `Undo the approval? ${r.room_id} becomes free again and the request goes back to pending.` : "Undo the rejection? The request goes back to pending."}
+                    >
+                      <IconRestore className="h-3.5 w-3.5" /> Undo
+                    </SubmitButton>
+                  </form>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
     </div>
   );

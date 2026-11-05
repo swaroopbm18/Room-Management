@@ -3,7 +3,7 @@ import { IconChart, IconClock, IconDoor } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
 import { kindLabel, roomSummary } from "@/lib/rooms";
-import { getRooms } from "@/lib/data";
+import { getAllRooms } from "@/lib/data";
 import { addDays, DATE_RE, formatDate, mondayOf, todayIST } from "@/lib/time";
 import { getWeekUsage, pct } from "@/lib/usage";
 
@@ -27,7 +27,7 @@ export default async function RoomUsage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const week = mondayOf(sp.week && DATE_RE.test(sp.week) ? sp.week : todayIST());
   const sort: Sort = sp.sort && sp.sort in SORTS ? (sp.sort as Sort) : "busy";
-  const [u, details] = await Promise.all([getWeekUsage(week), getRooms()]);
+  const [u, details] = await Promise.all([getWeekUsage(week), getAllRooms()]);
   const info = new Map(details.map((r) => [r.id, r]));
   const rooms = [...u.rooms].sort((a, b) =>
     sort === "name" ? (info.get(a.id)?.sort_order ?? 0) - (info.get(b.id)?.sort_order ?? 0) : sort === "idle" ? pct(a.used, a.open) - pct(b.used, b.open) : pct(b.used, b.open) - pct(a.used, a.open),

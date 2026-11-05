@@ -1,10 +1,11 @@
 import Flash from "@/components/Flash";
+import InlineEdit, { Field } from "@/components/InlineEdit";
 import { IconCalendar, IconMegaphone, IconPlus, IconSwap, IconX } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
 import { getDayOrders, getHolidays, getNotices } from "@/lib/data";
 import { addDays, formatDate, todayIST, WEEKDAY_NAMES } from "@/lib/time";
-import { addHoliday, addNotice, removeHoliday, removeNotice, setDayOrder } from "../../actions";
+import { addHoliday, addNotice, removeHoliday, removeNotice, setDayOrder, updateHoliday, updateNotice } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -24,12 +25,12 @@ function Section({ id, icon, title, hint, children }: { id: string; icon: React.
   );
 }
 
-function Remove({ action, name, value, message }: { action: (f: FormData) => Promise<void>; name: string; value: string; message: string }) {
+function Remove({ action, name, value, message, confirm }: { action: (f: FormData) => Promise<void>; name: string; value: string; message: string; confirm: string }) {
   return (
     <form action={action}>
       <input type="hidden" name={name} value={value} />
       <input type="hidden" name="back" value={BACK} />
-      <SubmitButton className="btn-secondary py-1 text-xs" pendingText="Removing…" message={message}>
+      <SubmitButton className="btn-secondary py-1 text-xs" pendingText="Removing…" message={message} confirm={confirm}>
         <IconX className="h-3.5 w-3.5" /> Remove
       </SubmitButton>
     </form>
@@ -82,8 +83,20 @@ export default async function Calendar({ searchParams }: { searchParams: Promise
                     {formatDate(n.starts_on, { year: undefined })} to {formatDate(n.ends_on, { year: undefined })}
                     {n.starts_on <= today ? " · showing now" : ""}
                   </span>
+                  <InlineEdit action={updateNotice} back={BACK} title="Edit this notice" message="Saving the notice…" className="mt-1">
+                    <input type="hidden" name="id" value={n.id} />
+                    <Field label="Message" className="min-w-64 flex-1">
+                      <input name="message" required maxLength={300} defaultValue={n.message} className="input py-1.5 font-normal" />
+                    </Field>
+                    <Field label="From">
+                      <input name="starts" type="date" required defaultValue={n.starts_on} className="input py-1.5 font-normal" />
+                    </Field>
+                    <Field label="Until">
+                      <input name="ends" type="date" required min={today} defaultValue={n.ends_on} className="input py-1.5 font-normal" />
+                    </Field>
+                  </InlineEdit>
                 </span>
-                <Remove action={removeNotice} name="id" value={String(n.id)} message="Removing the notice…" />
+                <Remove action={removeNotice} name="id" value={String(n.id)} message="Removing the notice…" confirm="Remove this notice from the home page?" />
               </li>
             ))}
           </ul>
@@ -126,20 +139,39 @@ export default async function Calendar({ searchParams }: { searchParams: Promise
           <ul className={listCls}>
             {swaps.map((o) => (
               <li key={o.date} className={rowCls}>
-                <span className="inline-flex flex-wrap items-center gap-2">
-                  <IconSwap className="h-4 w-4 text-brand-500" />
-                  <span className="font-medium">{formatDate(o.date, { weekday: "long" })}</span>
-                  <span className="muted">
-                    · follows {WEEKDAY_NAMES[o.follows - 1]}
-                    {o.note && ` · ${o.note}`}
+                <span className="min-w-0 flex-1">
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    <IconSwap className="h-4 w-4 text-brand-500" />
+                    <span className="font-medium">{formatDate(o.date, { weekday: "long" })}</span>
+                    <span className="muted">
+                      · follows {WEEKDAY_NAMES[o.follows - 1]}
+                      {o.note && ` · ${o.note}`}
+                    </span>
                   </span>
+                  {o.date > today && (
+                    <InlineEdit action={setDayOrder} back={BACK} title={`Edit the day swap on ${o.date}`} message="Saving the day swap…" className="mt-1">
+                      <input type="hidden" name="date" value={o.date} />
+                      <Field label="Follows">
+                        <select name="follows" required defaultValue={String(o.follows)} className="input py-1.5 font-normal">
+                          {WEEKDAY_NAMES.slice(0, 6).map((d, i) => (
+                            <option key={d} value={i + 1}>
+                              {d}&apos;s timetable
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="Note" className="min-w-56 flex-1">
+                        <input name="note" maxLength={120} defaultValue={o.note ?? ""} className="input py-1.5 font-normal" />
+                      </Field>
+                    </InlineEdit>
+                  )}
                 </span>
                 {o.date > today ? (
                   <form action={setDayOrder}>
                     <input type="hidden" name="date" value={o.date} />
                     <input type="hidden" name="follows" value="" />
                     <input type="hidden" name="back" value={BACK} />
-                    <SubmitButton className="btn-secondary py-1 text-xs" pendingText="Removing…" message="Removing the day swap…">
+                    <SubmitButton className="btn-secondary py-1 text-xs" pendingText="Removing…" message="Removing the day swap…" confirm="Remove this day swap? The day goes back to its own timetable.">
                       <IconX className="h-3.5 w-3.5" /> Remove
                     </SubmitButton>
                   </form>
@@ -178,12 +210,29 @@ export default async function Calendar({ searchParams }: { searchParams: Promise
           <ul className={listCls}>
             {upcoming.map(([d, name]) => (
               <li key={d} className={rowCls}>
-                <span className="inline-flex items-center gap-2">
-                  <IconCalendar className="h-4 w-4 text-brand-500" />
-                  <span className="font-medium">{formatDate(d, { weekday: "long" })}</span>
-                  <span className="muted">· {name}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="inline-flex items-center gap-2">
+                    <IconCalendar className="h-4 w-4 text-brand-500" />
+                    <span className="font-medium">{formatDate(d, { weekday: "long" })}</span>
+                    <span className="muted">· {name}</span>
+                  </span>
+                  {d > today && (
+                    <InlineEdit action={updateHoliday} back={BACK} title={`Edit the ${name} holiday`} message="Saving the holiday…" className="mt-1">
+                      <input type="hidden" name="date" value={d} />
+                      <Field label="Date">
+                        <input name="new_date" type="date" required min={tomorrow} defaultValue={d} className="input py-1.5 font-normal" />
+                      </Field>
+                      <Field label="Name" className="min-w-56 flex-1">
+                        <input name="name" required maxLength={80} defaultValue={name} className="input py-1.5 font-normal" />
+                      </Field>
+                    </InlineEdit>
+                  )}
                 </span>
-                {d > today ? <Remove action={removeHoliday} name="date" value={d} message="Removing the holiday…" /> : <span className="muted text-xs">Today</span>}
+                {d > today ? (
+                  <Remove action={removeHoliday} name="date" value={d} message="Removing the holiday…" confirm={`Remove the ${name} holiday? Classes run that day again.`} />
+                ) : (
+                  <span className="muted text-xs">Today</span>
+                )}
               </li>
             ))}
           </ul>

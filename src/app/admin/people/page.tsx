@@ -1,11 +1,11 @@
 import SubmitButton from "@/components/SubmitButton";
 import Flash from "@/components/Flash";
-import { IconPlus, IconUpload } from "@/components/Icons";
+import { IconPlus, IconTrash, IconUpload } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import { createClient } from "@/lib/supabase/server";
 import { displayName } from "@/lib/auth";
 import type { Person } from "@/lib/types";
-import { importPeople, upsertPerson } from "../../actions";
+import { deletePerson, importPeople, upsertPerson } from "../../actions";
 import FacultyNames, { type DirectoryEntry } from "./FacultyNames";
 
 export const dynamic = "force-dynamic";
@@ -101,6 +101,15 @@ function PeopleList({ title, people, empty, choices }: { title: string; people: 
               <PersonFields p={p} choices={choices} />
               <SubmitButton className="btn-secondary py-1.5" pendingText="Saving…" message="Saving changes…">
                 Save
+              </SubmitButton>
+              <SubmitButton
+                formAction={deletePerson}
+                className="btn-secondary py-1.5 text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"
+                pendingText="Deleting…"
+                message={`Deleting ${displayName(p)}…`}
+                confirm={`Delete ${displayName(p)} (${p.email})? They can no longer sign in, and their pending requests are withdrawn. Past requests still show their name.${p.initials ? " Their duties, cluster and subjects are removed too." : ""}`}
+              >
+                <IconTrash className="h-4 w-4" /> Delete
               </SubmitButton>
             </form>
           </details>

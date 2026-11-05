@@ -1,8 +1,14 @@
 import { cellKey, DAY_NAMES, DAY_SLOTS, DAYS, isOpen, type Busy } from "@/lib/faculty";
 import type { Slot } from "@/lib/types";
+import { setFacultyDuty } from "@/app/actions";
+import { IconX } from "./Icons";
+import SubmitButton from "./SubmitButton";
 
-/** One faculty member's week, Monday to Saturday: classes, other duties, free slots and clashes. */
-export default function WeekTable({ week, slots }: { week?: Map<string, Busy[]>; slots: Slot[] }) {
+/**
+ * One faculty member's week, Monday to Saturday: classes, other duties, free slots and clashes.
+ * Pass `edit` (admins) to show a ✕ that clears each duty.
+ */
+export default function WeekTable({ week, slots, edit }: { week?: Map<string, Busy[]>; slots: Slot[]; edit?: { initials: string; back: string } }) {
   const shownSlots = slots.filter((s) => DAY_SLOTS.includes(s.id) || DAYS.some((_, i) => week?.get(cellKey(i + 1, s.id))?.length));
   return (
     <div className="overflow-x-auto">
@@ -38,8 +44,27 @@ export default function WeekTable({ week, slots }: { week?: Map<string, Busy[]>;
                         ? "Free"
                         : "No classes"
                       : b.map((x, j) => (
-                          <div key={j} className={b.length > 1 ? "font-medium" : ""}>
+                          <div key={j} className={`${b.length > 1 ? "font-medium" : ""} ${edit && x.source === "duty" ? "flex items-start justify-between gap-1" : ""}`}>
                             <span className="font-semibold">{x.activity}</span>
+                            {edit && x.source === "duty" && (
+                              <form action={setFacultyDuty}>
+                                <input type="hidden" name="initials" value={edit.initials} />
+                                <input type="hidden" name="weekday" value={i + 1} />
+                                <input type="hidden" name="from" value={s.id} />
+                                <input type="hidden" name="to" value={s.id} />
+                                <input type="hidden" name="activity" value="" />
+                                <input type="hidden" name="back" value={edit.back} />
+                                <SubmitButton
+                                  className="rounded p-0.5 hover:bg-amber-200 dark:hover:bg-amber-900"
+                                  pendingText=""
+                                  message="Clearing the duty…"
+                                  aria-label={`Clear ${x.activity} on ${d} at ${s.label.split(" – ")[0]}`}
+                                  title="Clear this duty"
+                                >
+                                  <IconX className="h-3 w-3" />
+                                </SubmitButton>
+                              </form>
+                            )}
                             {x.room && <span className="block opacity-80">{x.room}</span>}
                           </div>
                         ))}

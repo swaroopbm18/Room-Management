@@ -1,12 +1,12 @@
 import Flash from "@/components/Flash";
-import { IconCheck, IconPlus, IconQr, IconTrash } from "@/components/Icons";
+import { IconArchive, IconCheck, IconPlus, IconQr, IconTrash } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
 import SubmitButton from "@/components/SubmitButton";
-import { getRooms } from "@/lib/data";
+import { getAllRooms } from "@/lib/data";
 import { ROOM_KINDS } from "@/lib/rooms";
 import { createClient } from "@/lib/supabase/server";
-import { addRoom, deleteRoom, updateRoom } from "../../actions";
+import { addRoom, archiveRoom, deleteRoom, updateRoom } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +14,13 @@ export const dynamic = "force-dynamic";
 export default async function RoomDetails({ searchParams }: { searchParams: Promise<{ msg?: string; error?: string }> }) {
   const sp = await searchParams;
   const supabase = await createClient();
-  const [rooms, usedRes] = await Promise.all([getRooms(), supabase.rpc("admin_rooms_in_use")]);
+  const [rooms, usedRes] = await Promise.all([getAllRooms(), supabase.rpc("admin_rooms_in_use")]);
   const ready = rooms.some((r) => r.kind !== undefined);
   // Before migration 0022 there is no add or delete; a room with anything on record can't be deleted
   const canAddDelete = !usedRes.error;
   const used = new Set((usedRes.data ?? []) as string[]);
+  // Archiving needs migration 0025, which adds rooms.archived
+  const canArchive = rooms.some((r) => r.archived !== undefined);
 
   return (
     <div className="space-y-6">
@@ -35,12 +37,15 @@ export default async function RoomDetails({ searchParams }: { searchParams: Prom
 
       <div className="card divide-y divide-brand-100 dark:divide-brand-900">
         {rooms.map((r) => (
-          <form key={r.id} action={updateRoom} className="grid items-end gap-3 p-4 sm:grid-cols-[7rem_7rem_10rem_auto_1fr_auto]">
+          <form key={r.id} action={updateRoom} className={`grid items-end gap-3 p-4 sm:grid-cols-[10rem_7rem_10rem_auto_1fr_auto] ${r.archived ? "opacity-60" : ""}`}>
             <input type="hidden" name="room" value={r.id} />
+            <input type="hidden" name="old_name" value={r.name} />
             <input type="hidden" name="back" value="/admin/rooms" />
             <div>
-              <div className="muted text-xs">Room</div>
-              <div className="text-lg font-semibold">{r.name}</div>
+              <label className="label" htmlFor={`name-${r.id}`}>
+                Room {r.name !== r.id && <span className="font-mono">({r.id})</span>} {r.archived && <span className="ml-1 rounded bg-amber-100 px-1.5 text-amber-800 dark:bg-amber-900 dark:text-amber-200">Archived</span>}
+              </label>
+              <input id={`name-${r.id}`} name="name" required maxLength={40} defaultValue={r.name} className="input font-semibold" title="The name shown everywhere. The room's code stays the same." />
             </div>
             <div>
               <label className="label" htmlFor={`cap-${r.id}`}>Seats</label>
@@ -67,6 +72,22 @@ export default async function RoomDetails({ searchParams }: { searchParams: Prom
               <SubmitButton className="btn-primary" pendingText="Saving…" message={`Saving room ${r.name}…`}>
                 <IconCheck className="h-4 w-4" /> Save
               </SubmitButton>
+              {canArchive && (
+                <SubmitButton
+                  formAction={archiveRoom}
+                  name="archived"
+                  value={r.archived ? "false" : "true"}
+                  className="btn-secondary px-2.5"
+                  pendingText=""
+                  message={r.archived ? `Bringing ${r.name} back…` : `Archiving ${r.name}…`}
+                  confirm={r.archived ? undefined : `Archive ${r.name}? It disappears from the schedule and booking pages but keeps its history. You can bring it back here any time.`}
+                  aria-label={r.archived ? `Bring ${r.name} back` : `Archive ${r.name}`}
+                  title={r.archived ? "Bring back" : "Archive"}
+                >
+                  <IconArchive className="h-4 w-4" />
+                  {r.archived && <span>Bring back</span>}
+                </SubmitButton>
+              )}
               {canAddDelete && !used.has(r.id) && (
                 <SubmitButton
                   formAction={deleteRoom}
@@ -83,7 +104,12 @@ export default async function RoomDetails({ searchParams }: { searchParams: Prom
           </form>
         ))}
       </div>
-      {canAddDelete && <p className="muted text-xs">Only rooms with no classes, requests or bookings on record can be deleted, so the history never loses a room.</p>}
+      {canAddDelete && (
+        <p className="muted text-xs">
+          Only rooms with no classes, requests or bookings on record can be deleted, so the history never loses a room.{" "}
+          {canArchive ? "Archive a room you no longer use: it leaves the schedule but keeps its history." : "Run supabase/migrations/0025_edit_and_delete_everywhere.sql to rename and archive rooms."}
+        </p>
+      )}
     </div>
   );
 }

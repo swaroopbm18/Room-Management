@@ -402,6 +402,11 @@ export async function removeNotice(form: FormData) {
 
 export async function updateRoom(form: FormData) {
   const supabase = await createClient();
+  const name = s(form, "name");
+  if (name && name !== s(form, "old_name")) {
+    const { error } = await supabase.rpc("admin_rename_room", { p_room: s(form, "room"), p_name: name });
+    if (error) redirect(withParam(back(form, "/admin/rooms"), "error", missing0025(error.message, "admin_rename_room")));
+  }
   const capacity = Number(s(form, "capacity"));
   const { error } = await supabase.rpc("admin_update_room", {
     p_room: s(form, "room"),
@@ -659,4 +664,106 @@ export async function copyHolidays(form: FormData) {
   const { data, error } = await supabase.rpc("admin_copy_holidays", { p_from: s(form, "from_date"), p_to: s(form, "to_date"), p_years: Number(s(form, "years")) || 1 });
   revalidatePath("/", "layout");
   redirect(withParam(back(form, "/admin/rollover"), error ? "error" : "msg", error ? missing0024(error.message, "admin_copy_holidays") : `${data} holiday${data === 1 ? "" : "s"} copied. Check festivals whose date moves each year.`));
+}
+
+// ---------------------------------------------------------------------------
+// Edit and delete everywhere (migration 0025)
+// ---------------------------------------------------------------------------
+
+const MIGRATION_0025 = "Run supabase/migrations/0025_edit_and_delete_everywhere.sql in the Supabase SQL Editor first.";
+const missing0025 = (m: string, fn: string) => (m.includes(fn) || m.includes("archived") ? MIGRATION_0025 : m);
+
+/** Like run(), but explains a missing 0025 function and can pick the message from the RPC's result. */
+async function run25(form: FormData, fallback: string, fn: string, args: Record<string, unknown>, ok: string | ((data: unknown) => string), tag?: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc(fn, args);
+  if (tag) revalidateTag(tag);
+  revalidatePath("/", "layout");
+  const to = back(form, fallback);
+  redirect(withParam(to, error ? "error" : "msg", error ? missing0025(error.message, fn) : typeof ok === "function" ? ok(data) : ok));
+}
+
+export async function updateHoliday(form: FormData) {
+  await run25(form, "/admin/holidays", "admin_update_holiday", { p_date: s(form, "date"), p_new_date: s(form, "new_date") || s(form, "date"), p_name: s(form, "name") }, "Holiday updated.");
+}
+
+export async function updateNotice(form: FormData) {
+  await run25(form, "/admin/holidays", "admin_update_notice", { p_id: Number(s(form, "id")), p_message: s(form, "message"), p_starts: s(form, "starts"), p_ends: s(form, "ends") }, "Notice updated.");
+}
+
+export async function updateLeave(form: FormData) {
+  const from = s(form, "from");
+  await run25(form, "/admin/leave", "admin_update_leave", { p_id: Number(s(form, "id")), p_from: from || null, p_to: s(form, "to") || from || null, p_reason: s(form, "reason") }, "Leave updated.");
+}
+
+/** A faculty member changes the description or subject of their own pending request. */
+export async function editRequest(form: FormData) {
+  await run25(form, "/faculty", "edit_request", { p_id: s(form, "id"), p_description: s(form, "description"), p_subject: s(form, "subject") }, "Request updated.");
+}
+
+/** Puts an approved or rejected request back in the queue. */
+export async function undoDecision(form: FormData) {
+  await run25(form, "/admin", "admin_undo_decision", { p_id: s(form, "id") }, (was) =>
+    was === "approved" ? "Approval undone. The room is free again and the request is back in the queue." : "Rejection undone. The request is back in the queue.",
+  );
+}
+
+/** Approve or reject every ticked request in one go; each one that can't be done is reported. */
+export async function bulkDecide(form: FormData) {
+  const ids = [...new Set(form.getAll("ids").map(String).filter(Boolean))];
+  const approve = s(form, "decision") === "approve";
+  const to = back(form, "/admin");
+  if (!ids.length) redirect(withParam(to, "error", "Tick at least one request first."));
+  const supabase = await createClient();
+  let done = 0;
+  const failed: string[] = [];
+  for (const id of ids) {
+    const { error } = approve
+      ? await supabase.rpc("approve_request", { p_id: id })
+      : await supabase.rpc("reject_request", { p_id: id, p_note: s(form, "note") || null });
+    if (error) failed.push(error.message);
+    else done++;
+  }
+  revalidatePath("/", "layout");
+  const verb = approve ? "approved" : "rejected";
+  const msg = `${done} ${done === 1 ? "request" : "requests"} ${verb}.`;
+  redirect(failed.length ? withParam(to, "error", `${msg} ${failed.length} could not be ${verb}: ${[...new Set(failed)].join("; ")}`) : withParam(to, "msg", msg));
+}
+
+export async function editEquipmentBooking(form: FormData) {
+  await run25(form, "/equipment", "edit_equipment_booking", { p_id: Number(s(form, "id")), p_room: s(form, "room"), p_purpose: s(form, "purpose") }, "Booking updated.");
+}
+
+export async function deleteEquipment(form: FormData) {
+  await run25(form, "/equipment", "admin_delete_equipment", { p_id: Number(s(form, "id")) }, `${s(form, "name") || "Equipment"} deleted.`);
+}
+
+/** Removes someone from the sign-in list; anyone with requests on record keeps a row without access. */
+export async function deletePerson(form: FormData) {
+  await run25(form, "/admin/people", "admin_delete_person", { p_email: s(form, "email") }, (r) =>
+    r === "kept_history" ? `${s(form, "email")} can no longer sign in. Their past requests still show their name.` : `${s(form, "email")} deleted.`,
+  );
+}
+
+/** An archived room is hidden from the schedule and booking pages but keeps its history. */
+export async function archiveRoom(form: FormData) {
+  const archived = s(form, "archived") === "true";
+  await run25(
+    form,
+    "/admin/rooms",
+    "admin_archive_room",
+    { p_room: s(form, "room"), p_archived: archived },
+    archived ? `${s(form, "room")} archived. It no longer shows on the schedule.` : `${s(form, "room")} is back on the schedule.`,
+    "rooms",
+  );
+}
+
+export async function renameSubject(form: FormData) {
+  await run25(form, "/admin/subjects", "admin_rename_subject", { p_email: s(form, "email"), p_old: s(form, "old"), p_new: s(form, "subject") }, "Subject renamed. Past requests keep the old name.");
+}
+
+/** Clears every duty of one faculty member. */
+export async function clearFacultyDuties(form: FormData) {
+  const initials = s(form, "initials").toUpperCase();
+  await run(form, "/admin/faculty", "admin_replace_faculty_duties", { p_initials: [initials], p_entries: [] }, `All of ${initials}'s duties cleared.`);
 }
