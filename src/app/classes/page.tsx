@@ -72,7 +72,13 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
               ? "Pick a class, then click a free slot to assign a class to it, or the pencil on a class to change or delete it. Changes take effect from tomorrow."
               : "Pick your class to see its regular week: the subject, faculty member and room in every slot. One-off changes show on the home page."
           }
-        />
+        >
+          {chosen && chosen !== OTHER && (
+            <PendingLink href={`/today?class=${encodeURIComponent(chosen)}`} className="btn-secondary">
+              Today for {chosen}
+            </PendingLink>
+          )}
+        </PageHeader>
         <Flash msg={sp.msg} error={sp.error} />
       </div>
       {allClasses.length === 0 ? (
