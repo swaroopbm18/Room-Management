@@ -292,3 +292,22 @@ export const IconTrash = (p: P) => (
     <path d="M9 7V4h6v3" />
   </Svg>
 );
+
+export const IconChart = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+  </Svg>
+);
+
+export const IconActivity = (p: P) => (
+  <Svg {...p}>
+    <path d="M3 12h4l3-8 4 16 3-8h4" />
+  </Svg>
+);
+
+export const IconLeave = (p: P) => (
+  <Svg {...p}>
+    <rect x="3" y="4.5" width="18" height="16.5" rx="2" />
+    <path d="M3 9.5h18M8 3v3M16 3v3M9.5 13.5l5 5M14.5 13.5l-5 5" />
+  </Svg>
+);

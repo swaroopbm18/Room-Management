@@ -589,3 +589,20 @@ export async function setFacultyClusters(form: FormData) {
   const to = back(form, "/admin/faculty");
   redirect(error ? withParam(to, "error", error.message) : withParam(to, "msg", data ? `Clusters saved: ${data} ${data === 1 ? "change" : "changes"}.` : "No cluster changed."));
 }
+
+const missing0023 = (m: string, fn: string) => (m.includes(fn) ? "Run supabase/migrations/0023_leave_and_activity_log.sql in the Supabase SQL Editor first." : m);
+
+/** A faculty member on leave from one date to another (one day when "to" is empty). */
+export async function addLeave(form: FormData) {
+  const supabase = await createClient();
+  const from = s(form, "from");
+  const to = s(form, "to") || from;
+  const { error } = await supabase.rpc("admin_add_leave", { p_initials: s(form, "initials"), p_from: from || null, p_to: to || null, p_reason: s(form, "reason") });
+  revalidatePath("/", "layout");
+  const days = from === to ? formatDate(from, { weekday: "long" }) : `${formatDate(from)} to ${formatDate(to)}`;
+  redirect(withParam(back(form, "/admin/leave"), error ? "error" : "msg", error ? missing0023(error.message, "admin_add_leave") : `${s(form, "initials").toUpperCase()} is on leave ${days}.`));
+}
+
+export async function removeLeave(form: FormData) {
+  await run(form, "/admin/leave", "admin_remove_leave", { p_id: Number(s(form, "id")) }, "Leave removed.");
+}
