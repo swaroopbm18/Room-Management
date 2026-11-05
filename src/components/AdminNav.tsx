@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { IconCalendar, IconCalendarCheck, IconClock, IconDoor, IconFile, IconFlag, IconHistory, IconInbox, IconMegaphone, IconTag, IconUser, IconUsers } from "./Icons";
+import { IconActivity, IconCalendar, IconChart, IconLeave, IconCalendarCheck, IconClock, IconDoor, IconFile, IconFlag, IconHistory, IconInbox, IconMegaphone, IconTag, IconUser, IconUsers } from "./Icons";
 import PendingLink from "./PendingLink";
 
 type Tab = { href: string; label: string; icon: React.ReactNode };
@@ -36,6 +36,7 @@ const GROUPS: Group[] = [
     tabs: [
       { href: "/admin/faculty", label: "Faculty profiles", icon: <IconUser className={i} /> },
       { href: "/admin/free-time", label: "Availability & meetings", icon: <IconClock className={i} /> },
+      { href: "/admin/leave", label: "Leave & substitutes", icon: <IconLeave className={i} /> },
       { href: "/admin/subjects", label: "Subjects", icon: <IconTag className={i} /> },
       { href: "/admin/people", label: "Sign-in list & names", icon: <IconUsers className={i} /> },
     ],
@@ -45,8 +46,10 @@ const GROUPS: Group[] = [
     icon: <IconFile className={i} />,
     tabs: [
       { href: "/admin/report", label: "Report", icon: <IconFile className={i} /> },
+      { href: "/admin/usage", label: "Room usage", icon: <IconChart className={i} /> },
       { href: "/admin/workload", label: "Workload", icon: <IconClock className={i} /> },
       { href: "/admin/history", label: "History", icon: <IconHistory className={i} /> },
+      { href: "/admin/activity", label: "Activity log", icon: <IconActivity className={i} /> },
     ],
   },
 ];
