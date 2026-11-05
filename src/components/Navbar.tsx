@@ -2,7 +2,7 @@ import SubmitButton from "./SubmitButton";
 import Link from "next/link";
 import { displayName, getPerson } from "@/lib/auth";
 import { pendingRequestCount } from "@/lib/pending";
-import { IconBuilding, IconCalendar, IconCalendarCheck, IconDashboard, IconHome, IconLogin, IconLogout, IconShield } from "./Icons";
+import { IconBuilding, IconCalendar, IconCalendarCheck, IconDashboard, IconHome, IconLogin, IconLogout, IconShield, IconPlug } from "./Icons";
 import PendingLink from "./PendingLink";
 import ColorPicker from "./ColorPicker";
 import ThemeToggle from "./ThemeToggle";
@@ -15,6 +15,7 @@ export default async function Navbar() {
     { href: "/free", label: "Free slots", icon: <IconCalendarCheck className="h-4 w-4" /> },
     { href: "/classes", label: "Class timetables", icon: <IconCalendar className="h-4 w-4" /> },
     ...(person ? [{ href: "/faculty", label: "My dashboard", icon: <IconDashboard className="h-4 w-4" /> }] : []),
+    ...(person ? [{ href: "/equipment", label: "Equipment", icon: <IconPlug className="h-4 w-4" /> }] : []),
     ...(person?.role === "admin" ? [{ href: "/admin", label: "Admin", icon: <IconShield className="h-4 w-4" />, badge: pending }] : []),
   ];
   return (

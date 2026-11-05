@@ -606,3 +606,57 @@ export async function addLeave(form: FormData) {
 export async function removeLeave(form: FormData) {
   await run(form, "/admin/leave", "admin_remove_leave", { p_id: Number(s(form, "id")) }, "Leave removed.");
 }
+
+const missing0024 = (m: string, fn: string) => (m.includes(fn) ? "Run supabase/migrations/0024_equipment_and_rollover.sql in the Supabase SQL Editor first." : m);
+
+/** Add equipment, or rename or retire it (retiring cancels its future bookings). */
+export async function saveEquipment(form: FormData) {
+  const supabase = await createClient();
+  const id = Number(s(form, "id")) || null;
+  const { error } = await supabase.rpc("admin_save_equipment", { p_id: id, p_name: s(form, "name"), p_notes: s(form, "notes"), p_active: s(form, "active") !== "false" });
+  revalidatePath("/equipment");
+  redirect(withParam(back(form, "/equipment"), error ? "error" : "msg", error ? missing0024(error.message, "admin_save_equipment") : id ? "Equipment saved." : `${s(form, "name")} added.`));
+}
+
+/** Book an item for a run of slots on one day. */
+export async function bookEquipment(form: FormData) {
+  const supabase = await createClient();
+  const to = back(form, "/equipment");
+  const slots = await slotRange(form, to);
+  const { error } = await supabase.rpc("book_equipment", {
+    p_equipment: Number(s(form, "equipment")),
+    p_date: s(form, "date"),
+    p_slots: slots,
+    p_room: s(form, "room"),
+    p_purpose: s(form, "purpose"),
+  });
+  revalidatePath("/equipment");
+  redirect(withParam(to, error ? "error" : "msg", error ? missing0024(error.message, "book_equipment") : `Booked for ${slots.length} slot${slots.length === 1 ? "" : "s"} on ${formatDate(s(form, "date"), { year: undefined })}.`));
+}
+
+export async function cancelEquipment(form: FormData) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cancel_equipment", { p_id: Number(s(form, "id")) });
+  revalidatePath("/equipment");
+  redirect(withParam(back(form, "/equipment"), error ? "error" : "msg", error ? error.message : "Booking cancelled."));
+}
+
+/** Clears the last semester's duties, subjects and leave, as ticked. */
+export async function semesterRollover(form: FormData) {
+  const supabase = await createClient();
+  const subjects = s(form, "subjects");
+  const { data, error } = await supabase.rpc("admin_rollover", {
+    p_duties: form.get("duties") === "on",
+    p_subjects: subjects === "all" || subjects === "timetable" ? subjects : "none",
+    p_leave: form.get("leave") === "on",
+  });
+  revalidatePath("/", "layout");
+  redirect(withParam(back(form, "/admin/rollover"), error ? "error" : "msg", error ? missing0024(error.message, "admin_rollover") : `Done: ${data}.`));
+}
+
+export async function copyHolidays(form: FormData) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_copy_holidays", { p_from: s(form, "from_date"), p_to: s(form, "to_date"), p_years: Number(s(form, "years")) || 1 });
+  revalidatePath("/", "layout");
+  redirect(withParam(back(form, "/admin/rollover"), error ? "error" : "msg", error ? missing0024(error.message, "admin_copy_holidays") : `${data} holiday${data === 1 ? "" : "s"} copied. Check festivals whose date moves each year.`));
+}
