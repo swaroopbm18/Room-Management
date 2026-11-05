@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Flash from "@/components/Flash";
-import { IconCalendar, IconCalendarCheck, IconCheck, IconPlus, IconUpload, IconUsers, IconX } from "@/components/Icons";
+import { IconCalendar, IconCalendarCheck, IconCheck, IconPlus, IconTrash, IconUpload, IconUsers, IconX } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
@@ -8,7 +8,7 @@ import { getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { Person } from "@/lib/types";
 import { cellKey, CLUSTERS, DAY_NAMES, DAY_SLOTS, DAYS, getFacultyWeeks, isFree, isOpen, type Busy, type ClusterKey, type FacultyMember } from "@/lib/faculty";
-import { addSubject, importFacultyDuties, removeSubject, saveFacultyProfile, setFacultyClusters, setFacultyDuty, upsertPerson } from "../../actions";
+import { addSubject, deleteFaculty, importFacultyDuties, removeSubject, saveFacultyProfile, setFacultyClusters, setFacultyDuty, upsertPerson } from "../../actions";
 import WeekTable from "@/components/WeekTable";
 import SlotRange from "../allot/SlotRange";
 
@@ -329,6 +329,7 @@ function FacultyProfile({
   const { account } = profile;
   const has = new Set(profile.subjects.map((x) => x.subject));
   const missing = profile.timetableSubjects.filter((x) => !has.has(x));
+  const classes = [...(week?.values() ?? [])].filter((b) => b.some((x) => x.source === "timetable")).length;
   return (
     <section id="timetable" className="card scroll-mt-4 overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-brand-100 bg-gradient-to-r from-brand-100 to-white px-5 py-3 dark:border-brand-900 dark:from-brand-950 dark:to-ink">
@@ -466,6 +467,8 @@ function FacultyProfile({
             </div>
           )}
         </ProfileCard>
+
+        <DeleteFaculty person={person} account={account} classes={classes} back={back} />
       </div>
 
       <div className="border-t border-brand-100 px-5 pt-3 dark:border-brand-900">
@@ -498,5 +501,35 @@ function FacultyProfile({
         </form>
       )}
     </section>
+  );
+}
+
+/** Removes someone who has left: blocked while the timetable still has classes for them. */
+function DeleteFaculty({ person, account, classes, back }: { person: FacultyMember; account: Person | null; classes: number; back: string }) {
+  return (
+    <div className="rounded-xl border border-red-200 bg-white p-4 md:col-span-2 dark:border-red-900/60 dark:bg-ink">
+      <form action={deleteFaculty} className="flex flex-wrap items-center justify-between gap-3">
+        <input type="hidden" name="initials" value={person.initials} />
+        <input type="hidden" name="back" value={back} />
+        <div className="min-w-0">
+          <h3 className="font-semibold">Delete faculty member</h3>
+          <p className="muted mt-0.5 text-xs">
+            {classes > 0
+              ? `${person.initials} still has ${classes} class slot${classes === 1 ? "" : "s"} in the timetable. Give those classes to someone else in Class timetables first, then delete.`
+              : `Removes ${person.initials} from the faculty list with their name, cluster and duties${account ? ", subjects and sign-in. Past requests stay in the history" : ""}.`}
+          </p>
+        </div>
+        {classes === 0 && (
+          <SubmitButton
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950"
+            pendingText="Deleting…"
+            message={`Deleting ${person.initials}…`}
+            confirm={`Delete ${person.name} (${person.initials})? ${account ? `They won't be able to sign in as ${account.email}. ` : ""}This can't be undone.`}
+          >
+            <IconTrash className="h-4 w-4" /> Delete {person.initials}
+          </SubmitButton>
+        )}
+      </form>
+    </div>
   );
 }

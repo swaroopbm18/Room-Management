@@ -13,6 +13,8 @@ export default function SubmitButton({
   className = "btn-primary",
   pendingText,
   message,
+  confirm,
+  formAction,
   ...rest
 }: {
   children: React.ReactNode;
@@ -21,11 +23,24 @@ export default function SubmitButton({
   pendingText?: string;
   /** Shown in the centre of the screen while working. Defaults to pendingText. */
   message?: string;
+  /** Asks "OK / Cancel" with this question first; Cancel doesn't submit. */
+  confirm?: string;
+  /** Submits to this action instead of the form's own. */
+  formAction?: (form: FormData) => void | Promise<void>;
 } & React.AriaAttributes) {
   const { pending } = useFormStatus();
   return (
     <>
-      <button type="submit" disabled={pending} aria-busy={pending} className={className} {...rest}>
+      <button
+        type="submit"
+        disabled={pending}
+        aria-busy={pending}
+        className={className}
+        formAction={formAction}
+        formNoValidate={formAction ? true : undefined}
+        onClick={confirm ? (e) => { if (!window.confirm(confirm)) e.preventDefault(); } : undefined}
+        {...rest}
+      >
         {pending ? (
           <>
             <Spinner className="h-4 w-4" />

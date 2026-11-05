@@ -284,3 +284,11 @@ export const IconSwap = (p: P) => (
     <path d="M4 8h13l-3-3M20 16H7l3 3" />
   </Svg>
 );
+
+export const IconTrash = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 7h16M10 11v6M14 11v6" />
+    <path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" />
+    <path d="M9 7V4h6v3" />
+  </Svg>
+);

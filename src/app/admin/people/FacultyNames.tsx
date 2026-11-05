@@ -1,6 +1,6 @@
 import SubmitButton from "@/components/SubmitButton";
-import { IconAlert, IconPlus, IconX } from "@/components/Icons";
-import { removeFaculty, saveFaculty } from "../../actions";
+import { IconAlert, IconPlus, IconTrash } from "@/components/Icons";
+import { deleteFaculty, saveFaculty } from "../../actions";
 
 export type DirectoryEntry = { initials: string; title: string; full_name: string };
 
@@ -38,6 +38,9 @@ export default function FacultyNames({ directory, inTimetable, owner }: { direct
         className={`flex flex-wrap items-center gap-2 px-3 py-2.5 sm:px-4 ${named ? "" : "bg-amber-50/70 dark:bg-amber-950/20"}`}
       >
         <input type="hidden" name="old_initials" value={listed.has(r.initials) ? r.initials : ""} />
+        <input type="hidden" name="back" value="/admin/people" />
+        <input type="hidden" name="done" value="/admin/people" />
+        <input type="hidden" name="delete_initials" value={r.initials} />
         <input
           name="initials"
           defaultValue={r.initials}
@@ -63,10 +66,17 @@ export default function FacultyNames({ directory, inTimetable, owner }: { direct
         <SubmitButton className="btn-primary py-1.5" pendingText="Saving…" message="Saving the faculty member…">
           Save
         </SubmitButton>
-        {listed.has(r.initials) && !inTimetable.has(r.initials) && (
-          <button formAction={removeFaculty} formNoValidate className="btn-secondary px-2 py-1.5" aria-label={`Remove ${r.initials}`} title="Remove from the directory">
-            <IconX className="h-4 w-4" />
-          </button>
+        {(listed.has(r.initials) || owner.has(r.initials)) && !inTimetable.has(r.initials) && (
+          <SubmitButton
+            formAction={deleteFaculty}
+            className="btn-secondary px-2 py-1.5 text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"
+            pendingText=""
+            message={`Deleting ${r.initials}…`}
+            confirm={`Delete ${r.initials}${r.full_name.trim() ? ` (${r.full_name.trim()})` : ""}? Their name, cluster and duties go${owner.has(r.initials) ? `, and ${owner.get(r.initials)} can no longer sign in` : ""}. This can't be undone.`}
+            aria-label={`Delete ${r.initials}`}
+          >
+            <IconTrash className="h-4 w-4" />
+          </SubmitButton>
         )}
       </form>
     );
