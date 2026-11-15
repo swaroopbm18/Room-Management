@@ -25,8 +25,8 @@ const SECTIONS: ManualSection[] = [
   },
   {
     id: "exchanges",
-    title: "Class exchanges",
-    where: "Admin → Requests → Class exchanges",
+    title: "Class cover and exchanges",
+    where: "Admin → Requests → Class cover",
     href: "/admin/exchanges",
     intro:
       "A faculty member asks a free colleague to take a class. A class, lab or tutorial over back-to-back slots comes as one request covering every slot. You see each request from the moment it is sent.",
@@ -36,6 +36,7 @@ const SECTIONS: ManualSection[] = [
       "Press Deny to refuse it. Nothing on the timetable changes: the original faculty member keeps every slot, even though both faculty agreed.",
       "Approved by mistake? Under Recent, press Deny after all before the class starts. Every slot goes back to the original faculty member.",
     ],
+    tips: ["Substitutes you assign for leave, and classes you allot to a named faculty member, are listed at the end under Given by an admin, so every handed-over class is on one page."],
   },
   {
     id: "allot",
@@ -48,8 +49,8 @@ const SECTIONS: ManualSection[] = [
   },
   {
     id: "cie",
-    title: "CIE week and cancelling classes",
-    where: "Admin → Rooms → CIE week",
+    title: "CIE: booking rooms and cancelling classes",
+    where: "Admin → Rooms → CIE → 1. Book rooms and cancel classes",
     href: "/admin/cie",
     intro: "Book the same slots in several rooms over several days in one go, and cancel the regular classes of the semesters writing the CIE.",
     steps: [
@@ -67,9 +68,16 @@ const SECTIONS: ManualSection[] = [
   {
     id: "seating",
     title: "CIE seating",
-    where: "Admin → Rooms → CIE seating",
+    where: "Admin → Rooms → CIE → 2. Seating plan",
     href: "/admin/seating",
     intro: "Type each class and its number of students. The planner fills the rooms free at that time, biggest first, prints a seating sheet for each door and can book the rooms for the CIE.",
+  },
+  {
+    id: "equipment",
+    title: "Equipment and supplies",
+    where: "Admin → Rooms → Equipment & supplies",
+    href: "/admin/resources",
+    intro: "Two tabs. Supply requests: approve or decline what faculty ask for and keep the stock count. Equipment bookings: add or retire projectors and kits and see everyone's bookings.",
   },
   {
     id: "calendar",
@@ -81,16 +89,16 @@ const SECTIONS: ManualSection[] = [
   {
     id: "timetables",
     title: "Room and class timetables",
-    where: "Admin → Timetables",
+    where: "Admin → Timetables → Room & class timetables",
     href: "/admin/timetable",
-    intro: "Upload the room timetable from the Word file, edit a cell, or assign classes from a class's own week. Timetable changes take effect from tomorrow. Health check flags clashes and unknown initials.",
+    intro: "One entry with three tabs. Room timetable: upload the Word file for a new semester or edit a cell. Class timetable: assign classes from a class's own week. Health check: clashes and unknown initials. Timetable changes take effect from tomorrow.",
   },
   {
     id: "faculty",
     title: "Faculty, leave and substitutes",
     where: "Admin → Faculty",
     href: "/admin/faculty",
-    intro: "Faculty profiles, availability and meeting times, leave with suggested substitutes, the subjects each faculty member teaches, and the sign-in list with names and initials.",
+    intro: "Faculty profiles, leave with suggested substitutes, the subjects each faculty member teaches, and the sign-in list with names and initials. Who is free, by day or by week, and meeting times are under Faculty availability, opened from the Faculty profiles page.",
     tips: ["A faculty member must be on the sign-in list with initials before they can accept a class exchange."],
   },
   {
@@ -103,7 +111,7 @@ const SECTIONS: ManualSection[] = [
       "Pick the dates and, if you like, a range of slots.",
       "Read the Mode of request column: Faculty request, Admin allotment, Faculty mutually agreed, admin approved (class exchanges), Dropped by faculty, Removed by admin or Cancelled for CIE by admin.",
     ],
-    tips: ["Room usage, Workload, History and the Activity log show who changed what, and when."],
+    tips: ["Room usage and Workload are separate printouts. The Activity log has two tabs: All changes, and Bookings and decisions (every allotment and rejected request), which show who changed what, and when."],
   },
 ];
 

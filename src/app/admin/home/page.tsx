@@ -49,7 +49,7 @@ export default async function AdminHome() {
     getDayOrders(),
     getNotices(today),
     loadHealth(),
-    // Resource requests waiting (empty before migration 0028)
+    // Resource requests waiting
     supabase.from("resource_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
   ]);
   const resourcesWaiting = resourceRes.count ?? 0;

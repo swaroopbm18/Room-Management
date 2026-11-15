@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
 import { IconBook, IconClock, IconDashboard, IconInbox, IconPlus, IconSwap } from "@/components/Icons";
@@ -10,18 +11,19 @@ import { createClient } from "@/lib/supabase/server";
 import type { RequestRow } from "@/lib/types";
 import { slotEnded } from "@/lib/time";
 import ExchangeInbox from "./ExchangeInbox";
-import Meetings, { type MeetingSearch } from "./Meetings";
 import MyRequests from "./MyRequests";
 import Overview from "./Overview";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["overview", "exchange", "requests", "meetings"] as const;
+const TABS = ["overview", "exchange", "requests"] as const;
 type Tab = (typeof TABS)[number];
 
-export default async function FacultyDashboard({ searchParams }: { searchParams: Promise<MeetingSearch & { tab?: string }> }) {
+export default async function FacultyDashboard({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const person = await requireStaff();
   const sp = await searchParams;
+  // Meetings moved to Faculty availability, with the Day and Week views
+  if (sp.tab === "meetings") redirect("/faculty-status/meetings");
   const tab: Tab = TABS.includes(sp.tab as Tab) ? (sp.tab as Tab) : "overview";
   const supabase = await createClient();
   await getHolidays(); // also loads make-up Sundays
@@ -45,12 +47,14 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
     { key: "overview", label: "Overview", icon: <IconDashboard className="h-4 w-4" /> },
     { key: "exchange", label: "Exchange requests", icon: <IconSwap className="h-4 w-4" />, count: waitingOnMe, alert: true },
     { key: "requests", label: "My requests", icon: <IconInbox className="h-4 w-4" />, count: pendingRooms + openSent },
-    { key: "meetings", label: "Meetings", icon: <IconClock className="h-4 w-4" /> },
   ];
 
   return (
     <div className="space-y-6">
       <PageHeader title={`Welcome, ${displayName(person)}`} subtitle={person.email}>
+        <Link href="/faculty-status/meetings" className="btn-secondary">
+          <IconClock className="h-4 w-4" /> Find a meeting time
+        </Link>
         <Link href="/faculty/manual" className="btn-secondary">
           <IconBook className="h-4 w-4" /> User manual
         </Link>
@@ -88,7 +92,6 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
       {tab === "requests" && (
         <MyRequests groups={groups} mySubjects={((subjectData ?? []) as { subject: string }[]).map((x) => x.subject)} sent={sent} slots={slots} exchangesReady={exchanges !== null} />
       )}
-      {tab === "meetings" && <Meetings sp={sp} />}
     </div>
   );
 }

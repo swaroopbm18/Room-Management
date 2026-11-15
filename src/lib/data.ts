@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { createClient } from "./supabase/server";
+import { semestersOf, type Cell } from "./classTimetable";
 import { setMakeupSundays } from "./time";
 import type { PublicRequest, Room, ScheduleRow, Slot, UpcomingRow } from "./types";
 
@@ -24,6 +25,17 @@ export const getAllRooms = unstable_cache(async (): Promise<Room[]> => {
   return data ?? [];
 }, ["rooms"], { revalidate: 3600, tags: ["rooms"] });
 
+/**
+ * The semesters and their classes (3rd: 3A 3B 3C) in the timetable on a date, for the class
+ * pickers on the home page, CIE week and Class changes. Cached for 10 minutes, since timetable
+ * edits only take effect from the next day.
+ */
+export const getClassSemesters = unstable_cache(async (date: string) => {
+  const { data, error } = await publicClient().rpc("get_timetable_all", { p_date: date });
+  if (error) throw new Error(error.message);
+  return semestersOf([...new Set(((data ?? []) as Cell[]).filter((c) => !c.is_department).map((c) => c.subject))]).semesters;
+}, ["class-semesters"], { revalidate: 600 });
+
 /** The rooms in use: archived rooms are left out of booking and schedule pages. */
 export async function getRooms(): Promise<Room[]> {
   return (await getAllRooms()).filter((r) => !r.archived);
@@ -40,17 +52,15 @@ export type MyClass = Pick<ScheduleRow, "room_id" | "room_name" | "slot_id" | "s
 
 /**
  * The signed-in faculty member's classes and bookings from one date to another, in one call.
- * Before migration 0018 it falls back to one call per day.
  */
-export async function getMySchedule(from: string, to: string, dates: string[]): Promise<MyClass[]> {
+export async function getMySchedule(from: string, to: string): Promise<MyClass[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("my_schedule", { p_from: from, p_to: to });
-  if (!error) return (data ?? []) as MyClass[];
-  const days = await Promise.all(dates.map(async (d) => ({ date: d, rows: await getDaySchedule(d) })));
-  return days.flatMap(({ date, rows }) => rows.filter((r) => r.is_mine).map((r) => ({ ...r, date })));
+  if (error) throw new Error(error.message);
+  return (data ?? []) as MyClass[];
 }
 
-/** Upcoming events and bookings, or null if they can't be read (e.g. before migration 0009 is run). */
+/** Upcoming events and bookings, or null if they can't be read. */
 export async function getUpcomingBookings(days: number): Promise<UpcomingRow[] | null> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("upcoming_bookings", { p_days: days });
@@ -59,7 +69,7 @@ export async function getUpcomingBookings(days: number): Promise<UpcomingRow[] |
 
 /**
  * Requests for one room (or every room, with null) from one date to another, readable by anyone.
- * Null if they can't be read (e.g. before migration 0010 is run).
+ * Null if they can't be read.
  */
 export async function getSlotRequests(room: string | null, from: string, to: string): Promise<PublicRequest[] | null> {
   const supabase = await createClient();
@@ -77,7 +87,7 @@ export type FacultySlotStatus = {
   room_id: string | null;
 };
 
-/** Every faculty member, free or busy, in every slot of a date. Null before migration 0016 is run. */
+/** Every faculty member, free or busy, in every slot of a date. Null if it can't be read. */
 export async function getFacultyStatus(date: string): Promise<FacultySlotStatus[] | null> {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("faculty_status", { p_date: date });
@@ -103,7 +113,7 @@ const recent = () => new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10
 
 export type DayOrder = { date: string; follows: number; note: string };
 
-/** Days that run another weekday's timetable, from a week ago on (empty before migration 0020). Read once per request. */
+/** Days that run another weekday's timetable, from a week ago on Read once per request. */
 export const getDayOrders = cache(async (): Promise<Map<string, DayOrder>> => {
   const supabase = publicClient();
   const { data } = await supabase.from("day_orders").select("date, follows, note").gte("date", recent());
@@ -112,7 +122,7 @@ export const getDayOrders = cache(async (): Promise<Map<string, DayOrder>> => {
 
 export type Notice = { id: number; message: string; starts_on: string; ends_on: string };
 
-/** Notices that haven't ended yet, soonest first (empty before migration 0020). */
+/** Notices that haven't ended yet, soonest first. */
 export async function getNotices(from: string): Promise<Notice[]> {
   const supabase = publicClient();
   const { data } = await supabase.from("notices").select("id, message, starts_on, ends_on").gte("ends_on", from).order("starts_on");

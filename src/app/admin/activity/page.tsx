@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { AREAS, tablesOf, toActions, type Area, type LogRow } from "@/lib/activity";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/time";
+import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -52,8 +53,9 @@ export default async function Activity({ searchParams }: { searchParams: Promise
 
   return (
     <div className="space-y-6">
+      <AreaTabs area="records" current="/admin/activity" />
       <PageHeader title="Activity log" subtitle="Every change to requests, bookings, the timetable, faculty, rooms and the calendar, with who made it and when. Changes made in one go show as one entry." />
-      {error && <div className="card muted p-4 text-sm">Run supabase/migrations/0023_leave_and_activity_log.sql in the Supabase SQL Editor to start the activity log.</div>}
+      {error && <div className="card muted p-4 text-sm">The activity log couldn&apos;t be read just now. Try again in a moment.</div>}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1.5">
@@ -73,7 +75,7 @@ export default async function Activity({ searchParams }: { searchParams: Promise
         </form>
       </div>
 
-      {!error && actions.length === 0 && <p className="card muted p-6 text-sm">Nothing recorded yet. Changes show here from the moment migration 0023 was run.</p>}
+      {!error && actions.length === 0 && <p className="card muted p-6 text-sm">Nothing recorded yet.</p>}
 
       {actions.length > 5 && <ListSearch target="activity-list" placeholder="Search this page" />}
       <div id="activity-list" className="space-y-6">

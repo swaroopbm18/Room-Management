@@ -34,8 +34,7 @@ export default async function Meetings({ sp }: { sp: MeetingSearch }) {
           goes by each day&apos;s real timetable, so bookings, dropped classes, duties and leave count.
         </p>
       </div>
-      <form action="/faculty#meeting" className="card grid gap-4 p-5 sm:grid-cols-3" id="meeting">
-        <input type="hidden" name="tab" value="meetings" />
+      <form action="/faculty-status/meetings#meeting" className="card grid gap-4 p-5 sm:grid-cols-3" id="meeting">
         <MeetingPicker
           faculty={people}
           groups={[

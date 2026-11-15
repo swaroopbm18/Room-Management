@@ -21,7 +21,7 @@ export default async function ExchangePage({ searchParams }: { searchParams: Pro
   const date = DATE_RE.test(sp.date ?? "") ? sp.date! : "";
   // One slot (?slot=3) or a back-to-back block such as a lab (?slots=3,4)
   const asked = (sp.slots ?? sp.slot ?? "").split(",").map(Number).filter((n) => Number.isInteger(n) && n > 0);
-  const [slots, mine, exchanges] = await Promise.all([getSlots(), date ? getMySchedule(date, date, [date]) : [], getMyExchanges(person.email)]);
+  const [slots, mine, exchanges] = await Promise.all([getSlots(), date ? getMySchedule(date, date) : [], getMyExchanges(person.email)]);
   const slotById = new Map(slots.map((s) => [s.id, s]));
   const pos = new Map(slots.map((s, i) => [s.id, i]));
   const slotIds = [...new Set(asked)].filter((id) => slotById.has(id)).sort((a, b) => pos.get(a)! - pos.get(b)!);
@@ -80,7 +80,7 @@ export default async function ExchangePage({ searchParams }: { searchParams: Pro
         </ol>
       </section>
 
-      {exchanges === null && <div className="card p-4 text-sm">Run supabase/migrations/0029_class_exchanges.sql in the Supabase SQL Editor to turn on class exchanges.</div>}
+      {exchanges === null && <div className="card p-4 text-sm">Class exchanges couldn&apos;t be read just now. Try again in a moment.</div>}
 
       {open ? (
         <section className="card space-y-3 p-5">

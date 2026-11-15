@@ -6,6 +6,7 @@ import { addDays, formatDate, todayIST } from "@/lib/time";
 import ClassGrid from "./ClassGrid";
 import FacultyFinder, { type FinderClass } from "@/components/FacultyFinder";
 import { buildClassTimetable, classesOf, ordinal, OTHER, type Cell } from "@/lib/classTimetable";
+import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +62,7 @@ export default async function ClassTimetable({ searchParams }: { searchParams: P
 
   return (
     <div className="space-y-6">
+      <AreaTabs area="timetables" current="/admin/class-timetable" />
       <PageHeader
         title="Class timetable"
         subtitle={`Each class's week, as it runs from tomorrow, ${formatDate(tomorrow, { weekday: "long" })}. Click the pencil on a class to fix its subject, faculty initials or room, or to delete it. Today and earlier days keep the old timetable.`}

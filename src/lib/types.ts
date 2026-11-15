@@ -13,7 +13,7 @@ export type Slot = { id: number; starts: string; ends: string; label: string };
 
 export type RoomKind = "classroom" | "lab" | "seminar";
 
-/** Capacity, kind, projector and notes come with migration 0020; before it they are missing. */
+/** Capacity, kind, projector and notes, used to filter free rooms. */
 export type Room = { id: string; name: string; sort_order: number; capacity?: number | null; kind?: RoomKind; projector?: boolean; notes?: string; archived?: boolean };
 
 export type SlotStatus = "free" | "class" | "department" | "booked" | "cie" | "event" | "closed";
@@ -31,7 +31,7 @@ export type ScheduleRow = {
   reason: string | null;
   is_mine: boolean;
   ended: boolean;
-  /** The regular class a booking, CIE or event took the place of (missing before migration 0026). */
+  /** The regular class a booking, CIE or event took the place of */
   original_subject?: string | null;
   original_faculty?: string | null;
 };
@@ -67,7 +67,7 @@ export type AllotmentRow = {
   faculty_name: string | null;
   reason: string;
   request_id: string | null;
-  /** Initials of the faculty member an admin assigned a class to (migration 0026). */
+  /** Initials of the faculty member an admin assigned a class to */
   faculty_initials?: string | null;
   created_by: string;
   created_at: string;
@@ -75,11 +75,11 @@ export type AllotmentRow = {
 
 /** A slot booked for an event, CIE or approved request, as listed on the home page. */
 export type UpcomingRow = Pick<AllotmentRow, "date" | "room_id" | "slot_id" | "kind" | "title" | "faculty_name" | "reason"> & {
-  /** The admin who approved the request or allotted the slot (missing before migration 0015). */
+  /** The admin who approved the request or allotted the slot */
   approved_by?: string | null;
-  /** An admin allotted it directly, with no faculty request (migration 0026). */
+  /** An admin allotted it directly, with no faculty request */
   allotted?: boolean;
-  /** The regular class it took the place of (migration 0026). */
+  /** The regular class it took the place of */
   original_subject?: string | null;
   original_faculty?: string | null;
 };

@@ -84,9 +84,6 @@ export async function undoLast(form: FormData) {
 
 const s = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
 
-/** A missing function means migration 0022 hasn't been run yet. */
-const missing0022 = (m: string, fn: string) => (m.includes(fn) ? "Run supabase/migrations/0022_delete_faculty_and_rooms.sql in the Supabase SQL Editor first." : m);
-
 export async function withdrawRequest(form: FormData) {
   await run(form, "/faculty", "withdraw_request", { p_id: s(form, "id") }, "Request withdrawn.");
 }
@@ -143,8 +140,7 @@ export async function adminOverride(form: FormData) {
       p_kind: kind,
       p_title: s(form, "title"),
       p_reason: s(form, "reason"),
-      // A class names its faculty (initials) or none; sent only for a class, so CIEs and events
-      // keep working before migration 0026 is run.
+      // A class names its faculty (initials) or none
       ...(kind === "class_request" ? { p_faculty: s(form, "faculty") || null } : {}),
     },
     past
@@ -190,9 +186,7 @@ export async function adminEditBooking(form: FormData) {
   revalidatePath("/", "layout");
   const to = back(form, "/admin/allot");
   if (error) {
-    // Before migration 0021 the description can't be changed yet
-    const missing = error.code === "PGRST202" || /admin_edit_booking/.test(error.message);
-    redirect(withParam(to, "error", missing ? "Changing the description needs database update 0021. Ask the site admin to run it." : error.message));
+    redirect(withParam(to, "error", error.message));
   }
   redirect(withParam(to, "msg", "Booking updated."));
 }
@@ -267,7 +261,7 @@ export async function deleteFaculty(form: FormData) {
   const { data, error } = await supabase.rpc("admin_delete_faculty", { p_initials: initials });
   revalidatePath("/", "layout");
   if (error) {
-    redirect(withParam(back(form, "/admin/faculty"), "error", missing0022(error.message, "admin_delete_faculty")));
+    redirect(withParam(back(form, "/admin/faculty"), "error", error.message));
   }
   const kept = data === "kept_history" ? " Their past requests are kept, but they can no longer sign in." : "";
   redirect(withParam(s(form, "done") || "/admin/faculty", "msg", `${initials} deleted.${kept}`));
@@ -501,7 +495,7 @@ export async function updateRoom(form: FormData) {
   const name = s(form, "name");
   if (name && name !== s(form, "old_name")) {
     const { error } = await supabase.rpc("admin_rename_room", { p_room: s(form, "room"), p_name: name });
-    if (error) redirect(withParam(back(form, "/admin/rooms"), "error", missing0025(error.message, "admin_rename_room")));
+    if (error) redirect(withParam(back(form, "/admin/rooms"), "error", error.message));
   }
   const capacity = Number(s(form, "capacity"));
   const { error } = await supabase.rpc("admin_update_room", {
@@ -529,7 +523,7 @@ export async function addRoom(form: FormData) {
   });
   revalidateTag("rooms");
   revalidatePath("/", "layout");
-  redirect(withParam(back(form, "/admin/rooms"), error ? "error" : "msg", error ? missing0022(error.message, "admin_add_room") : `Room ${data} added.`));
+  redirect(withParam(back(form, "/admin/rooms"), error ? "error" : "msg", error ? error.message : `Room ${data} added.`));
 }
 
 /** Deletes a room that has no classes, requests or bookings on record. */
@@ -538,7 +532,7 @@ export async function deleteRoom(form: FormData) {
   const { error } = await supabase.rpc("admin_delete_room", { p_room: s(form, "room") });
   revalidateTag("rooms");
   revalidatePath("/", "layout");
-  redirect(withParam(back(form, "/admin/rooms"), error ? "error" : "msg", error ? missing0022(error.message, "admin_delete_room") : `Room ${s(form, "room")} deleted.`));
+  redirect(withParam(back(form, "/admin/rooms"), error ? "error" : "msg", error ? error.message : `Room ${s(form, "room")} deleted.`));
 }
 
 /**
@@ -577,15 +571,14 @@ export async function blockCieWeek(form: FormData) {
       else done++;
     }
   }
-  // Cancel every class of the semesters writing the CIE, on each of those days (migration 0030)
+  // Cancel every class of the semesters writing the CIE, on each of those days
   let cancelled = 0;
   if (cancel) {
     const label = `${s(form, "title") || (s(form, "kind") === "event" ? "College event" : "CIE")}, semester ${semesters.join(", ")}`;
     for (const d of days) {
       const { data, error } = await supabase.rpc("admin_cancel_semester_classes", { p_date: d, p_semesters: semesters, p_reason: label });
       if (error) {
-        failed.push(error.message.includes("admin_cancel_semester_classes") ? "class cancellations (run supabase/migrations/0030_exchange_blocks_and_cie_cancel.sql first)" : `classes on ${formatDate(d, { year: undefined })} (${error.message})`);
-        if (error.message.includes("admin_cancel_semester_classes")) break;
+        failed.push(`classes on ${formatDate(d, { year: undefined })} (${error.message})`);
       } else cancelled += Number(data ?? 0);
     }
   }
@@ -712,8 +705,6 @@ export async function setFacultyClusters(form: FormData) {
   redirect(error ? withParam(to, "error", error.message) : withParam(to, "msg", data ? `Clusters saved: ${data} ${data === 1 ? "change" : "changes"}.` : "No cluster changed."));
 }
 
-const missing0023 = (m: string, fn: string) => (m.includes(fn) ? "Run supabase/migrations/0023_leave_and_activity_log.sql in the Supabase SQL Editor first." : m);
-
 /** A faculty member on leave from one date to another (one day when "to" is empty). */
 export async function addLeave(form: FormData) {
   const supabase = await createClient();
@@ -722,7 +713,7 @@ export async function addLeave(form: FormData) {
   const { error } = await supabase.rpc("admin_add_leave", { p_initials: s(form, "initials"), p_from: from || null, p_to: to || null, p_reason: s(form, "reason") });
   revalidatePath("/", "layout");
   const days = from === to ? formatDate(from, { weekday: "long" }) : `${formatDate(from)} to ${formatDate(to)}`;
-  redirect(withParam(back(form, "/admin/leave"), error ? "error" : "msg", error ? missing0023(error.message, "admin_add_leave") : `${s(form, "initials").toUpperCase()} is on leave ${days}.`));
+  redirect(withParam(back(form, "/admin/leave"), error ? "error" : "msg", error ? error.message : `${s(form, "initials").toUpperCase()} is on leave ${days}.`));
 }
 
 export async function removeLeave(form: FormData) {
@@ -730,15 +721,13 @@ export async function removeLeave(form: FormData) {
   await run(form, "/admin/leave", "admin_remove_leave", { p_id: Number(s(form, "id")) }, "Leave removed.", undo);
 }
 
-const missing0024 = (m: string, fn: string) => (m.includes(fn) ? "Run supabase/migrations/0024_equipment_and_rollover.sql in the Supabase SQL Editor first." : m);
-
 /** Add equipment, or rename or retire it (retiring cancels its future bookings). */
 export async function saveEquipment(form: FormData) {
   const supabase = await createClient();
   const id = Number(s(form, "id")) || null;
   const { error } = await supabase.rpc("admin_save_equipment", { p_id: id, p_name: s(form, "name"), p_notes: s(form, "notes"), p_active: s(form, "active") !== "false" });
   revalidatePath("/equipment");
-  redirect(withParam(back(form, "/equipment"), error ? "error" : "msg", error ? missing0024(error.message, "admin_save_equipment") : id ? "Equipment saved." : `${s(form, "name")} added.`));
+  redirect(withParam(back(form, "/equipment"), error ? "error" : "msg", error ? error.message : id ? "Equipment saved." : `${s(form, "name")} added.`));
 }
 
 /** Book an item for a run of slots on one day. */
@@ -754,7 +743,7 @@ export async function bookEquipment(form: FormData) {
     p_purpose: s(form, "purpose"),
   });
   revalidatePath("/equipment");
-  redirect(withParam(to, error ? "error" : "msg", error ? missing0024(error.message, "book_equipment") : `Booked for ${slots.length} slot${slots.length === 1 ? "" : "s"} on ${formatDate(s(form, "date"), { year: undefined })}.`));
+  redirect(withParam(to, error ? "error" : "msg", error ? error.message : `Booked for ${slots.length} slot${slots.length === 1 ? "" : "s"} on ${formatDate(s(form, "date"), { year: undefined })}.`));
 }
 
 export async function cancelEquipment(form: FormData) {
@@ -774,31 +763,28 @@ export async function semesterRollover(form: FormData) {
     p_leave: form.get("leave") === "on",
   });
   revalidatePath("/", "layout");
-  redirect(withParam(back(form, "/admin/rollover"), error ? "error" : "msg", error ? missing0024(error.message, "admin_rollover") : `Done: ${data}.`));
+  redirect(withParam(back(form, "/admin/rollover"), error ? "error" : "msg", error ? error.message : `Done: ${data}.`));
 }
 
 export async function copyHolidays(form: FormData) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_copy_holidays", { p_from: s(form, "from_date"), p_to: s(form, "to_date"), p_years: Number(s(form, "years")) || 1 });
   revalidatePath("/", "layout");
-  redirect(withParam(back(form, "/admin/rollover"), error ? "error" : "msg", error ? missing0024(error.message, "admin_copy_holidays") : `${data} holiday${data === 1 ? "" : "s"} copied. Check festivals whose date moves each year.`));
+  redirect(withParam(back(form, "/admin/rollover"), error ? "error" : "msg", error ? error.message : `${data} holiday${data === 1 ? "" : "s"} copied. Check festivals whose date moves each year.`));
 }
 
 // ---------------------------------------------------------------------------
-// Edit and delete everywhere (migration 0025)
+// Edit and delete everywhere
 // ---------------------------------------------------------------------------
 
-const MIGRATION_0025 = "Run supabase/migrations/0025_edit_and_delete_everywhere.sql in the Supabase SQL Editor first.";
-const missing0025 = (m: string, fn: string) => (m.includes(fn) || m.includes("archived") ? MIGRATION_0025 : m);
-
-/** Like run(), but explains a missing 0025 function and can pick the message from the RPC's result. */
+/** Like run(), but can pick the message from the RPC's result. */
 async function run25(form: FormData, fallback: string, fn: string, args: Record<string, unknown>, ok: string | ((data: unknown) => string), tag?: string) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc(fn, args);
   if (tag) revalidateTag(tag);
   revalidatePath("/", "layout");
   const to = back(form, fallback);
-  redirect(withParam(to, error ? "error" : "msg", error ? missing0025(error.message, fn) : typeof ok === "function" ? ok(data) : ok));
+  redirect(withParam(to, error ? "error" : "msg", error ? error.message : typeof ok === "function" ? ok(data) : ok));
 }
 
 export async function updateHoliday(form: FormData) {
@@ -887,7 +873,7 @@ export async function clearFacultyDuties(form: FormData) {
 }
 
 // ---------------------------------------------------------------------------
-// Calendar sync, substitutes and resource requests (migration 0028)
+// Calendar sync, substitutes and resource requests
 // ---------------------------------------------------------------------------
 
 /** A new calendar link for the signed-in faculty member; the old one stops working. */
@@ -960,25 +946,15 @@ export async function saveSupply(form: FormData) {
 }
 
 // ---------------------------------------------------------------------------
-// Class exchange (migration 0029)
+// Class exchange
 // ---------------------------------------------------------------------------
-
-const MIGRATION_0029 = "Run supabase/migrations/0029_class_exchanges.sql in the Supabase SQL Editor first.";
-const MIGRATION_0030 = "Run supabase/migrations/0030_exchange_blocks_and_cie_cancel.sql in the Supabase SQL Editor first.";
 
 async function run29(form: FormData, fallback: string, fn: string, args: Record<string, unknown>, ok: string, okTo?: string) {
   const supabase = await createClient();
   const { error } = await supabase.rpc(fn, args);
   const to = !error && okTo ? okTo : back(form, fallback);
   revalidatePath("/", "layout");
-  const m = error
-    ? ["request_exchange_slots", "admin_undo_exchange"].includes(fn) && error.message.includes(fn)
-      ? MIGRATION_0030
-      : error.message.includes(fn) || error.message.includes("class_exchanges")
-        ? MIGRATION_0029
-        : error.message
-    : ok;
-  redirect(withParam(to, error ? "error" : "msg", m));
+  redirect(withParam(to, error ? "error" : "msg", error ? error.message : ok));
 }
 
 /** Ask a free colleague to take one of my classes. They accept, then an admin approves. */

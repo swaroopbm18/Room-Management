@@ -10,6 +10,7 @@ import { parseGroups, planSeating } from "@/lib/seating";
 import { DATE_RE, formatDate, todayIST, workingDay, makeupSundayList } from "@/lib/time";
 import SlotRange from "../allot/SlotRange";
 import { blockCieWeek } from "../../actions";
+import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,7 @@ export default async function Seating({
   return (
     <div className="space-y-6">
       <div className="space-y-6 print:hidden">
+        <AreaTabs area="cie" current="/admin/seating" />
         <PageHeader title="CIE seating planner" subtitle="Type each class and its number of students. The planner fills the rooms free at that time, biggest first, prints a seating sheet for each room's door and can book the rooms for the CIE." />
         <form className="card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>

@@ -47,7 +47,7 @@ export default async function ResourceRequests({ email, rooms, today }: { email:
   if (suppliesRes.error) {
     return (
       <section id="resources" className="card muted scroll-mt-4 p-4 text-sm">
-        Resource requests aren&apos;t set up yet. An admin needs to run supabase/migrations/0028_calendar_resources.sql.
+        Resource requests couldn&apos;t be read just now. Try again in a moment.
       </section>
     );
   }

@@ -34,7 +34,7 @@ export default async function FreeSlots({ searchParams }: { searchParams: Promis
   const holiday = holidays.get(date);
   const [person, rooms, slots, day, requests] = await Promise.all([getPerson(), getRooms(), getSlots(), getDaySchedule(date), getSlotRequests(null, date, date)]);
   const canRequest = !!person && dates.includes(date) && !holiday;
-  // Rooms with the seats, kind and projector asked for (details come with migration 0020)
+  // Rooms with the seats, kind and projector asked for
   const want = { seats: Number(sp.seats) || 0, kind: sp.kind ?? "", projector: sp.projector === "yes" };
   const hasDetails = rooms.some((r) => r.kind !== undefined);
   const shown = rooms.filter((r) => roomMatches(r, want));

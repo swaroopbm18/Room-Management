@@ -13,12 +13,8 @@ export const dynamic = "force-dynamic";
 export default async function RoomDetails() {
   const supabase = await createClient();
   const [rooms, usedRes] = await Promise.all([getAllRooms(), supabase.rpc("admin_rooms_in_use")]);
-  const ready = rooms.some((r) => r.kind !== undefined);
-  // Before migration 0022 there is no add or delete; a room with anything on record can't be deleted
-  const canAddDelete = !usedRes.error;
+  // A room with anything on record can't be deleted, only archived
   const used = new Set((usedRes.data ?? []) as string[]);
-  // Archiving needs migration 0025, which adds rooms.archived
-  const canArchive = rooms.some((r) => r.archived !== undefined);
 
   return (
     <div className="space-y-6">
@@ -27,10 +23,7 @@ export default async function RoomDetails() {
           <IconQr className="h-4 w-4" /> QR posters
         </PendingLink>
       </PageHeader>
-      {!ready && <div className="card muted p-4 text-sm">Run supabase/migrations/0020_day_swaps_notices_rooms.sql in the Supabase SQL Editor to save room details.</div>}
-      {ready && !canAddDelete && <div className="card muted p-4 text-sm">Run supabase/migrations/0022_delete_faculty_and_rooms.sql in the Supabase SQL Editor to add and delete rooms.</div>}
-
-      {canAddDelete && <AddRoom />}
+      <AddRoom />
 
       <div className="card divide-y divide-brand-100 dark:divide-brand-900">
         {rooms.map((r) => (
@@ -69,23 +62,21 @@ export default async function RoomDetails() {
               <SubmitButton className="btn-primary" pendingText="Saving…" message={`Saving room ${r.name}…`}>
                 <IconCheck className="h-4 w-4" /> Save
               </SubmitButton>
-              {canArchive && (
-                <SubmitButton
-                  formAction={archiveRoom}
-                  name="archived"
-                  value={r.archived ? "false" : "true"}
-                  className="btn-secondary px-2.5"
-                  pendingText=""
-                  message={r.archived ? `Bringing ${r.name} back…` : `Archiving ${r.name}…`}
-                  confirm={r.archived ? undefined : `Archive ${r.name}? It disappears from the schedule and booking pages but keeps its history. You can bring it back here any time.`}
-                  aria-label={r.archived ? `Bring ${r.name} back` : `Archive ${r.name}`}
-                  title={r.archived ? "Bring back" : "Archive"}
-                >
-                  <IconArchive className="h-4 w-4" />
-                  {r.archived && <span>Bring back</span>}
-                </SubmitButton>
-              )}
-              {canAddDelete && !used.has(r.id) && (
+              <SubmitButton
+                formAction={archiveRoom}
+                name="archived"
+                value={r.archived ? "false" : "true"}
+                className="btn-secondary px-2.5"
+                pendingText=""
+                message={r.archived ? `Bringing ${r.name} back…` : `Archiving ${r.name}…`}
+                confirm={r.archived ? undefined : `Archive ${r.name}? It disappears from the schedule and booking pages but keeps its history. You can bring it back here any time.`}
+                aria-label={r.archived ? `Bring ${r.name} back` : `Archive ${r.name}`}
+                title={r.archived ? "Bring back" : "Archive"}
+              >
+                <IconArchive className="h-4 w-4" />
+                {r.archived && <span>Bring back</span>}
+              </SubmitButton>
+              {!used.has(r.id) && (
                 <SubmitButton
                   formAction={deleteRoom}
                   className="btn-secondary px-2.5 text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"
@@ -101,12 +92,10 @@ export default async function RoomDetails() {
           </form>
         ))}
       </div>
-      {canAddDelete && (
-        <p className="muted text-xs">
-          Only rooms with no classes, requests or bookings on record can be deleted, so the history never loses a room.{" "}
-          {canArchive ? "Archive a room you no longer use: it leaves the schedule but keeps its history." : "Run supabase/migrations/0025_edit_and_delete_everywhere.sql to rename and archive rooms."}
-        </p>
-      )}
+      <p className="muted text-xs">
+        Only rooms with no classes, requests or bookings on record can be deleted, so the history never loses a room.{" "}
+        Archive a room you no longer use: it leaves the schedule but keeps its history.
+      </p>
     </div>
   );
 }

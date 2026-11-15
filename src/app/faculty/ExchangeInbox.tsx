@@ -12,7 +12,7 @@ export default function ExchangeInbox({ received, slots, ready }: { received: Ex
   const slotById = new Map(slots.map((s) => [s.id, s]));
   const waiting = received.filter((x) => stageOf(x, slotById) === "pending").sort((a, b) => a.date.localeCompare(b.date) || a.slot_id - b.slot_id);
   const rest = received.filter((x) => !waiting.includes(x));
-  if (!ready) return <div className="card p-4 text-sm">Run supabase/migrations/0029_class_exchanges.sql in the Supabase SQL Editor to turn on class exchanges.</div>;
+  if (!ready) return <div className="card p-4 text-sm">Class exchanges couldn&apos;t be read just now. Try again in a moment.</div>;
   return (
     <div className="space-y-8">
       <section>

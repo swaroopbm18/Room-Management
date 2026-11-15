@@ -12,7 +12,7 @@ import { findSubstitutes } from "@/lib/substitutes";
 import Substitutes from "@/components/Substitutes";
 import WeekTable from "@/components/WeekTable";
 import { createClient } from "@/lib/supabase/server";
-import { addDays, formatDate, isClosedSunday, slotStarted, todayIST, workingDay } from "@/lib/time";
+import { addDays, formatDate, slotStarted, todayIST, workingDay } from "@/lib/time";
 import { dropClass, resetCalendarLink, undoDrop } from "../actions";
 
 /** The dashboard's first tab: KPIs, my classes (drop or exchange), dropped classes, calendar link and my week. */
@@ -21,18 +21,16 @@ export default async function Overview({ person, pending, waitingOnMe, sent }: {
   const today = todayIST();
 
   await getHolidays(); // also loads make-up Sundays
-  // My classes over the next 7 days
-  const days = Array.from({ length: 7 }, (_, i) => addDays(today, i)).filter((d) => !isClosedSunday(d));
   const [slots, schedule, todayRows, week, { data: dropData }, calRes, hdrs] = await Promise.all([
     getSlots(),
-    getMySchedule(today, addDays(today, 6), days),
+    getMySchedule(today, addDays(today, 6)),
     getDaySchedule(workingDay(today)),
     person.initials ? getWeekFor(person.initials) : null,
     supabase.from("allotments").select("id, room_id, date, slot_id, reason").eq("kind", "drop").eq("created_by", person.email).gte("date", today),
     supabase.rpc("my_calendar_token"),
     headers(),
   ]);
-  // The private calendar link, on this site's own address (empty before migration 0028)
+  // The private calendar link, on this site's own address
   const calToken = typeof calRes.data === "string" ? calRes.data : null;
   const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host");
   const calUrl = calToken && host ? `${hdrs.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https")}://${host}/cal/${calToken}.ics` : null;

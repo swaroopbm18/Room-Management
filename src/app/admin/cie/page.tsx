@@ -2,27 +2,26 @@ import RememberFields from "@/components/RememberFields";
 import { IconFlag } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
-import { getHolidays, getRooms, getSlots } from "@/lib/data";
+import { getClassSemesters, getHolidays, getRooms, getSlots } from "@/lib/data";
 import { roomSummary } from "@/lib/rooms";
-import { buildClassTimetable, ordinal, type Cell } from "@/lib/classTimetable";
-import { createClient } from "@/lib/supabase/server";
+import { ordinal } from "@/lib/classTimetable";
 import { bookableDates, todayIST, workingDay } from "@/lib/time";
 import { blockCieWeek } from "../../actions";
 import SlotRange from "../allot/SlotRange";
+import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";
 
 /** Book the same slots in several rooms over several days at once, e.g. for a CIE week. */
 export default async function CieWeek() {
-  const supabase = await createClient();
-  const [rooms, slots, holidays, ttRes] = await Promise.all([getRooms(), getSlots(), getHolidays(), supabase.rpc("get_timetable_all", { p_date: todayIST() })]);
   // The semesters in the timetable, with their sections, e.g. 3rd semester: 3A 3B 3C
-  const { semesters } = buildClassTimetable((ttRes.data ?? []) as Cell[], slots);
+  const [rooms, slots, holidays, semesters] = await Promise.all([getRooms(), getSlots(), getHolidays(), getClassSemesters(todayIST())]);
   const dates = bookableDates();
   const first = workingDay(todayIST(), holidays);
 
   return (
     <div className="space-y-6">
+      <AreaTabs area="cie" current="/admin/cie" />
       <PageHeader
         title="CIE week"
         subtitle="Take the same slots in several rooms over several days in one go, and cancel the regular classes of the semesters writing the CIE. Sundays and holidays are skipped. Like a single allotment, it overrides classes and bookings and declines pending requests for those slots."

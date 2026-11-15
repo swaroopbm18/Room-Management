@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { IconCalendarCheck, IconClock, IconSearch, IconUsers } from "@/components/Icons";
+import { IconCalendarCheck, IconClock, IconUsers } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
-import MeetingPicker from "@/components/MeetingPicker";
 import PageHeader from "@/components/PageHeader";
 import AvailabilityTabs from "@/components/AvailabilityTabs";
 import { getSlots } from "@/lib/data";
-import { cellKey, CLUSTERS, DAY_NAMES, DAY_SLOTS, DAYS, getFacultyWeeks, isFree, isOpen, allMeetings, suggestMeetings, type ClusterKey } from "@/lib/faculty";
+import { cellKey, CLUSTERS, DAY_NAMES, DAY_SLOTS, DAYS, getFacultyWeeks, isFree, isOpen, type ClusterKey } from "@/lib/faculty";
 
 export const dynamic = "force-dynamic";
 
@@ -52,27 +51,17 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
     return `/admin/free-time?${p.toString()}`;
   };
 
-  // Meeting finder: a cluster or the whole department, narrowed to the faculty ticked in it
-  const who: ClusterKey | "all" = sp.who === "A" || sp.who === "B" || sp.who === "all" ? sp.who : sp.who === "some" ? "all" : cluster;
-  const group = inCluster(who);
-  const chosen = new Set([sp.p ?? []].flat().filter((ini) => group.some((f) => f.initials === ini)));
-  const length = Math.min(3, Math.max(1, Number(sp.len) || 1));
-  const attendees = chosen.size ? group.filter((f) => chosen.has(f.initials)) : group;
-  const suggestions = attendees.length ? suggestMeetings(weeks, attendees, slots, DAY_SLOTS, length) : [];
-  const everyTime = attendees.length ? allMeetings(weeks, attendees, slots, DAY_SLOTS, length) : [];
-  const allFree = everyTime.filter((m) => m.busy.length === 0);
-  const runLabel = (ids: number[]) => `${slotById.get(ids[0])!.label.split(" – ")[0]} – ${slotById.get(ids[ids.length - 1])!.label.split(" – ")[1]}`;
   const what = (ini: string, wd: number, ids: number[]) =>
     [...new Set(ids.flatMap((id) => (weeks.get(ini)?.get(cellKey(wd, id)) ?? []).map((b) => b.activity)))].join(", ");
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Faculty availability" subtitle="Who is free in each slot of the week, from every faculty member's timetable, and the best times for a meeting.">
+      <PageHeader title="Faculty availability" subtitle="Who is free in each slot of the regular week, from every faculty member's timetable. To find a meeting time on real dates, use Find a meeting time.">
         <Link href="/admin/faculty" className="btn-secondary">
           <IconUsers className="h-4 w-4" /> Faculty profiles
         </Link>
       </PageHeader>
-      <AvailabilityTabs view="week" cluster={cluster} showWeek />
+      <AvailabilityTabs view="week" cluster={cluster} signedIn admin />
 
       <div className="flex flex-wrap gap-2" role="tablist">
         {(["all", "A", "B"] as const).map((k) => (
@@ -107,7 +96,7 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
       </section>
 
       {!clustersReady && (
-        <div className="card muted p-4 text-sm">Run supabase/migrations/0014_faculty_clusters.sql in the Supabase SQL Editor, then put faculty into Cluster A and Cluster B on the Faculty profiles page.</div>
+        <div className="card muted p-4 text-sm">Clusters couldn&apos;t be read just now, so everyone shows together.</div>
       )}
       {clustersReady && cluster !== "all" && total === 0 && (
         <div className="card p-4 text-sm">
@@ -215,127 +204,6 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
         </section>
       )}
 
-      <section id="meeting" className="scroll-mt-4 space-y-4">
-        <h2 className="text-lg font-semibold">Suggest a meeting time</h2>
-        <form action="/admin/free-time#meeting" className="card grid gap-4 p-5 sm:grid-cols-3">
-          {cluster !== "all" && <input type="hidden" name="c" value={cluster} />}
-          <MeetingPicker
-            faculty={everyone.map(({ initials, name, cluster }) => ({ initials, name, cluster }))}
-            groups={[
-              { value: "all", label: "Whole department" },
-              { value: "A", label: CLUSTERS.A.label },
-              { value: "B", label: CLUSTERS.B.label },
-            ]}
-            group={who}
-            ticked={[...chosen]}
-          >
-            <div>
-              <label className="label" htmlFor="meet-len">How long</label>
-              <select id="meet-len" name="len" defaultValue={String(length)} className="input">
-                <option value="1">1 slot (55 minutes)</option>
-                <option value="2">2 slots in a row</option>
-                <option value="3">3 slots in a row</option>
-              </select>
-            </div>
-            <p className="muted self-end pb-2 text-sm">The 3 best times, then every time all are free: Monday to Friday 8:00 AM to 4:45 PM and Saturday until 2 PM.</p>
-          </MeetingPicker>
-          <div className="flex justify-end sm:col-span-3">
-            <button className="btn-primary">
-              <IconSearch className="h-4 w-4" /> Find times
-            </button>
-          </div>
-        </form>
-
-        {attendees.length > 0 && (
-          <p className="muted text-sm">
-            Best times for {chosen.size ? attendees.map((f) => f.initials).join(", ") : `everyone in ${who === "all" ? "the department" : CLUSTERS[who].label}`} · {attendees.length} faculty
-          </p>
-        )}
-        <ol className="grid gap-3 lg:grid-cols-3">
-          {suggestions.map((m, i) => {
-            const share = attendees.length ? m.free.length / attendees.length : 0;
-            return (
-              <li key={`${m.weekday}-${m.slotIds.join()}`} className={i === 0 ? "rounded-2xl bg-gradient-to-br from-brand-700 via-brand-800 to-brand-950 p-4 text-white shadow-lg shadow-brand-900/20" : "card p-4"}>
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className={`text-xs font-medium ${i === 0 ? "text-brand-200" : "text-brand-700 dark:text-brand-300"}`}>{i === 0 ? "Option 1 · Best time" : `Option ${i + 1}`}</div>
-                    <div className="text-lg font-semibold">
-                      {DAY_NAMES[m.weekday - 1]}, {runLabel(m.slotIds)}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-semibold tracking-tight">
-                      {m.free.length}
-                      <span className={`text-sm font-normal ${i === 0 ? "text-brand-200" : "muted"}`}> / {attendees.length}</span>
-                    </div>
-                    <div className={`text-xs ${i === 0 ? "text-brand-200" : "muted"}`}>can attend</div>
-                  </div>
-                </div>
-                <div className={`mt-3 h-1.5 overflow-hidden rounded-full ${i === 0 ? "bg-white/20" : "bg-brand-100 dark:bg-brand-950"}`}>
-                  <div className={`h-full rounded-full ${i === 0 ? "bg-white" : "bg-brand-600 dark:bg-brand-500"}`} style={{ width: `${Math.round(share * 100)}%` }} />
-                </div>
-                {m.busy.length > 0 ? (
-                  <details className="mt-3 text-xs">
-                    <summary className={`cursor-pointer font-medium ${i === 0 ? "text-white" : "text-brand-600 dark:text-brand-400"}`}>
-                      {m.busy.length} can&apos;t make it
-                    </summary>
-                    <ul className="mt-2 space-y-0.5">
-                      {m.busy.map((f) => (
-                        <li key={f.initials}>
-                          <span className="font-medium">{f.name}</span>
-                          <span className={i === 0 ? "text-brand-200" : "muted"}> · {what(f.initials, m.weekday, m.slotIds)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                ) : (
-                  <div className={`mt-3 text-xs font-medium ${i === 0 ? "text-white" : "text-brand-700 dark:text-brand-300"}`}>Everyone is free</div>
-                )}
-              </li>
-            );
-          })}
-          {suggestions.length === 0 && <li className="card muted p-6 text-sm lg:col-span-3">Nobody to invite yet. Pick a group with faculty in it.</li>}
-        </ol>
-
-        {everyTime.length > 0 && (
-          <div id="all-times" className="card scroll-mt-4 overflow-hidden">
-            <div className="border-b border-brand-100 px-4 py-3 dark:border-brand-900/70">
-              <h3 className="font-semibold">When all {attendees.length} are free, day by day</h3>
-              <p className="muted text-xs">
-                {allFree.length
-                  ? `${allFree.length} ${allFree.length === 1 ? "time" : "times"} this week${length > 1 ? `, ${length} slots in a row` : ""}. A time with even one person busy is left out.`
-                  : `No time this week has all ${attendees.length} free${length > 1 ? ` for ${length} slots in a row` : ""}. Try a shorter meeting or fewer people.`}
-              </p>
-            </div>
-            <div className="grid gap-px bg-brand-100 sm:grid-cols-2 lg:grid-cols-3 dark:bg-brand-900/70">
-              {DAY_NAMES.map((day, i) => {
-                const times = allFree.filter((m) => m.weekday === i + 1);
-                return (
-                  <div key={day} className="bg-white p-4 dark:bg-ink">
-                    <div className="mb-2 flex items-baseline justify-between gap-2">
-                      <span className="font-semibold">{day}</span>
-                      <span className={`text-xs ${times.length ? "font-medium text-brand-700 dark:text-brand-300" : "muted"}`}>
-                        {times.length ? `${times.length} ${times.length === 1 ? "time" : "times"}` : "None"}
-                      </span>
-                    </div>
-                    {times.length ? (
-                      <ul className="space-y-1.5">
-                        {times.map((m) => (
-                          <li key={m.slotIds.join()} className="rounded-lg bg-gradient-to-br from-brand-700 to-brand-900 px-3 py-1.5 text-sm font-medium text-white">
-                            {runLabel(m.slotIds)}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="muted rounded-lg border border-dashed border-brand-200 px-3 py-1.5 text-sm dark:border-brand-900">No time with everyone free</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </section>
     </div>
   );
 }

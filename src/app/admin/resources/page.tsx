@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDate, formatDateTime, todayIST } from "@/lib/time";
 import { approveResource, declineResource, saveSupply } from "../../actions";
 import { RESOURCE_STATUS, type ResourceRequest, type Supply } from "../../equipment/ResourceRequests";
+import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +27,9 @@ export default async function Resources() {
   if (suppliesRes.error) {
     return (
       <div className="space-y-6">
+        <AreaTabs area="supplies" current="/admin/resources" />
         <PageHeader title="Resource requests" subtitle="Supplies and other resources faculty ask for." />
-        <div className="card muted p-4 text-sm">Run supabase/migrations/0028_calendar_resources.sql in the Supabase SQL Editor to take resource requests.</div>
+        <div className="card muted p-4 text-sm">Resource requests couldn&apos;t be read just now. Try again in a moment.</div>
       </div>
     );
   }
@@ -39,6 +41,7 @@ export default async function Resources() {
 
   return (
     <div className="space-y-8">
+      <AreaTabs area="supplies" current="/admin/resources" />
       <PageHeader
         title="Resource requests"
         subtitle="Faculty ask for supplies from stock or anything else (a lab, an AV setup) on the Equipment page. Approve or decline here; approving a supply takes it out of stock."

@@ -4,13 +4,13 @@ import { createClient } from "./supabase/server";
 import { addDays, slotStarted, todayIST } from "./time";
 import type { Slot } from "./types";
 
-/** A class exchange: one faculty member asks a free colleague to take one of their classes (migration 0029). */
+/** A class exchange: one faculty member asks a free colleague to take one of their classes */
 export type ExchangeRow = {
   id: number;
   room_id: string;
   date: string;
   slot_id: number;
-  /** Every slot of a back-to-back class (migration 0030); missing or null means just slot_id. */
+  /** Every slot of a back-to-back class; null means just slot_id. */
   slot_ids?: number[] | null;
   subject: string | null;
   new_subject: string | null;
@@ -76,8 +76,8 @@ export function stageOf(x: ExchangeRow, slotById: Map<number, Slot>): ExchangeSt
 export const isOpenStage = (s: ExchangeStage) => s === "pending" || s === "accepted";
 
 /**
- * Exchanges the signed-in person asked for or was asked to take, newest class first, plus
- * whether the table exists yet (null before migration 0029).
+ * Exchanges the signed-in person asked for or was asked to take, newest class first, or
+ * null if they can't be read.
  */
 export async function getMyExchanges(email: string): Promise<{ sent: ExchangeRow[]; received: ExchangeRow[] } | null> {
   const supabase = await createClient();
@@ -126,7 +126,7 @@ export async function exchangeCandidates(date: string, slotIds: number[], subjec
     if (t.is_department) continue;
     for (const ini of t.faculty_initials) teaches.set(ini, [...(teaches.get(ini) ?? []), t.subject]);
   }
-  // Before migration 0029 nobody can be told apart, so everyone is offered
+  // If the sign-in list can't be read, everyone is offered
   const accounts = signed.error ? null : new Set(((signed.data ?? []) as (string | { signed_up_initials: string })[]).map((x) => (typeof x === "string" ? x : x.signed_up_initials)));
   const load = new Map<string, number>();
   for (const f of status ?? []) if (f.busy) load.set(f.initials, (load.get(f.initials) ?? 0) + 1);

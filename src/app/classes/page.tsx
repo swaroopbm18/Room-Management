@@ -8,6 +8,7 @@ import { getPerson } from "@/lib/auth";
 import { getFacultyStatus, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, todayIST } from "@/lib/time";
+import ClassTabs from "@/components/ClassTabs";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -63,13 +64,14 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="space-y-6">
-      <div className="print:hidden">
+      <div className="space-y-4 print:hidden">
+        <ClassTabs view="week" cls={chosen} />
         <PageHeader
           title="Class timetables"
           subtitle={
             admin
               ? "Pick a class, then click a free slot to assign a class to it, or the pencil on a class to change or delete it. Changes take effect from tomorrow."
-              : "Pick your class to see its regular week: the subject, faculty member and room in every slot. One-off changes show on the home page."
+              : "Pick your class to see its regular week: the subject, faculty member and room in every slot. Today and Changes show it as it actually runs."
           }
         >
           {chosen && chosen !== OTHER && (

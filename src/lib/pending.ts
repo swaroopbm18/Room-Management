@@ -7,7 +7,7 @@ export async function pendingRequestCount(): Promise<number> {
   const { data } = await supabase.from("requests").select("group_id").eq("status", "pending").gte("date", todayIST());
   // One request can cover several slots, each its own row
   const requests = new Set((data ?? []).map((r) => r.group_id)).size;
-  // Class exchanges a colleague accepted and that now wait for an admin (none before migration 0029)
+  // Class exchanges a colleague accepted and that now wait for an admin
   const { count } = await supabase.from("class_exchanges").select("id", { count: "exact", head: true }).eq("status", "accepted").gte("date", todayIST());
   return requests + (count ?? 0);
 }

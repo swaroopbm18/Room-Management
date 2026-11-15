@@ -1,10 +1,12 @@
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
 import { ALL_CLASSES, classDay, LINE_STATE, type ClassLine } from "@/lib/classDay";
-import { buildClassTimetable, classesOf, ordinal, type Cell } from "@/lib/classTimetable";
-import { getDayOrders, getDaySchedule, getHolidays, getSlots } from "@/lib/data";
+import { ordinal, type Cell } from "@/lib/classTimetable";
+import { getClassSemesters, getDayOrders, getHolidays, getSlots } from "@/lib/data";
+import type { ScheduleRow } from "@/lib/types";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDate, isClosedSunday, slotEnded, todayIST, WEEKDAY_NAMES } from "@/lib/time";
+import ClassTabs from "@/components/ClassTabs";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -26,19 +28,24 @@ export default async function ClassChanges({ searchParams }: { searchParams: Pro
   const [slots, holidays, orders] = await Promise.all([getSlots(), getHolidays(), getDayOrders()]);
   const supabase = await createClient();
   const dates = Array.from({ length: DAYS_AHEAD }, (_, i) => addDays(today, i)).filter((d) => !isClosedSunday(d));
-  const allRes = await supabase.rpc("get_timetable_all", { p_date: today });
-  const { semesters, allClasses, label } = buildClassTimetable(((allRes.data ?? []) as Cell[]).filter((c) => classesOf(c.subject).length), slots);
+  // The class list, and every day's timetable and room schedule in one call
+  const [semesters, { data: dayData, error }] = await Promise.all([
+    getClassSemesters(today),
+    supabase.rpc("get_class_days", { p_from: dates[0], p_to: dates[dates.length - 1] }),
+  ]);
+  if (error) throw new Error(error.message);
+  const allClasses = semesters.flatMap((x) => x.classes);
+  const label = (k: string) => (k.length === 1 ? `Semester ${k} (all sections)` : `Class ${k}`);
   const requested = String(sp.class ?? "").toUpperCase();
   const chosen = allClasses.includes(requested) ? requested : ALL_CLASSES;
 
-  const days = await Promise.all(
-    dates.map(async (date) => {
-      if (holidays.has(date)) return { date, holiday: holidays.get(date)!, lines: [] as ClassLine[] };
-      const [dayRes, schedule] = await Promise.all([supabase.rpc("get_timetable", { p_date: date }), getDaySchedule(date)]);
-      const lines = classDay(chosen, (dayRes.data ?? []) as Omit<Cell, "weekday">[], schedule, slots).filter((l) => l.state !== "on");
-      return { date, holiday: null, lines };
-    }),
-  );
+  const byDay = new Map(((dayData ?? []) as { day: string; timetable: Omit<Cell, "weekday">[]; schedule: ScheduleRow[] }[]).map((d) => [d.day, d]));
+  const days = dates.map((date) => {
+    if (holidays.has(date)) return { date, holiday: holidays.get(date)!, lines: [] as ClassLine[] };
+    const d = byDay.get(date);
+    const lines = d ? classDay(chosen, d.timetable, d.schedule, slots).filter((l) => l.state !== "on") : [];
+    return { date, holiday: null, lines };
+  });
   const total = days.reduce((n, d) => n + d.lines.length, 0);
   const slotBy = new Map(slots.map((s) => [s.id, s]));
   const time = (ids: number[]) => `${slotBy.get(ids[0])?.label.split(" – ")[0]} – ${slotBy.get(ids[ids.length - 1])?.label.split(" – ")[1]}`;
@@ -57,11 +64,8 @@ export default async function ClassChanges({ searchParams }: { searchParams: Pro
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Class changes" subtitle={`Classes cancelled, moved, taken by another faculty member or replaced by an event or CIE over the next ${DAYS_AHEAD} days. Pick your class to see only its changes.`}>
-        <PendingLink href={chosen === ALL_CLASSES ? "/classes" : `/classes?class=${encodeURIComponent(chosen)}`} className="btn-secondary">
-          Weekly timetable
-        </PendingLink>
-      </PageHeader>
+      <ClassTabs view="changes" cls={chosen} />
+      <PageHeader title="Class timetables" subtitle={`Classes cancelled, moved, taken by another faculty member or replaced by an event or CIE over the next ${DAYS_AHEAD} days. Pick your class to see only its changes.`} />
 
       {allClasses.length > 0 && (
         <nav aria-label="Classes" className="card space-y-2 p-4">

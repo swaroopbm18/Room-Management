@@ -1,10 +1,11 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { IconActivity, IconAlert, IconDashboard, IconArchive, IconPlug, IconCalendar, IconChart, IconLeave, IconCalendarCheck, IconClock, IconDoor, IconFile, IconFlag, IconHistory, IconInbox, IconMegaphone, IconTag, IconSwap, IconUser, IconUsers, IconBook } from "./Icons";
+import { IconActivity, IconDashboard, IconArchive, IconPlug, IconCalendar, IconChart, IconLeave, IconCalendarCheck, IconClock, IconDoor, IconFile, IconFlag, IconInbox, IconMegaphone, IconTag, IconSwap, IconUser, IconUsers, IconBook } from "./Icons";
 import PendingLink from "./PendingLink";
 
-type Tab = { href: string; label: string; icon: React.ReactNode };
+/** `also`: other pages that are views of this tab, reached from tabs inside the page. */
+type Tab = { href: string; label: string; icon: React.ReactNode; also?: string[] };
 type Group = { label: string; icon: React.ReactNode; tabs: Tab[] };
 
 const i = "h-4 w-4";
@@ -17,8 +18,7 @@ const GROUPS: Group[] = [
     icon: <IconInbox className={i} />,
     tabs: [
       { href: "/admin", label: "Room requests", icon: <IconInbox className={i} /> },
-      { href: "/admin/exchanges", label: "Class exchanges", icon: <IconSwap className={i} /> },
-      { href: "/admin/resources", label: "Resource requests", icon: <IconArchive className={i} /> },
+      { href: "/admin/exchanges", label: "Class cover", icon: <IconSwap className={i} /> },
     ],
   },
   {
@@ -26,10 +26,9 @@ const GROUPS: Group[] = [
     icon: <IconFlag className={i} />,
     tabs: [
       { href: "/admin/allot", label: "Allot / free rooms", icon: <IconFlag className={i} /> },
-      { href: "/admin/cie", label: "CIE week", icon: <IconCalendarCheck className={i} /> },
-      { href: "/admin/seating", label: "CIE seating", icon: <IconUsers className={i} /> },
+      { href: "/admin/cie", label: "CIE", icon: <IconCalendarCheck className={i} />, also: ["/admin/seating"] },
       { href: "/admin/rooms", label: "Room details & QR", icon: <IconDoor className={i} /> },
-      { href: "/equipment", label: "Equipment", icon: <IconPlug className={i} /> },
+      { href: "/admin/resources", label: "Equipment & supplies", icon: <IconPlug className={i} /> },
       { href: "/admin/holidays", label: "Calendar & notices", icon: <IconMegaphone className={i} /> },
     ],
   },
@@ -37,9 +36,7 @@ const GROUPS: Group[] = [
     label: "Timetables",
     icon: <IconCalendar className={i} />,
     tabs: [
-      { href: "/admin/timetable", label: "Room timetable", icon: <IconCalendar className={i} /> },
-      { href: "/admin/class-timetable", label: "Class timetable", icon: <IconCalendarCheck className={i} /> },
-      { href: "/admin/health", label: "Health check", icon: <IconAlert className={i} /> },
+      { href: "/admin/timetable", label: "Room & class timetables", icon: <IconCalendar className={i} />, also: ["/admin/class-timetable", "/admin/health"] },
       { href: "/admin/rollover", label: "New semester", icon: <IconArchive className={i} /> },
     ],
   },
@@ -47,8 +44,7 @@ const GROUPS: Group[] = [
     label: "Faculty",
     icon: <IconUsers className={i} />,
     tabs: [
-      { href: "/admin/faculty", label: "Faculty profiles", icon: <IconUser className={i} /> },
-      { href: "/admin/free-time", label: "Availability & meetings", icon: <IconClock className={i} /> },
+      { href: "/admin/faculty", label: "Faculty profiles", icon: <IconUser className={i} />, also: ["/admin/free-time"] },
       { href: "/admin/leave", label: "Leave & substitutes", icon: <IconLeave className={i} /> },
       { href: "/admin/subjects", label: "Subjects", icon: <IconTag className={i} /> },
       { href: "/admin/people", label: "Sign-in list & names", icon: <IconUsers className={i} /> },
@@ -61,8 +57,7 @@ const GROUPS: Group[] = [
       { href: "/admin/report", label: "Report", icon: <IconFile className={i} /> },
       { href: "/admin/usage", label: "Room usage", icon: <IconChart className={i} /> },
       { href: "/admin/workload", label: "Workload", icon: <IconClock className={i} /> },
-      { href: "/admin/history", label: "History", icon: <IconHistory className={i} /> },
-      { href: "/admin/activity", label: "Activity log", icon: <IconActivity className={i} /> },
+      { href: "/admin/activity", label: "Activity log", icon: <IconActivity className={i} />, also: ["/admin/history"] },
     ],
   },
   {
@@ -75,11 +70,12 @@ const GROUPS: Group[] = [
   },
 ];
 
-const isOn = (path: string, href: string) => (href === "/admin" ? path === "/admin" : path === href || path.startsWith(href + "/"));
+const under = (path: string, href: string) => (href === "/admin" ? path === "/admin" : path === href || path.startsWith(href + "/"));
+const isOn = (path: string, t: Tab) => [t.href, ...(t.also ?? [])].some((h) => under(path, h));
 
 export default function AdminNav({ pending }: { pending: number }) {
   const path = usePathname();
-  const group = GROUPS.find((g) => g.tabs.some((t) => isOn(path, t.href))) ?? GROUPS[0];
+  const group = GROUPS.find((g) => g.tabs.some((t) => isOn(path, t))) ?? GROUPS[0];
   return (
     <nav className="mb-6 space-y-2 print:hidden" aria-label="Admin">
       {/* One scrolling row on a phone, wrapping from tablet width up */}
@@ -103,7 +99,7 @@ export default function AdminNav({ pending }: { pending: number }) {
       {group.tabs.length > 1 && (
         <div className="flex gap-1 overflow-x-auto text-sm [scrollbar-width:none] sm:flex-wrap">
           {group.tabs.map((t) => {
-            const on = isOn(path, t.href);
+            const on = isOn(path, t);
             return (
               <PendingLink
                 key={t.href}

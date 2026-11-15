@@ -148,7 +148,8 @@ export default async function FacultyStatus({
       <AvailabilityTabs
         view="day"
         cluster={cluster}
-        showWeek={person?.role === "admin"}
+        signedIn={!!person}
+        admin={person?.role === "admin"}
       />
       <DayNotes notices={[]} today={today} date={date} order={holiday ? undefined : order} />
 
