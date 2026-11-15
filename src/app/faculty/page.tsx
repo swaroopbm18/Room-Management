@@ -1,5 +1,7 @@
 import SubmitButton from "@/components/SubmitButton";
 import Link from "next/link";
+import { headers } from "next/headers";
+import CalendarLink from "@/components/CalendarLink";
 import { IconCalendar, IconCalendarCheck, IconInbox, IconMinusCircle, IconPlus, IconRestore, IconX } from "@/components/Icons";
 import InlineEdit, { Field } from "@/components/InlineEdit";
 import KpiCard from "@/components/KpiCard";
@@ -16,7 +18,7 @@ import { groupRequests, slotCount } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
 import type { RequestRow } from "@/lib/types";
 import { addDays, formatDate, formatDateTime, isClosedSunday, slotEnded, slotStarted, todayIST, workingDay } from "@/lib/time";
-import { dropClass, editRequest, undoDrop, withdrawRequest } from "../actions";
+import { dropClass, editRequest, resetCalendarLink, undoDrop, withdrawRequest } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +30,7 @@ export default async function FacultyDashboard() {
   await getHolidays(); // also loads make-up Sundays
   // My classes over the next 7 days
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i)).filter((d) => !isClosedSunday(d));
-  const [slots, schedule, todayRows, { data: reqData }, week, { data: dropData }, { data: subjectData }] = await Promise.all([
+  const [slots, schedule, todayRows, { data: reqData }, week, { data: dropData }, { data: subjectData }, calRes, hdrs] = await Promise.all([
     getSlots(),
     getMySchedule(today, addDays(today, 6), days),
     getDaySchedule(workingDay(today)),
@@ -36,7 +38,13 @@ export default async function FacultyDashboard() {
     person.initials ? getWeekFor(person.initials) : null,
     supabase.from("allotments").select("id, room_id, date, slot_id, reason").eq("kind", "drop").eq("created_by", person.email).gte("date", today),
     supabase.from("faculty_subjects").select("subject").eq("email", person.email).order("subject"),
+    supabase.rpc("my_calendar_token"),
+    headers(),
   ]);
+  // The private calendar link, on this site's own address (empty before migration 0028)
+  const calToken = typeof calRes.data === "string" ? calRes.data : null;
+  const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host");
+  const calUrl = calToken && host ? `${hdrs.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https")}://${host}/cal/${calToken}.ics` : null;
   const mySubjects = ((subjectData ?? []) as { subject: string }[]).map((x) => x.subject);
   const requests = (reqData ?? []) as RequestRow[];
   const slotById = new Map(slots.map((s) => [s.id, s]));
@@ -74,6 +82,29 @@ export default async function FacultyDashboard() {
         <KpiCard label="My classes, next 7 days" value={mine.length} icon={<IconCalendar />} />
         <KpiCard label="My pending requests" value={pending} tone="ink" icon={<IconInbox />} />
       </section>
+
+      {calUrl && (
+        <section className="card space-y-3 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="inline-flex items-center gap-2 font-semibold">
+                <IconCalendar className="h-5 w-5 text-brand-500" /> Your classes in your own calendar
+              </h2>
+              <p className="muted text-sm">
+                Add this link once and your classes, room bookings, substitute classes and make-up Sundays show in Google Calendar, Outlook or your phone, and stay up to date by
+                themselves. Keep the link to yourself: anyone with it can see your classes.
+              </p>
+            </div>
+            <form action={resetCalendarLink}>
+              <input type="hidden" name="back" value="/faculty" />
+              <SubmitButton className="btn-secondary py-1 text-xs" pendingText="Making a new link…" message="Making a new calendar link…" confirm="Make a new link? The old one stops working, so you'll need to add the new one to your calendar.">
+                New link
+              </SubmitButton>
+            </form>
+          </div>
+          <CalendarLink url={calUrl} />
+        </section>
+      )}
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">My upcoming classes</h2>

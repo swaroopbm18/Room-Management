@@ -10,6 +10,7 @@ import { getHolidays, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { bookableDates, DATE_RE, formatDate, closingDay, makeupFollows, slotEnded, slotOpen, todayIST, workingDay } from "@/lib/time";
 import SlotRange from "../admin/allot/SlotRange";
+import ResourceRequests from "./ResourceRequests";
 import { bookEquipment, cancelEquipment, deleteEquipment, editEquipmentBooking, saveEquipment } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -53,7 +54,7 @@ export default async function Equipment({ searchParams }: { searchParams: Promis
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Equipment" subtitle="Book a portable projector, mic, speaker or kit for your class or event. Each item can be booked by one person per slot, first come first served." />
+      <PageHeader title="Equipment" subtitle="Book a portable projector, mic, speaker or kit for your class or event, first come first served. For supplies, a lab or anything that needs an admin's OK, send a request at the bottom of the page." />
       {!ready && <div className="card muted p-4 text-sm">Equipment booking isn&apos;t set up yet. An admin needs to run supabase/migrations/0024_equipment_and_rollover.sql.</div>}
 
       {ready && (
@@ -273,6 +274,8 @@ export default async function Equipment({ searchParams }: { searchParams: Promis
           )}
         </>
       )}
+
+      <ResourceRequests email={person.email} rooms={rooms} today={today} />
     </div>
   );
 }

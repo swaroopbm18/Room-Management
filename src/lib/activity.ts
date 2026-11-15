@@ -160,6 +160,21 @@ function describe(tbl: string, rows: LogRow[]): string[] {
       for (const n of ins) out.push(`Notice “${str(n.message).slice(0, 80)}”, ${day(n.starts_on)} to ${day(n.ends_on)}`);
       for (const n of del) out.push(`Removed the notice “${str(n.message).slice(0, 80)}”`);
       break;
+    case "supplies":
+      for (const x of ins) out.push(`Added ${str(x.name)} to stock (${str(x.stock)} ${str(x.unit)})`);
+      for (const u of upd) {
+        if (u.old?.stock !== u.new?.stock) out.push(`${str(u.new?.name)} stock ${str(u.old?.stock)} → ${str(u.new?.stock)} ${str(u.new?.unit)}`);
+        else out.push(`Changed ${str(u.new?.name)}`);
+      }
+      break;
+    case "resource_requests": {
+      for (const r of ins) out.push(`${str(r.requester_name)} asked for ${Number(r.quantity) > 1 ? `${str(r.quantity)} × ` : ""}${str(r.item)} on ${day(r.needed_on)}`);
+      for (const u of upd.filter((x) => x.old?.status !== x.new?.status)) {
+        const r = u.new!;
+        out.push(`Resource request ${str(r.status)}: ${str(r.requester_name)}, ${str(r.item)} on ${day(r.needed_on)}`);
+      }
+      break;
+    }
     default:
       out.push(`${rows.length} change(s) to ${tbl}`);
   }

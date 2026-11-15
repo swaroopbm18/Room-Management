@@ -19,7 +19,7 @@ const AHEAD = 14;
 
 type Leave = { id: number; initials: string; starts_on: string; ends_on: string; reason: string; created_by: string };
 type Cell = { room_id: string; slot_id: number; subject: string; faculty_initials: string[]; is_department: boolean };
-type Class = { room_id: string; date: string; slot_id: number; subject: string };
+type Class = { room_id: string; date: string; slot_id: number; subject: string; coveredBy?: string };
 
 /** Faculty on leave, and for each day they're away, their classes and who is free to take them. */
 export default async function LeavePage() {
@@ -53,28 +53,37 @@ export default async function LeavePage() {
     Promise.all(dates.map((d) => supabase.rpc("get_day_schedule", { p_date: d }))),
     Promise.all(dates.map((d) => supabase.rpc("get_timetable", { p_date: d }))),
   ]);
-  /** The classes `ini` still has on `date`: in the timetable and not dropped or booked over. */
+  /**
+   * The classes `ini` has on `date`: in the timetable and not dropped or booked over, or already
+   * given to a substitute (an admin class whose description names them).
+   */
   const classesOf = (ini: string, date: string): Class[] => {
     const i = dates.indexOf(date);
-    const held = new Set(((schedules[i].data ?? []) as ScheduleRow[]).filter((r) => r.status === "class").map((r) => `${r.room_id}|${r.slot_id}`));
+    const rows = (schedules[i].data ?? []) as ScheduleRow[];
+    const held = new Set(rows.filter((r) => r.status === "class").map((r) => `${r.room_id}|${r.slot_id}`));
+    const covered = new Map(
+      rows.filter((r) => r.status === "booked" && r.reason?.startsWith("Substitute for ") && r.reason.includes(`(${ini})`)).map((r) => [`${r.room_id}|${r.slot_id}`, r.faculty_name ?? "a substitute"]),
+    );
     return ((timetables[i].data ?? []) as Cell[])
-      .filter((c) => !c.is_department && c.faculty_initials.includes(ini) && held.has(`${c.room_id}|${c.slot_id}`))
-      .map((c) => ({ room_id: c.room_id, date, slot_id: c.slot_id, subject: c.subject }))
+      .filter((c) => !c.is_department && c.faculty_initials.includes(ini) && (held.has(`${c.room_id}|${c.slot_id}`) || covered.has(`${c.room_id}|${c.slot_id}`)))
+      .map((c) => ({ room_id: c.room_id, date, slot_id: c.slot_id, subject: c.subject, coveredBy: covered.get(`${c.room_id}|${c.slot_id}`) }))
       .sort((a, b) => (slotLabel.get(a.slot_id) ?? "").localeCompare(slotLabel.get(b.slot_id) ?? "") || a.slot_id - b.slot_id);
   };
   const plan = leave.map((l) => ({ l, days: daysOf(l).map((d) => ({ date: d, classes: classesOf(l.initials, d) })) }));
   const all = plan.flatMap((p) => p.days.flatMap((d) => d.classes));
-  const subs = await findSubstitutes(all);
+  const open = all.filter((c) => !c.coveredBy);
+  const subs = await findSubstitutes(open);
   const current = plan.filter((p) => p.l.ends_on >= today);
   const past = plan.filter((p) => p.l.ends_on < today);
-  const toCover = all.length;
+  const toCover = open.filter((c) => c.date >= today).length;
+  const coveredCount = all.length - open.length;
   const byStart = (a: Class, b: Class) => a.slot_id - b.slot_id;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Leave & substitutes"
-        subtitle="Mark a faculty member on leave and they show as busy everywhere, so they're never suggested as a substitute. Their classes in the next two weeks are listed here with the colleagues free to take each one."
+        subtitle="Mark a faculty member on leave and they show as busy everywhere, so they're never suggested as a substitute. Their classes in the next two weeks are listed here with the colleagues free to take each one, best fit first: same course or class, then the lightest day. Assign gives the class to them in one click."
       />
       {!ready && <div className="card muted p-4 text-sm">Run supabase/migrations/0023_leave_and_activity_log.sql in the Supabase SQL Editor to record leave.</div>}
 
@@ -116,7 +125,8 @@ export default async function LeavePage() {
       {ready && (
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">
-            On leave now and coming up <span className="muted text-sm font-normal">· {current.length}{toCover ? ` · ${toCover} class${toCover === 1 ? "" : "es"} to cover` : ""}</span>
+            On leave now and coming up <span className="muted text-sm font-normal">· {current.length}{toCover ? ` · ${toCover} class${toCover === 1 ? "" : "es"} to cover` : ""}
+            {coveredCount ? ` · ${coveredCount} covered` : ""}</span>
           </h2>
           {current.length === 0 && <EmptyState icon={<IconLeave />} title="Nobody is on leave">When you add someone&apos;s leave above, their classes and who is free to cover them show here.</EmptyState>}
           {current.map(({ l, days }) => (
@@ -171,7 +181,14 @@ export default async function LeavePage() {
                               {" "}
                               · {slotLabel.get(c.slot_id)} · {c.room_id}
                             </span>
-                            <Substitutes people={subs.get(`${c.room_id}|${c.date}|${c.slot_id}`)?.people ?? []} />
+                            {c.coveredBy ? (
+                              <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-200">Covered by {c.coveredBy}</span>
+                            ) : (
+                              <Substitutes
+                                people={subs.get(`${c.room_id}|${c.date}|${c.slot_id}`)?.people ?? []}
+                                assign={{ room_id: c.room_id, date: c.date, slot_id: c.slot_id, subject: c.subject, absent: l.initials, absentName: names.get(l.initials) ?? l.initials, back: BACK }}
+                              />
+                            )}
                           </li>
                         ))}
                       </ul>
