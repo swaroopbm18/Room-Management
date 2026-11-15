@@ -59,6 +59,15 @@ export default function UpcomingBookings({ rows, slots, days }: { rows: Upcoming
           <div className={`mt-auto pt-3 text-xs sm:text-sm ${sub}`}>
             <span className="font-semibold">{g.room_id}</span> · {g.first.label.split(" – ")[0]} – {g.last.label.split(" – ")[1]}
           </div>
+          {/* A class exchange to the colleague's own subject: what the students now have, in place of what */}
+          {g.kind === "class_request" && g.reason?.startsWith("Class exchange:") && g.replaced[0] && g.replaced[0].subject !== g.title && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1 text-[11px] sm:text-xs">
+              <span className="rounded-md bg-neutral-100 px-1.5 py-px text-neutral-500 line-through dark:bg-neutral-800 dark:text-neutral-400">{g.replaced[0].subject}</span>
+              <span aria-label="now">→</span>
+              <span className="rounded-md bg-violet-100 px-1.5 py-px font-semibold text-violet-900 dark:bg-violet-950 dark:text-violet-200">{g.title}</span>
+              <span className="muted">class exchange</span>
+            </div>
+          )}
           {/* Requested by (for faculty requests), then who approved it, then what it is for, each on its own line. */}
           {requested && (g.faculty_name || (g.allotted && g.kind === "class_request")) && (
             <div className={`mt-0.5 line-clamp-2 text-xs ${dark ? "text-brand-200/80" : "muted"}`}>

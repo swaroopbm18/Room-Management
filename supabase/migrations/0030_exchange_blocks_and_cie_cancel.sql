@@ -3,6 +3,9 @@
 --    every slot, accepts or declines once, and the admin approves or denies all slots together.
 --    class_exchanges.slot_ids holds every slot; slot_id stays the first one, so older pages and
 --    single-slot requests work as before.
+--    When the colleague teaches their own subject to the same class, the slot is mapped to that
+--    subject (e.g. COA-3E by them in place of DPM-3E), so home, Class changes and the report show
+--    what the students actually have.
 -- 2. Denying keeps the original classes: rejecting never touches the timetable (unchanged), and
 --    an admin can now also take back an approval before the class starts, which gives every
 --    slot back to the original faculty member.
@@ -88,6 +91,20 @@ begin
                 and public.exchange_slots(x) && v_slots
                 and x.status in ('pending', 'accepted')) then
     raise exception 'This class already has an exchange request waiting. Withdraw it first to ask someone else.' using errcode = 'P0001';
+  end if;
+
+  -- The colleague teaches their own subject to the same class when they have one (e.g. COA-3E
+  -- in place of DPM-3E), so the timetable shows what the students will actually have
+  if nullif(btrim(coalesce(p_new_subject, '')), '') is null then
+    select t.subject into p_new_subject
+      from public.timetable_entries t
+     where t.version_id = (select v.id from public.timetable_versions v
+                            where p_date between v.valid_from and v.valid_to
+                            order by v.valid_from desc, v.id desc limit 1)
+       and v_ini = any (t.faculty_initials) and not t.is_department
+       and upper(substring(t.subject from '-\s*(\d{1,2}[A-Za-z]?)$')) = upper(substring(v_subject from '-\s*(\d{1,2}[A-Za-z]?)$'))
+     order by (t.subject ~ '\(P\)'), t.subject
+     limit 1;
   end if;
 
   insert into public.class_exchanges (room_id, date, slot_id, slot_ids, subject, new_subject, requester_email, requester_name, requester_initials,
@@ -179,7 +196,11 @@ begin
     foreach v_slot in array public.exchange_slots(x) loop
       perform public.admin_override(x.room_id, x.date, v_slot, 'class_request',
         coalesce(x.new_subject, x.subject, 'Class'),
-        'Class exchange: ' || x.target_name || ' takes ' || coalesce(x.subject, 'the class') || ' for ' || x.requester_name,
+        -- e.g. "Class exchange: Dr. Nagrathna C R takes COA-3E in place of DPM-3E (Dr. Rajeshwari M R)"
+        case when x.new_subject is not null and x.new_subject is distinct from x.subject
+             then 'Class exchange: ' || x.target_name || ' takes ' || x.new_subject || ' in place of ' || coalesce(x.subject, 'the class') || ' (' || x.requester_name || ')'
+             else 'Class exchange: ' || x.target_name || ' takes ' || coalesce(x.subject, 'the class') || ' for ' || x.requester_name
+        end,
         x.target_initials);
     end loop;
   end if;

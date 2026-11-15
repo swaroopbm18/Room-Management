@@ -52,9 +52,10 @@ export function classDay(chosen: string | undefined, dayCells: DayCell[], schedu
         : state === "taken"
           ? `${r.subject ?? "Booked"}${r.status === "cie" ? " (CIE)" : ""}`
           : state === "changed"
-            ? `${r.subject !== c.subject ? `${r.subject} in place of ${c.subject}` : "Taken by another faculty member"}${r.reason?.startsWith("Class exchange:") ? " · class exchange" : ""}`
+            ? `${r.subject !== c.subject ? `In place of ${c.subject}${r.original_faculty ? ` (${r.original_faculty})` : ""}` : `Taken by another faculty member${r.original_faculty ? ` in place of ${r.original_faculty}` : ""}`}${r.reason?.startsWith("Class exchange:") ? " · class exchange" : ""}`
             : undefined;
-    lines.push({ slotIds: [c.slot_id], subject: c.subject, room: c.room_id, who: state === "on" || state === "changed" ? r.faculty_name : null, state, note });
+    // An exchange to a colleague's own subject shows the class as it now runs (COA-3E by them), with what it replaced
+    lines.push({ slotIds: [c.slot_id], subject: state === "changed" && r.subject ? r.subject : c.subject, room: c.room_id, who: state === "on" || state === "changed" ? r.faculty_name : null, state, note });
   }
   // Class bookings for this class in another room or slot
   for (const r of schedule.filter((r) => r.status === "booked" && forClass(r.subject, chosen))) {
