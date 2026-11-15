@@ -31,6 +31,9 @@ export type ScheduleRow = {
   reason: string | null;
   is_mine: boolean;
   ended: boolean;
+  /** The regular class a booking, CIE or event took the place of (missing before migration 0026). */
+  original_subject?: string | null;
+  original_faculty?: string | null;
 };
 
 export type RequestRow = {
@@ -64,6 +67,8 @@ export type AllotmentRow = {
   faculty_name: string | null;
   reason: string;
   request_id: string | null;
+  /** Initials of the faculty member an admin assigned a class to (migration 0026). */
+  faculty_initials?: string | null;
   created_by: string;
   created_at: string;
 };
@@ -72,6 +77,11 @@ export type AllotmentRow = {
 export type UpcomingRow = Pick<AllotmentRow, "date" | "room_id" | "slot_id" | "kind" | "title" | "faculty_name" | "reason"> & {
   /** The admin who approved the request or allotted the slot (missing before migration 0015). */
   approved_by?: string | null;
+  /** An admin allotted it directly, with no faculty request (migration 0026). */
+  allotted?: boolean;
+  /** The regular class it took the place of (migration 0026). */
+  original_subject?: string | null;
+  original_faculty?: string | null;
 };
 
 /** A request as anyone can see it on a slot: no email, letter or decision note. */

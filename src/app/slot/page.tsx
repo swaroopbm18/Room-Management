@@ -4,6 +4,7 @@ import { IconClock, IconInbox, IconPlus } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
 import EditBooking from "@/components/EditBooking";
+import OriginalClass from "@/components/OriginalClass";
 import RequestStatus from "@/components/RequestStatus";
 import StatusBadge from "@/components/StatusBadge";
 import Substitutes from "@/components/Substitutes";
@@ -102,6 +103,7 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
             </div>
           )}
           {row.reason && <div className="muted mt-1 text-sm">{row.reason}</div>}
+          <OriginalClass subject={row.original_subject} faculty={row.original_faculty} className="mt-1 text-sm" />
           {booking && booking.slotIds.length > 1 && (
             <div className="muted mt-1 text-sm">
               Booked {booking.range} ({booking.slotIds.length} slots in a row)

@@ -10,6 +10,7 @@ import ClosedDay from "@/components/ClosedDay";
 import DayNotes from "@/components/DayNotes";
 import SaturdayClosed from "@/components/SaturdayClosed";
 import UpcomingBookings from "@/components/UpcomingBookings";
+import OriginalClass from "@/components/OriginalClass";
 import {
   getDayOrders,
   getDaySchedule,
@@ -308,6 +309,11 @@ export default async function Home({
                     {r.status !== "department" && r.faculty_name && (
                       <div className="opacity-80">{r.faculty_name}</div>
                     )}
+                    <OriginalClass
+                      subject={r.original_subject}
+                      faculty={r.original_faculty}
+                      className="mt-1 text-xs opacity-80"
+                    />
                     {r.reason && (
                       <div className="mt-1 line-clamp-2 text-xs opacity-70">
                         {r.reason}

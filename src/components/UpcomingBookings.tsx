@@ -11,17 +11,23 @@ const SHOWN = 8;
 /** Events, CIEs and approved bookings in the coming days, consecutive slots of the same booking merged. */
 export default function UpcomingBookings({ rows, slots, days }: { rows: UpcomingRow[]; slots: Slot[]; days: number }) {
   const pos = new Map(slots.map((s, i) => [s.id, i]));
-  type Group = UpcomingRow & { first: Slot; last: Slot };
+  /** The regular classes the booking took the place of, slot by slot. */
+  type Replaced = { at: string; subject: string; faculty: string | null };
+  type Group = UpcomingRow & { first: Slot; last: Slot; replaced: Replaced[] };
   const groups: Group[] = [];
   for (const r of rows) {
     const slot = slots[pos.get(r.slot_id)!];
     const prev = groups.find(
       (g) =>
         g.date === r.date && g.room_id === r.room_id && g.kind === r.kind && g.title === r.title &&
-        g.faculty_name === r.faculty_name && g.reason === r.reason && g.approved_by === r.approved_by && pos.get(g.last.id)! + 1 === pos.get(r.slot_id),
+        g.faculty_name === r.faculty_name && g.reason === r.reason && g.approved_by === r.approved_by && g.allotted === r.allotted &&
+        pos.get(g.last.id)! + 1 === pos.get(r.slot_id),
     );
-    if (prev) prev.last = slot;
-    else groups.push({ ...r, first: slot, last: slot });
+    const replaced = r.original_subject ? [{ at: slot.label.split(" – ")[0], subject: r.original_subject, faculty: r.original_faculty ?? null }] : [];
+    if (prev) {
+      prev.last = slot;
+      prev.replaced.push(...replaced);
+    } else groups.push({ ...r, first: slot, last: slot, replaced });
   }
   groups.sort((a, b) => a.date.localeCompare(b.date) || pos.get(a.first.id)! - pos.get(b.first.id)! || a.room_id.localeCompare(b.room_id));
   const today = todayIST();
@@ -56,8 +62,28 @@ export default function UpcomingBookings({ rows, slots, days }: { rows: Upcoming
             <span className="font-semibold">{g.room_id}</span> · {g.first.label.split(" – ")[0]} – {g.last.label.split(" – ")[1]}
           </div>
           {/* Requested by (for faculty requests), then who approved it, then what it is for, each on its own line. */}
-          {requested && g.faculty_name && (
-            <div className={`mt-0.5 line-clamp-2 text-xs ${dark ? "text-brand-200/80" : "muted"}`}>Requested by {g.faculty_name}</div>
+          {requested && (g.faculty_name || (g.allotted && g.kind === "class_request")) && (
+            <div className={`mt-0.5 line-clamp-2 text-xs ${dark ? "text-brand-200/80" : "muted"}`}>
+              {!g.allotted ? `Requested by ${g.faculty_name}` : g.faculty_name ? `Faculty: ${g.faculty_name}` : "No faculty assigned"}
+            </div>
+          )}
+          {/* The regular class this replaced, e.g. DBMS-3B replaced by an IEEE event */}
+          {g.replaced.length > 0 && (
+            <div
+              className={`mt-2 rounded-xl px-2 py-1 text-[11px] leading-snug sm:text-xs ${
+                dark ? "bg-black/20 text-brand-100 ring-1 ring-white/15 ring-inset" : "bg-amber-50 text-amber-900 ring-1 ring-amber-200 ring-inset dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-900"
+              }`}
+            >
+              <span className="font-semibold">{g.replaced.length === 1 ? "Original class" : "Original classes"}:</span>{" "}
+              {g.replaced.map((x, i) => (
+                <span key={i}>
+                  {i > 0 && "; "}
+                  <s>{x.subject}</s>
+                  {x.faculty && ` · ${x.faculty}`}
+                  {g.replaced.length > 1 && ` (${x.at})`}
+                </span>
+              ))}
+            </div>
           )}
           {g.approved_by && (
             <div
