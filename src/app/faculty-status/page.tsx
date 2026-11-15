@@ -19,7 +19,7 @@ import {
   dateOption,
   defaultSlot,
   formatDate,
-  isSunday,
+  isClosedSunday,
   nextWorkingDay,
   slotOpen,
   todayIST,
@@ -59,7 +59,7 @@ export default async function FacultyStatus({
   const today = todayIST();
   const fallback = defaultSlot(slots, holidays);
   const date =
-    sp.date && DATE_RE.test(sp.date) && !isSunday(sp.date)
+    sp.date && DATE_RE.test(sp.date) && !isClosedSunday(sp.date)
       ? sp.date
       : fallback.date;
   const slotId = slots.some((s) => String(s.id) === sp.slot)
@@ -152,7 +152,7 @@ export default async function FacultyStatus({
       />
       <DayNotes notices={[]} today={today} date={date} order={holiday ? undefined : order} />
 
-      {holiday || isSunday(date) ? (
+      {holiday || isClosedSunday(date) ? (
         <ClosedDay
           date={date}
           holiday={holiday}

@@ -12,7 +12,7 @@ import { groupRequests } from "@/lib/requests";
 import { findSubstitutes } from "@/lib/substitutes";
 import { createClient } from "@/lib/supabase/server";
 import type { RequestRow, ScheduleRow } from "@/lib/types";
-import { formatDate, formatDateTime, isSunday, slotEnded, todayIST, WEEKDAY_NAMES } from "@/lib/time";
+import { formatDate, formatDateTime, isClosedSunday, slotEnded, todayIST, WEEKDAY_NAMES } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +62,7 @@ export default async function AdminHome() {
   for (const p of [...(dirRes.data ?? []), ...(peopleRes.data ?? [])] as { initials: string; title: string | null; full_name: string }[]) {
     names.set(p.initials, p.full_name.trim() ? `${p.title ? p.title + " " : ""}${p.full_name}` : (names.get(p.initials) ?? p.initials));
   }
-  const workingToday = !isSunday(today) && !holidays.has(today);
+  const workingToday = !isClosedSunday(today) && !holidays.has(today);
   const leave = workingToday ? ((leaveRes.data ?? []) as Leave[]) : [];
   const held = new Set(((scheduleRes.data ?? []) as ScheduleRow[]).filter((r) => r.status === "class").map((r) => `${r.room_id}|${r.slot_id}`));
   const cells = (timetableRes.data ?? []) as Cell[];

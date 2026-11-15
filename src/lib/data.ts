@@ -1,6 +1,8 @@
 import { unstable_cache } from "next/cache";
+import { cache } from "react";
 import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { createClient } from "./supabase/server";
+import { setMakeupSundays } from "./time";
 import type { PublicRequest, Room, ScheduleRow, Slot, UpcomingRow } from "./types";
 
 // Rooms and slots are public and almost never change, so they are cached for an hour
@@ -84,21 +86,29 @@ export async function getFacultyStatus(date: string): Promise<FacultySlotStatus[
 
 export type Holiday = { date: string; name: string };
 
-/** Holidays from a week ago on (small list, read fresh so new holidays show at once). */
-export async function getHolidays(): Promise<Map<string, string>> {
+/**
+ * Holidays from a week ago on (small list, read fresh so new holidays show at once). Also loads
+ * the make-up Sundays into lib/time, so isClosedSunday(), workingDay() and the date lists treat
+ * them as working days on every page that reads holidays. Read once per request.
+ */
+export const getHolidays = cache(async (): Promise<Map<string, string>> => {
   const supabase = publicClient();
-  const { data } = await supabase.from("holidays").select("date, name").gte("date", new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10));
+  const [{ data }, orders] = await Promise.all([supabase.from("holidays").select("date, name").gte("date", recent()), getDayOrders()]);
+  setMakeupSundays([...orders.values()].map((o) => [o.date, o.follows]));
   return new Map(((data ?? []) as Holiday[]).map((h) => [h.date, h.name]));
-}
+});
+
+/** Two weeks back, so last week's holidays and swaps still show. */
+const recent = () => new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
 
 export type DayOrder = { date: string; follows: number; note: string };
 
-/** Days that run another weekday's timetable, from a week ago on (empty before migration 0020). */
-export async function getDayOrders(): Promise<Map<string, DayOrder>> {
+/** Days that run another weekday's timetable, from a week ago on (empty before migration 0020). Read once per request. */
+export const getDayOrders = cache(async (): Promise<Map<string, DayOrder>> => {
   const supabase = publicClient();
-  const { data } = await supabase.from("day_orders").select("date, follows, note").gte("date", new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10));
+  const { data } = await supabase.from("day_orders").select("date, follows, note").gte("date", recent());
   return new Map(((data ?? []) as DayOrder[]).map((o) => [o.date, o]));
-}
+});
 
 export type Notice = { id: number; message: string; starts_on: string; ends_on: string };
 

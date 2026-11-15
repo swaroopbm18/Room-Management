@@ -5,11 +5,12 @@ import { isSunday } from "@/lib/time";
 
 /**
  * A date field that refuses Sundays and holidays as you pick, with the reason under it,
- * instead of after the form is sent.
+ * instead of after the form is sent. A make-up Sunday (listed in workingSundays) is allowed.
  */
 export default function DateInput({
   holidays = {},
   allowSunday = false,
+  workingSundays = [],
   defaultValue,
   className = "input",
   ...rest
@@ -17,13 +18,15 @@ export default function DateInput({
   /** date → holiday name; these dates are refused. */
   holidays?: Record<string, string>;
   allowSunday?: boolean;
+  /** Sundays that run a weekday's timetable, so they can be picked. */
+  workingSundays?: string[];
   defaultValue?: string;
   className?: string;
 } & Pick<React.InputHTMLAttributes<HTMLInputElement>, "id" | "name" | "required" | "min" | "max" | "aria-label">) {
   const [problem, setProblem] = useState("");
   const check = (el: HTMLInputElement) => {
     const v = el.value;
-    const why = !v ? "" : !allowSunday && isSunday(v) ? "That's a Sunday. Pick a working day." : holidays[v] ? `That's a holiday (${holidays[v]}). Pick another day.` : "";
+    const why = !v ? "" : !allowSunday && isSunday(v) && !workingSundays.includes(v) ? "That's a Sunday. Pick a working day." : holidays[v] ? `That's a holiday (${holidays[v]}). Pick another day.` : "";
     el.setCustomValidity(why);
     setProblem(why);
   };

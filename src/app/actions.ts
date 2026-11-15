@@ -3,7 +3,7 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { getHolidays, getSlots } from "@/lib/data";
-import { addDays, DATE_RE, formatDate, todayIST } from "@/lib/time";
+import { addDays, DATE_RE, formatDate, isClosedSunday, todayIST, weekdayOf } from "@/lib/time";
 import { createClient } from "@/lib/supabase/server";
 import { fixFor } from "@/lib/fixLinks";
 import type { ParsedEntry } from "@/lib/timetableDocx";
@@ -454,6 +454,27 @@ export async function setDayOrder(form: FormData) {
   );
 }
 
+/**
+ * Make up for a holiday on another day, usually a Sunday: that day runs the timetable the holiday
+ * would have had (its own weekday, or the weekday it was swapped to).
+ */
+export async function makeUpHoliday(form: FormData) {
+  const to = back(form, "/admin/holidays");
+  const holiday = s(form, "holiday");
+  const date = s(form, "date");
+  if (!DATE_RE.test(holiday) || !DATE_RE.test(date)) redirect(withParam(to, "error", "Pick the holiday and the make-up day."));
+  const supabase = await createClient();
+  const [{ data: h }, { data: o }] = await Promise.all([
+    supabase.from("holidays").select("name").eq("date", holiday).maybeSingle(),
+    supabase.from("day_orders").select("follows").eq("date", holiday).maybeSingle(),
+  ]);
+  if (!h) redirect(withParam(to, "error", "That holiday was removed."));
+  const follows = (o as { follows: number } | null)?.follows ?? weekdayOf(holiday);
+  if (follows > 6) redirect(withParam(to, "error", "That holiday is on a Sunday, so there are no classes to make up."));
+  const note = `Make-up for ${(h as { name: string }).name} (${formatDate(holiday, { year: undefined })})`;
+  await run(form, "/admin/holidays", "admin_set_day_order", { p_date: date, p_follows: follows, p_note: note }, `Make-up day saved. ${formatDate(date, { weekday: "long", year: undefined })} runs the classes of ${formatDate(holiday, { weekday: "long", year: undefined })}.`);
+}
+
 export async function addNotice(form: FormData) {
   await run(form, "/admin/holidays", "admin_add_notice", { p_message: s(form, "message"), p_starts: s(form, "starts"), p_ends: s(form, "ends") }, "Notice added.");
 }
@@ -522,7 +543,7 @@ export async function blockCieWeek(form: FormData) {
   const [picked, holidays] = await Promise.all([slotRange(form, to), getHolidays()]);
   const days: string[] = [];
   for (let d = from; d <= until && days.length < 31; d = addDays(d, 1)) {
-    if (new Date(d + "T00:00:00Z").getUTCDay() !== 0 && !holidays.has(d)) days.push(d);
+    if (!isClosedSunday(d) && !holidays.has(d)) days.push(d);
   }
   if (!days.length) redirect(withParam(to, "error", "Those days are all Sundays or holidays."));
   const supabase = await createClient();

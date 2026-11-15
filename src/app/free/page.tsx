@@ -6,7 +6,7 @@ import PageHeader from "@/components/PageHeader";
 import { getPerson } from "@/lib/auth";
 import { getDayOrders, getDaySchedule, getHolidays, getRooms, getSlots, getSlotRequests } from "@/lib/data";
 import { roomMatches, ROOM_KINDS, SEAT_STEPS } from "@/lib/rooms";
-import { bookableDates, DATE_RE, dateOption, formatDate, isSunday, nextWorkingDay, todayIST, workingDay } from "@/lib/time";
+import { bookableDates, DATE_RE, dateOption, formatDate, isClosedSunday, nextWorkingDay, todayIST, workingDay } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,7 @@ export default async function FreeSlots({ searchParams }: { searchParams: Promis
   const [holidays, dayOrders] = await Promise.all([getHolidays(), getDayOrders()]);
   const dates = bookableDates();
   const today = todayIST();
-  if (!sp.date && (isSunday(today) || holidays.has(today))) {
+  if (!sp.date && (isClosedSunday(today) || holidays.has(today))) {
     const next = nextWorkingDay(today, holidays);
     return (
       <div>
@@ -30,7 +30,7 @@ export default async function FreeSlots({ searchParams }: { searchParams: Promis
       </div>
     );
   }
-  const date = sp.date && DATE_RE.test(sp.date) && !isSunday(sp.date) ? sp.date : workingDay(today, holidays);
+  const date = sp.date && DATE_RE.test(sp.date) && !isClosedSunday(sp.date) ? sp.date : workingDay(today, holidays);
   const holiday = holidays.get(date);
   const [person, rooms, slots, day, requests] = await Promise.all([getPerson(), getRooms(), getSlots(), getDaySchedule(date), getSlotRequests(null, date, date)]);
   const canRequest = !!person && dates.includes(date) && !holiday;

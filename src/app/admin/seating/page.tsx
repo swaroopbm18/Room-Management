@@ -7,7 +7,7 @@ import SubmitButton from "@/components/SubmitButton";
 import { getDaySchedule, getHolidays, getRooms, getSlots } from "@/lib/data";
 import { kindLabel } from "@/lib/rooms";
 import { parseGroups, planSeating } from "@/lib/seating";
-import { DATE_RE, formatDate, todayIST, workingDay } from "@/lib/time";
+import { DATE_RE, formatDate, todayIST, workingDay, makeupSundayList } from "@/lib/time";
 import SlotRange from "../allot/SlotRange";
 import { blockCieWeek } from "../../actions";
 
@@ -51,7 +51,7 @@ export default async function Seating({
         <form className="card grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label className="label" htmlFor="st-date">Date</label>
-            <DateInput id="st-date" name="date" defaultValue={date} holidays={Object.fromEntries(holidays)} />
+            <DateInput id="st-date" name="date" defaultValue={date} holidays={Object.fromEntries(holidays)} workingSundays={makeupSundayList()} />
           </div>
           <div className="sm:col-span-1 lg:col-span-2">
             <SlotRange slots={slots} idPrefix="st-" initialFrom={fromI} initialTo={toI} />

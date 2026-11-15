@@ -4,7 +4,7 @@ import PendingLink from "@/components/PendingLink";
 import { buildClassTimetable, classesOf, ordinal, type Cell } from "@/lib/classTimetable";
 import { getDayOrders, getDaySchedule, getHolidays, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
-import { DATE_RE, formatDate, isSunday, nextWorkingDay, slotEnded, todayIST, WEEKDAY_NAMES } from "@/lib/time";
+import { DATE_RE, formatDate, isClosedSunday, nextWorkingDay, slotEnded, todayIST, WEEKDAY_NAMES } from "@/lib/time";
 import type { ScheduleRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +34,7 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
   const [allRes, dayRes, schedule] = await Promise.all([
     supabase.rpc("get_timetable_all", { p_date: date }),
     supabase.rpc("get_timetable", { p_date: date }),
-    isSunday(date) || holidays.has(date) ? Promise.resolve([] as ScheduleRow[]) : getDaySchedule(date),
+    isClosedSunday(date) || holidays.has(date) ? Promise.resolve([] as ScheduleRow[]) : getDaySchedule(date),
   ]);
   const { semesters, allClasses, chosen, label } = buildClassTimetable(((allRes.data ?? []) as Cell[]).filter((c) => classesOf(c.subject).length), slots, sp.class);
   const forMe = (subject: string | null) => !!subject && classesOf(subject).some((k) => k === chosen || k === chosen?.[0]);
@@ -111,7 +111,7 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
       </div>
       {swap && <p className="card p-3 text-sm">This day follows {WEEKDAY_NAMES[swap.follows - 1]}&apos;s timetable{swap.note ? `: ${swap.note}` : "."}</p>}
 
-      {isSunday(date) || holidays.has(date) ? (
+      {isClosedSunday(date) || holidays.has(date) ? (
         <ClosedDay date={date} holiday={holidays.get(date)} nextHref={href(chosen ?? "", next)} nextDate={next} />
       ) : merged.length === 0 ? (
         <p className="card muted p-6 text-sm">No classes for {chosen ? label(chosen) : "this class"} on this day.</p>

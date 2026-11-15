@@ -27,17 +27,20 @@ export default async function RoomWeek({ params, searchParams }: { params: Promi
   const roomId = decodeURIComponent(id);
   const today = todayIST();
   const monday = mondayOf(sp.week && DATE_RE.test(sp.week) ? sp.week : today);
-  const days = Array.from({ length: 6 }, (_, i) => addDays(monday, i));
+  // Monday to Saturday, and Sunday too in case it is a make-up day (left out below if not)
+  const week = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
 
-  const [person, rooms, slots, holidays, schedules, dayOrders, requests] = await Promise.all([
+  const [person, rooms, slots, holidays, weekSchedules, dayOrders, requests] = await Promise.all([
     getPerson(),
     getAllRooms(),
     getSlots(),
     getHolidays(),
-    Promise.all(days.map((d) => getDaySchedule(d))),
+    Promise.all(week.map((d) => getDaySchedule(d))),
     getDayOrders(),
-    getSlotRequests(roomId, days[0], days[5]),
+    getSlotRequests(roomId, week[0], week[6]),
   ]);
+  const days = dayOrders.has(week[6]) ? week : week.slice(0, 6);
+  const schedules = weekSchedules.slice(0, days.length);
   const room = rooms.find((r) => r.id === roomId);
   if (!room) notFound();
 
@@ -79,7 +82,7 @@ export default async function RoomWeek({ params, searchParams }: { params: Promi
         subtitle={
           <>
             {roomSummary(room) && <span className="font-medium text-brand-700 dark:text-brand-300">{roomSummary(room)} · </span>}
-            Week of {formatDate(days[0], { weekday: undefined })} to {formatDate(days[5], { weekday: undefined })}
+            Week of {formatDate(days[0], { weekday: undefined })} to {formatDate(days[days.length - 1], { weekday: undefined })}
             <span className="print:hidden"> · Click a slot to see who has requested it{person ? " or to request it yourself" : ""}</span>
           </>
         }
