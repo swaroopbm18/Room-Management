@@ -856,3 +856,76 @@ export async function clearFacultyDuties(form: FormData) {
   const initials = s(form, "initials").toUpperCase();
   await run(form, "/admin/faculty", "admin_replace_faculty_duties", { p_initials: [initials], p_entries: [] }, `All of ${initials}'s duties cleared.`);
 }
+
+// ---------------------------------------------------------------------------
+// Calendar sync, substitutes and resource requests (migration 0028)
+// ---------------------------------------------------------------------------
+
+/** A new calendar link for the signed-in faculty member; the old one stops working. */
+export async function resetCalendarLink(form: FormData) {
+  await run(form, "/faculty", "reset_calendar_token", {}, "New calendar link made. The old link no longer works, so add the new one to your calendar.");
+}
+
+/**
+ * Give a class whose faculty member is on leave to a substitute: the room is allotted for that
+ * class with the substitute named, so it shows as theirs on every page and in their calendar.
+ */
+export async function assignSubstitute(form: FormData) {
+  const sub = s(form, "sub").toUpperCase();
+  const name = s(form, "sub_name") || sub;
+  const absent = s(form, "absent").toUpperCase();
+  const absentName = s(form, "absent_name") || absent;
+  await run(
+    form,
+    "/admin/leave",
+    "admin_override",
+    {
+      p_room: s(form, "room"),
+      p_date: s(form, "date"),
+      p_slot: Number(s(form, "slot")),
+      p_kind: "class_request",
+      p_title: s(form, "subject") || "Class",
+      p_reason: `Substitute for ${absentName} (${absent}), on leave`,
+      p_faculty: sub,
+    },
+    `${name} will take ${s(form, "subject") || "the class"} on ${formatDate(s(form, "date"), { year: undefined })}.`,
+  );
+}
+
+export async function requestResource(form: FormData) {
+  const supply = Number(s(form, "supply")) || null;
+  await run(
+    form,
+    "/equipment",
+    "request_resource",
+    { p_supply: supply, p_item: s(form, "item"), p_qty: Number(s(form, "qty")) || 1, p_date: s(form, "date"), p_room: s(form, "room"), p_purpose: s(form, "purpose") },
+    "Request sent. An admin will approve or decline it, and you'll see the answer here.",
+  );
+}
+
+export async function cancelResourceRequest(form: FormData) {
+  await run(form, "/equipment", "cancel_resource_request", { p_id: Number(s(form, "id")) }, "Request withdrawn.");
+}
+
+async function decideResource(form: FormData, approve: boolean) {
+  await run(form, "/admin/resources", "admin_decide_resource", { p_id: Number(s(form, "id")), p_approve: approve, p_note: s(form, "note") }, approve ? "Approved." : "Declined.");
+}
+
+export async function approveResource(form: FormData) {
+  await decideResource(form, true);
+}
+
+export async function declineResource(form: FormData) {
+  await decideResource(form, false);
+}
+
+export async function saveSupply(form: FormData) {
+  const id = Number(s(form, "id")) || null;
+  await run(
+    form,
+    "/admin/resources",
+    "admin_save_supply",
+    { p_id: id, p_name: s(form, "name"), p_unit: s(form, "unit"), p_stock: Number(s(form, "stock")), p_active: s(form, "active") !== "off" },
+    id ? "Item saved." : "Item added.",
+  );
+}

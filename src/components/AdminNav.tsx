@@ -12,7 +12,14 @@ const i = "h-4 w-4";
 /** The admin pages in six groups; each group opens on its first page. */
 const GROUPS: Group[] = [
   { label: "Home", icon: <IconDashboard className={i} />, tabs: [{ href: "/admin/home", label: "Admin home", icon: <IconDashboard className={i} /> }] },
-  { label: "Requests", icon: <IconInbox className={i} />, tabs: [{ href: "/admin", label: "Requests", icon: <IconInbox className={i} /> }] },
+  {
+    label: "Requests",
+    icon: <IconInbox className={i} />,
+    tabs: [
+      { href: "/admin", label: "Room requests", icon: <IconInbox className={i} /> },
+      { href: "/admin/resources", label: "Resource requests", icon: <IconArchive className={i} /> },
+    ],
+  },
   {
     label: "Rooms",
     icon: <IconFlag className={i} />,

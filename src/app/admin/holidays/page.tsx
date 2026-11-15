@@ -4,7 +4,9 @@ import { IconCalendar, IconMegaphone, IconPlus, IconSwap, IconX } from "@/compon
 import EmptyState from "@/components/EmptyState";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
-import { getDayOrders, getHolidays, getNotices } from "@/lib/data";
+import { getDayOrders, getHolidays, getNotices, type DayOrder } from "@/lib/data";
+import { createClient } from "@/lib/supabase/server";
+import MakeupPlanner from "./MakeupPlanner";
 import { addDays, formatDate, isSunday, todayIST, weekdayOf, WEEKDAY_NAMES } from "@/lib/time";
 import { addHoliday, addNotice, makeUpHoliday, removeHoliday, removeNotice, setDayOrder, updateHoliday, updateNotice } from "../../actions";
 
@@ -63,7 +65,15 @@ const rowCls = "flex flex-wrap items-center justify-between gap-3 px-4 py-2.5";
 export default async function Calendar() {
   const today = todayIST();
   const tomorrow = addDays(today, 1);
-  const [holidays, orders, notices] = await Promise.all([getHolidays(), getDayOrders(), getNotices(today)]);
+  const supabase = await createClient();
+  const [holidays, orders, notices, pastRes] = await Promise.all([
+    getHolidays(),
+    getDayOrders(),
+    getNotices(today),
+    // Day swaps on past dates, kept for the records (the last semester or so)
+    supabase.from("day_orders").select("date, follows, note").lt("date", today).gte("date", addDays(today, -180)).order("date", { ascending: false }),
+  ]);
+  const pastSwaps = (pastRes.data ?? []) as DayOrder[];
   const holidayMap = Object.fromEntries(holidays);
   const otherHolidays = (d: string) => Object.fromEntries([...holidays].filter(([k]) => k !== d));
   const upcoming = [...holidays.entries()].filter(([d]) => d >= today).sort(([a], [b]) => a.localeCompare(b));
@@ -79,6 +89,47 @@ export default async function Calendar() {
     while (d <= today) d = addDays(d, 7);
     return d;
   })();
+
+  const swapRow = (o: DayOrder) => (
+              <li key={o.date} className={rowCls}>
+                <span className="min-w-0 flex-1">
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    <IconSwap className="h-4 w-4 text-brand-500" />
+                    <span className="font-medium">{formatDate(o.date, { weekday: "long" })}</span>
+                    {isSunday(o.date) && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">Make-up Sunday</span>}
+                    <span className="muted">
+                      · follows {WEEKDAY_NAMES[o.follows - 1]}
+                      {o.note && ` · ${o.note}`}
+                    </span>
+                  </span>
+                    <InlineEdit action={setDayOrder} back={BACK} title={`Edit the day swap on ${o.date}`} message="Saving the day swap…" className="mt-1">
+                      <input type="hidden" name="date" value={o.date} />
+                      <Field label="Follows">
+                        <select name="follows" required defaultValue={String(o.follows)} className="input py-1.5 font-normal">
+                          {WEEKDAY_NAMES.slice(0, 6).map((d, i) => (
+                            <option key={d} value={i + 1}>
+                              {d}&apos;s timetable
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="Note" className="min-w-56 flex-1">
+                        <input name="note" maxLength={120} defaultValue={o.note ?? ""} className="input py-1.5 font-normal" />
+                      </Field>
+                    </InlineEdit>
+                </span>
+                  <form action={setDayOrder}>
+                    <input type="hidden" name="date" value={o.date} />
+                    <input type="hidden" name="follows" value="" />
+                    <input type="hidden" name="old_follows" value={o.follows} />
+                    <input type="hidden" name="old_note" value={o.note ?? ""} />
+                    <input type="hidden" name="back" value={BACK} />
+                    <SubmitButton className="btn-secondary py-1 text-xs" pendingText="Removing…" message="Removing the day swap…" confirm="Remove this day swap? The day goes back to its own timetable.">
+                      <IconX className="h-3.5 w-3.5" /> Remove
+                    </SubmitButton>
+                  </form>
+              </li>
+  );
 
   return (
     <div className="space-y-8">
@@ -139,7 +190,7 @@ export default async function Calendar() {
         id="swaps"
         icon={<IconSwap className="h-5 w-5 text-brand-500" />}
         title="Day swaps"
-        hint="A day that runs another weekday's classes, e.g. a Saturday that follows Monday, or a Sunday that makes up for a holiday. Rooms, free slots and faculty availability all follow it. A Saturday or Sunday that follows a weekday runs the full day; one that follows Saturday ends at 2 PM."
+        hint="A day that runs another weekday's classes, e.g. a Saturday that follows Monday, or a Sunday that makes up for a holiday. Rooms, free slots and faculty availability all follow it. A Saturday or Sunday that follows a weekday runs the full day; one that follows Saturday ends at 2 PM. Past dates can be entered too, for the records."
       >
         <form action={makeUpHoliday} className="space-y-3 rounded-xl border border-brand-200 bg-brand-50/60 p-4 dark:border-brand-900 dark:bg-brand-950/40">
           <input type="hidden" name="back" value={BACK} />
@@ -164,7 +215,7 @@ export default async function Calendar() {
               </div>
               <div>
                 <label className="label" htmlFor="m-date">Make-up day</label>
-                <DateInput id="m-date" name="date" required min={tomorrow} defaultValue={firstSunday} holidays={holidayMap} allowSunday />
+                <DateInput id="m-date" name="date" required defaultValue={firstSunday} holidays={holidayMap} allowSunday />
               </div>
               <SubmitButton pendingText="Saving…" message="Saving the make-up day…">
                 <IconSwap className="h-4 w-4" /> Save make-up day
@@ -175,11 +226,13 @@ export default async function Calendar() {
           )}
         </form>
 
+        <MakeupPlanner holidays={holidays} orders={orders} today={today} back={BACK} />
+
         <form action={setDayOrder} className="grid gap-3 sm:grid-cols-[auto_auto_1fr_auto] sm:items-end">
           <input type="hidden" name="back" value={BACK} />
           <div>
             <label className="label" htmlFor="o-date">Date</label>
-            <DateInput id="o-date" name="date" required min={tomorrow} holidays={holidayMap} allowSunday />
+            <DateInput id="o-date" name="date" required holidays={holidayMap} allowSunday />
           </div>
           <div>
             <label className="label" htmlFor="o-follows">Follows</label>
@@ -200,56 +253,15 @@ export default async function Calendar() {
           </SubmitButton>
         </form>
         {swaps.length > 0 ? (
-          <ul className={listCls}>
-            {swaps.map((o) => (
-              <li key={o.date} className={rowCls}>
-                <span className="min-w-0 flex-1">
-                  <span className="inline-flex flex-wrap items-center gap-2">
-                    <IconSwap className="h-4 w-4 text-brand-500" />
-                    <span className="font-medium">{formatDate(o.date, { weekday: "long" })}</span>
-                    {isSunday(o.date) && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">Make-up Sunday</span>}
-                    <span className="muted">
-                      · follows {WEEKDAY_NAMES[o.follows - 1]}
-                      {o.note && ` · ${o.note}`}
-                    </span>
-                  </span>
-                  {o.date > today && (
-                    <InlineEdit action={setDayOrder} back={BACK} title={`Edit the day swap on ${o.date}`} message="Saving the day swap…" className="mt-1">
-                      <input type="hidden" name="date" value={o.date} />
-                      <Field label="Follows">
-                        <select name="follows" required defaultValue={String(o.follows)} className="input py-1.5 font-normal">
-                          {WEEKDAY_NAMES.slice(0, 6).map((d, i) => (
-                            <option key={d} value={i + 1}>
-                              {d}&apos;s timetable
-                            </option>
-                          ))}
-                        </select>
-                      </Field>
-                      <Field label="Note" className="min-w-56 flex-1">
-                        <input name="note" maxLength={120} defaultValue={o.note ?? ""} className="input py-1.5 font-normal" />
-                      </Field>
-                    </InlineEdit>
-                  )}
-                </span>
-                {o.date > today ? (
-                  <form action={setDayOrder}>
-                    <input type="hidden" name="date" value={o.date} />
-                    <input type="hidden" name="follows" value="" />
-                    <input type="hidden" name="old_follows" value={o.follows} />
-                    <input type="hidden" name="old_note" value={o.note ?? ""} />
-                    <input type="hidden" name="back" value={BACK} />
-                    <SubmitButton className="btn-secondary py-1 text-xs" pendingText="Removing…" message="Removing the day swap…" confirm="Remove this day swap? The day goes back to its own timetable.">
-                      <IconX className="h-3.5 w-3.5" /> Remove
-                    </SubmitButton>
-                  </form>
-                ) : (
-                  <span className="muted text-xs">Today</span>
-                )}
-              </li>
-            ))}
-          </ul>
+          <ul className={listCls}>{swaps.map(swapRow)}</ul>
         ) : (
           <EmptyState icon={<IconSwap />} title="No day swaps coming up">Every day follows its own timetable. Add a swap when a Saturday runs a weekday&apos;s classes, or make up for a holiday on a Sunday.</EmptyState>
+        )}
+        {pastSwaps.length > 0 && (
+          <details className="group">
+            <summary className="cursor-pointer text-sm font-medium text-brand-700 dark:text-brand-300">Past day swaps, kept for the records · {pastSwaps.length}</summary>
+            <ul className={`${listCls} mt-2`}>{pastSwaps.map(swapRow)}</ul>
+          </details>
         )}
       </Section>
 
