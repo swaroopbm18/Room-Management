@@ -109,11 +109,10 @@ export function isFree(weeks: Weeks, initials: string, weekday: number, slotId: 
 export type Suggestion = { weekday: number; slotIds: number[]; free: FacultyMember[]; busy: FacultyMember[] };
 
 /**
- * Meeting times of `length` slots in a row, best first: the most faculty free for the whole
- * meeting, then a day not already suggested, then earlier in the week and day. Runs of slots
- * must be back to back (no tea break in between, e.g. 9:50 to 10:20).
+ * Every meeting time of `length` back-to-back slots in the week, Monday to Saturday in time
+ * order, with who is free for all of it.
  */
-export function suggestMeetings(weeks: Weeks, people: FacultyMember[], slots: Slot[], slotIds: number[], length: number, limit = 3): Suggestion[] {
+export function allMeetings(weeks: Weeks, people: FacultyMember[], slots: Slot[], slotIds: number[], length: number): Suggestion[] {
   const usable = slots.filter((s) => slotIds.includes(s.id)).sort((a, b) => a.starts.localeCompare(b.starts));
   const runs: number[][] = [];
   for (let i = 0; i + length <= usable.length; i++) {
@@ -128,6 +127,16 @@ export function suggestMeetings(weeks: Weeks, people: FacultyMember[], slots: Sl
       out.push({ weekday: wd, slotIds: run, free, busy: people.filter((p) => !free.includes(p)) });
     }
   }
+  return out;
+}
+
+/**
+ * Meeting times of `length` slots in a row, best first: the most faculty free for the whole
+ * meeting, then a day not already suggested, then earlier in the week and day. Runs of slots
+ * must be back to back (no tea break in between, e.g. 9:50 to 10:20).
+ */
+export function suggestMeetings(weeks: Weeks, people: FacultyMember[], slots: Slot[], slotIds: number[], length: number, limit = 3): Suggestion[] {
+  const out = allMeetings(weeks, people, slots, slotIds, length);
   const left = out.sort((a, b) => b.free.length - a.free.length);
   // Among equally good times, spread the picks over different days
   const picked: Suggestion[] = [];

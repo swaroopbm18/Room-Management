@@ -5,7 +5,7 @@ import MeetingPicker from "@/components/MeetingPicker";
 import PageHeader from "@/components/PageHeader";
 import AvailabilityTabs from "@/components/AvailabilityTabs";
 import { getSlots } from "@/lib/data";
-import { cellKey, CLUSTERS, DAY_NAMES, DAY_SLOTS, DAYS, getFacultyWeeks, isFree, isOpen, suggestMeetings, type ClusterKey } from "@/lib/faculty";
+import { cellKey, CLUSTERS, DAY_NAMES, DAY_SLOTS, DAYS, getFacultyWeeks, isFree, isOpen, allMeetings, suggestMeetings, type ClusterKey } from "@/lib/faculty";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +59,8 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
   const length = Math.min(3, Math.max(1, Number(sp.len) || 1));
   const attendees = chosen.size ? group.filter((f) => chosen.has(f.initials)) : group;
   const suggestions = attendees.length ? suggestMeetings(weeks, attendees, slots, DAY_SLOTS, length) : [];
+  const everyTime = attendees.length ? allMeetings(weeks, attendees, slots, DAY_SLOTS, length) : [];
+  const allFree = everyTime.filter((m) => m.busy.length === 0);
   const runLabel = (ids: number[]) => `${slotById.get(ids[0])!.label.split(" – ")[0]} – ${slotById.get(ids[ids.length - 1])!.label.split(" – ")[1]}`;
   const what = (ini: string, wd: number, ids: number[]) =>
     [...new Set(ids.flatMap((id) => (weeks.get(ini)?.get(cellKey(wd, id)) ?? []).map((b) => b.activity)))].join(", ");
@@ -235,7 +237,7 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
                 <option value="3">3 slots in a row</option>
               </select>
             </div>
-            <p className="muted self-end pb-2 text-sm">The 3 best times, Monday to Friday 8:00 AM to 4:45 PM and Saturday until 2 PM.</p>
+            <p className="muted self-end pb-2 text-sm">The 3 best times, then every time in the week: Monday to Friday 8:00 AM to 4:45 PM and Saturday until 2 PM.</p>
           </MeetingPicker>
           <div className="flex justify-end sm:col-span-3">
             <button className="btn-primary">
@@ -294,6 +296,73 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
           })}
           {suggestions.length === 0 && <li className="card muted p-6 text-sm lg:col-span-3">Nobody to invite yet. Pick a group with faculty in it.</li>}
         </ol>
+
+        {everyTime.length > 0 && (
+          <div id="all-times" className="card scroll-mt-4 overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-100 px-4 py-3 dark:border-brand-900/70">
+              <div>
+                <h3 className="font-semibold">Every possible time this week</h3>
+                <p className="muted text-xs">
+                  {allFree.length
+                    ? `${allFree.length} of ${everyTime.length} times have all ${attendees.length} free`
+                    : `No time has all ${attendees.length} free. Each time shows how many can attend.`}
+                  {length > 1 ? ` · ${length} slots in a row` : ""}
+                </p>
+              </div>
+              <span className="muted flex items-center gap-3 text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-3 w-3 rounded bg-brand-700 dark:bg-brand-500" aria-hidden /> Everyone free
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-3 w-3 rounded border border-brand-200 bg-white dark:border-brand-900 dark:bg-ink" aria-hidden /> Some busy
+                </span>
+              </span>
+            </div>
+            <div className="grid gap-px bg-brand-100 sm:grid-cols-2 lg:grid-cols-3 dark:bg-brand-900/70">
+              {DAY_NAMES.map((day, i) => {
+                const times = everyTime.filter((m) => m.weekday === i + 1);
+                const clear = times.filter((m) => m.busy.length === 0).length;
+                return (
+                  <div key={day} className="bg-white p-4 dark:bg-ink">
+                    <div className="mb-2 flex items-baseline justify-between gap-2">
+                      <span className="font-semibold">{day}</span>
+                      <span className={`text-xs ${clear ? "font-medium text-brand-700 dark:text-brand-300" : "muted"}`}>
+                        {clear ? `${clear} with everyone free` : "No time with everyone free"}
+                      </span>
+                    </div>
+                    <ul className="space-y-1.5">
+                      {times.map((m) => {
+                        const ok = m.busy.length === 0;
+                        return (
+                          <li
+                            key={m.slotIds.join()}
+                            className={`rounded-lg px-3 py-1.5 text-sm ${
+                              ok
+                                ? "bg-gradient-to-br from-brand-700 to-brand-900 text-white"
+                                : "border border-brand-100 dark:border-brand-900"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium whitespace-nowrap">{runLabel(m.slotIds)}</span>
+                              <span className={`text-xs whitespace-nowrap ${ok ? "text-brand-100" : "muted"}`}>
+                                {ok ? "Everyone free" : `${m.free.length} / ${attendees.length} free`}
+                              </span>
+                            </div>
+                            {!ok && (
+                              <div className="muted mt-0.5 truncate text-xs" title={m.busy.map((f) => `${f.name}: ${what(f.initials, m.weekday, m.slotIds)}`).join("\n")}>
+                                Busy: {m.busy.map((f) => f.initials).join(", ")}
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );
