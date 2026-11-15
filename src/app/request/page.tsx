@@ -6,7 +6,7 @@ import { getDaySchedule, getFacultyStatus, getHolidays, getRooms } from "@/lib/d
 import { suggestRooms } from "@/lib/rooms";
 import { sectionRows } from "@/lib/clashes";
 import { createClient } from "@/lib/supabase/server";
-import { addDays, bookableDates, DATE_RE, formatDate } from "@/lib/time";
+import { addDays, bookableDates, DATE_RE, formatDate, todayIST } from "@/lib/time";
 import RequestForm from "./RequestForm";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +19,26 @@ export default async function RequestPage({
   const sp = await searchParams;
   const person = await requireStaff();
   const date = sp.date && DATE_RE.test(sp.date) ? sp.date : "";
+  // Requests are for slots still to come. Records of past events are kept by admins (Allot a room),
+  // and the database refuses a request for a slot that has ended either way.
+  if (date && date < todayIST()) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <div className="card p-8 text-center">
+          <h1 className="text-xl font-semibold">Past dates can&apos;t be requested</h1>
+          <p className="muted mt-2 text-sm">
+            {formatDate(date)} has gone by. Only admins can record an event or class that already took place
+            {person.role === "admin" ? ", from Allot a room." : ". Ask the HoD or a Time Table Officer to add it."}
+          </p>
+          {person.role === "admin" ? (
+            <Link href={`/admin/allot?date=${date}`} className="btn-primary mt-6">Record it on Allot a room</Link>
+          ) : (
+            <Link href="/free" className="btn-primary mt-6">See today&apos;s free slots</Link>
+          )}
+        </div>
+      </div>
+    );
+  }
   const holidays = await getHolidays();
   const day = date && !holidays.has(date) ? await getDaySchedule(date) : [];
   const row = day.find((r) => r.room_id === sp.room && String(r.slot_id) === sp.slot);

@@ -14,7 +14,14 @@ type ReportRow = {
   faculty_name: string | null;
   reason: string;
   subject: string | null;
+  /** Missing before migration 0026. Null for a class or event an admin allotted directly. */
+  request_id?: string | null;
+  /** Whose regular class the change replaced (migration 0026). */
+  original_faculty?: string | null;
 };
+
+/** A class an admin allotted directly, not a faculty request (needs migration 0026 to tell). */
+const adminClass = (r: Pick<ReportRow, "kind" | "request_id">) => r.kind === "class_request" && r.request_id === null;
 
 export type ReportEntry = { date: string; time: string; room: string; faculty: string; type: string; mode: string; description: string };
 
@@ -30,7 +37,8 @@ const TYPE: Partial<Record<AllotmentRow["kind"], string>> = {
  * How the change came about: a faculty member requested that date and time (and an admin approved it),
  * an admin allotted it directly, or the class was dropped by its faculty or removed by an admin.
  */
-function modeOf(r: Pick<ReportRow, "kind" | "reason">): string {
+function modeOf(r: Pick<ReportRow, "kind" | "reason" | "request_id">): string {
+  if (adminClass(r)) return "Admin allotment";
   switch (r.kind) {
     case "class_request":
     case "event_request":
@@ -62,7 +70,10 @@ export async function getReport(start: string, end: string, fromSlot: number, to
   const hi = order.get(toSlot) ?? slots.length - 1;
 
   const rows = ((data ?? []) as ReportRow[]).filter((r) => TYPE[r.kind] && order.get(r.slot_id)! >= lo && order.get(r.slot_id)! <= hi);
-  const merged: (ReportRow & { last: ReportRow })[] = [];
+  const merged: (ReportRow & { last: ReportRow; replaced: string[] })[] = [];
+  // The regular class a booking, CIE or event replaced, e.g. "DBMS-3B (Dr. Ashok Kumar N)"
+  const replacedOf = (r: ReportRow) =>
+    r.kind !== "drop" && r.subject ? [`${r.subject}${r.original_faculty ? ` (${r.original_faculty})` : ""}`] : [];
   for (const r of rows) {
     const prev = merged.findLast((m) => m.date === r.date && m.room_id === r.room_id);
     const same =
@@ -72,25 +83,28 @@ export async function getReport(start: string, end: string, fromSlot: number, to
       prev.reason === r.reason &&
       prev.title === r.title &&
       order.get(prev.last.slot_id)! + 1 === order.get(r.slot_id);
-    if (same) prev.last = r;
-    else merged.push({ ...r, last: r });
+    if (same) {
+      prev.last = r;
+      for (const x of replacedOf(r)) if (!prev.replaced.includes(x)) prev.replaced.push(x);
+    } else merged.push({ ...r, last: r, replaced: replacedOf(r) });
   }
 
   return merged
     .sort((a, b) => a.date.localeCompare(b.date) || a.starts.localeCompare(b.starts) || a.room_id.localeCompare(b.room_id))
     .map((m) => {
-      const what =
+      const base =
         m.kind === "drop"
           ? [m.subject, m.reason].filter(Boolean).join(": ")
           : m.kind === "class_request"
-            ? m.reason
+            ? [adminClass(m) && m.title && m.title !== "Class" ? m.title : null, m.reason].filter(Boolean).join(": ")
             : [m.title && !["Event", "CIE"].includes(m.title) ? m.title : null, m.reason].filter(Boolean).join(": ");
+      const what = m.replaced.length ? `${base} (in place of ${m.replaced.join(", ")})` : base;
       return {
         date: m.date,
         time: `${clock(m.starts)} – ${clock(m.last.ends)}`,
         room: m.room_id,
-        faculty: m.faculty_name ?? "",
-        type: TYPE[m.kind]!,
+        faculty: m.faculty_name ?? (adminClass(m) ? "No faculty assigned" : ""),
+        type: adminClass(m) ? "Class" : TYPE[m.kind]!,
         mode: modeOf(m),
         description: what,
       };

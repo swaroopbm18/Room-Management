@@ -3,7 +3,7 @@
 import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { getHolidays, getSlots } from "@/lib/data";
-import { addDays, formatDate, todayIST } from "@/lib/time";
+import { addDays, DATE_RE, formatDate, todayIST } from "@/lib/time";
 import { createClient } from "@/lib/supabase/server";
 import { fixFor } from "@/lib/fixLinks";
 import type { ParsedEntry } from "@/lib/timetableDocx";
@@ -115,19 +115,31 @@ export async function moveRequest(form: FormData) {
 export async function adminOverride(form: FormData) {
   // Every slot from the start slot to the end slot, in the day's order.
   const picked = await slotRange(form);
+  const kind = s(form, "kind");
+  const date = s(form, "date");
+  // Only admins reach this (the database checks too), and only they may record a past date.
+  const past = DATE_RE.test(date) && date < todayIST();
+  const n = picked.length === 1 ? "" : ` for ${picked.length} slots`;
   await run(
     form,
     "/admin/allot",
     "admin_override_slots",
     {
       p_room: s(form, "room"),
-      p_date: s(form, "date"),
+      p_date: date,
       p_slots: picked,
-      p_kind: s(form, "kind"),
+      p_kind: kind,
       p_title: s(form, "title"),
       p_reason: s(form, "reason"),
+      // A class names its faculty (initials) or none; sent only for a class, so CIEs and events
+      // keep working before migration 0026 is run.
+      ...(kind === "class_request" ? { p_faculty: s(form, "faculty") || null } : {}),
     },
-    picked.length === 1 ? "Room allotted." : `Room allotted for ${picked.length} slots.`,
+    past
+      ? `Recorded for ${formatDate(date)}${n}. It shows in History and the Report.`
+      : kind === "class_request"
+        ? `Room allotted for the class${n}.`
+        : `Room allotted${n}.`,
   );
 }
 
