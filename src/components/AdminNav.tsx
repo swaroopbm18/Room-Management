@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { IconActivity, IconAlert, IconDashboard, IconArchive, IconPlug, IconCalendar, IconChart, IconLeave, IconCalendarCheck, IconClock, IconDoor, IconFile, IconFlag, IconHistory, IconInbox, IconMegaphone, IconTag, IconUser, IconUsers } from "./Icons";
+import { IconActivity, IconAlert, IconDashboard, IconArchive, IconPlug, IconCalendar, IconChart, IconLeave, IconCalendarCheck, IconClock, IconDoor, IconFile, IconFlag, IconHistory, IconInbox, IconMegaphone, IconTag, IconSwap, IconUser, IconUsers } from "./Icons";
 import PendingLink from "./PendingLink";
 
 type Tab = { href: string; label: string; icon: React.ReactNode };
@@ -17,6 +17,7 @@ const GROUPS: Group[] = [
     icon: <IconInbox className={i} />,
     tabs: [
       { href: "/admin", label: "Room requests", icon: <IconInbox className={i} /> },
+      { href: "/admin/exchanges", label: "Class exchanges", icon: <IconSwap className={i} /> },
       { href: "/admin/resources", label: "Resource requests", icon: <IconArchive className={i} /> },
     ],
   },

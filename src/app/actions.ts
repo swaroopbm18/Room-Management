@@ -929,3 +929,53 @@ export async function saveSupply(form: FormData) {
     id ? "Item saved." : "Item added.",
   );
 }
+
+// ---------------------------------------------------------------------------
+// Class exchange (migration 0029)
+// ---------------------------------------------------------------------------
+
+const MIGRATION_0029 = "Run supabase/migrations/0029_class_exchanges.sql in the Supabase SQL Editor first.";
+
+async function run29(form: FormData, fallback: string, fn: string, args: Record<string, unknown>, ok: string, okTo?: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc(fn, args);
+  const to = !error && okTo ? okTo : back(form, fallback);
+  revalidatePath("/", "layout");
+  const m = error ? (error.message.includes(fn) || error.message.includes("class_exchanges") ? MIGRATION_0029 : error.message) : ok;
+  redirect(withParam(to, error ? "error" : "msg", m));
+}
+
+/** Ask a free colleague to take one of my classes. They accept, then an admin approves. */
+export async function requestExchange(form: FormData) {
+  const target = s(form, "target");
+  if (!target) redirect(withParam(back(form, "/faculty"), "error", "Pick who should take the class."));
+  const [ini, name, teaches] = target.split("|");
+  await run29(
+    form,
+    "/faculty?tab=requests",
+    "request_exchange",
+    { p_room: s(form, "room"), p_date: s(form, "date"), p_slot: Number(s(form, "slot")), p_target: ini, p_note: s(form, "note"), p_new_subject: teaches || null },
+    `Request sent to ${name || ini}. Once they accept, an admin gives the final approval; you'll see each step here.`,
+    "/faculty?tab=requests",
+  );
+}
+
+export async function acceptExchange(form: FormData) {
+  await run29(form, "/faculty?tab=exchange", "respond_exchange", { p_id: Number(s(form, "id")), p_accept: true, p_note: s(form, "note") }, "Accepted. It now waits for an admin's final approval.");
+}
+
+export async function declineExchange(form: FormData) {
+  await run29(form, "/faculty?tab=exchange", "respond_exchange", { p_id: Number(s(form, "id")), p_accept: false, p_note: s(form, "note") }, "Declined. The faculty member can ask someone else.");
+}
+
+export async function withdrawExchange(form: FormData) {
+  await run29(form, "/faculty?tab=requests", "withdraw_exchange", { p_id: Number(s(form, "id")) }, "Exchange request withdrawn.");
+}
+
+export async function approveExchange(form: FormData) {
+  await run29(form, "/admin/exchanges", "admin_decide_exchange", { p_id: Number(s(form, "id")), p_approve: true, p_note: s(form, "note") }, "Approved. The class now shows as the new faculty member's everywhere.");
+}
+
+export async function rejectExchange(form: FormData) {
+  await run29(form, "/admin/exchanges", "admin_decide_exchange", { p_id: Number(s(form, "id")), p_approve: false, p_note: s(form, "note") }, "Exchange rejected.");
+}
