@@ -41,6 +41,7 @@ export function slotOpen(weekday: number, slot: { starts: string }): boolean {
  */
 export function closingDay(date: string, follows?: number): number {
   const wd = weekdayOf(date);
+  if (wd === 7 && follows) return follows; // a make-up Sunday closes like the day it follows
   return wd === 6 && follows && follows !== 6 ? follows : wd;
 }
 
@@ -50,22 +51,54 @@ export function isSunday(date: string): boolean {
   return new Date(date + "T00:00:00Z").getUTCDay() === 0;
 }
 
-/** The Monday of the week the date falls in (weeks run Monday to Saturday here). */
+/**
+ * Sundays that run a weekday's timetable (a make-up day for a holiday). They are the same for
+ * everyone, so getHolidays() keeps this list current on the server, and the browser gets it
+ * from the page (see WorkingSundays).
+ */
+let makeupSundays = new Map<string, number>();
+
+/** Date and the weekday whose timetable it runs (1 = Monday); days that aren't Sundays are ignored. */
+export function setMakeupSundays(days: Iterable<[string, number]>): void {
+  makeupSundays = new Map([...days].filter(([d]) => isSunday(d)));
+}
+
+export function isMakeupSunday(date: string): boolean {
+  return makeupSundays.has(date);
+}
+
+/** Make-up Sundays, to hand to a date field in the browser. */
+export function makeupSundayList(): string[] {
+  return [...makeupSundays.keys()];
+}
+
+/** The weekday a make-up Sunday runs (1 = Monday), or undefined for any other day. */
+export function makeupFollows(date: string): number | undefined {
+  return makeupSundays.get(date);
+}
+
+/** A Sunday with no classes: every Sunday except a make-up day. */
+export function isClosedSunday(date: string): boolean {
+  return isSunday(date) && !makeupSundays.has(date);
+}
+
+/** The Monday of the week the date falls in (weeks run Monday to Saturday here, plus a make-up Sunday). */
 export function mondayOf(date: string): string {
   const day = new Date(date + "T00:00:00Z").getUTCDay(); // 0 = Sunday
-  return addDays(date, day === 0 ? 1 : 1 - day);
+  if (day === 0) return addDays(date, makeupSundays.has(date) ? -6 : 1);
+  return addDays(date, 1 - day);
 }
 
 /** The first day after `date` that is neither a Sunday nor a holiday. */
 export function nextWorkingDay(date: string, holidays: Map<string, string> = new Map()): string {
   let d = addDays(date, 1);
-  while (isSunday(d) || holidays.has(d)) d = addDays(d, 1);
+  while (isClosedSunday(d) || holidays.has(d)) d = addDays(d, 1);
   return d;
 }
 
 /** The date itself, or the next day that is neither a Sunday nor a holiday. */
 export function workingDay(date: string, holidays: Map<string, string> = new Map()): string {
-  return isSunday(date) || holidays.has(date) ? nextWorkingDay(date, holidays) : date;
+  return isClosedSunday(date) || holidays.has(date) ? nextWorkingDay(date, holidays) : date;
 }
 
 export function minutes(time: string): number {
@@ -96,8 +129,8 @@ export function defaultSlot(slots: Slot[], holidays: Map<string, string> = new M
   const today = isoDate(n);
   const now = n.getUTCHours() * 60 + n.getUTCMinutes();
   const sorted = [...slots].sort((a, b) => minutes(a.starts) - minutes(b.starts));
-  if (!isSunday(today) && !holidays.has(today)) {
-    const current = sorted.find((s) => now < minutes(s.ends) && slotOpen(weekdayOf(today), s));
+  if (!isClosedSunday(today) && !holidays.has(today)) {
+    const current = sorted.find((s) => now < minutes(s.ends) && slotOpen(closingDay(today, makeupSundays.get(today)), s));
     if (current) return { date: today, slotId: current.id };
   }
   return { date: nextWorkingDay(today, holidays), slotId: sorted[0]?.id ?? 1 };
@@ -125,24 +158,24 @@ export function formatDateTime(ts: string): string {
   });
 }
 
-/** Days from today, up to the 4-week booking window, without Sundays. Holidays are listed but can't be booked. */
+/** Days from today, up to the 4-week booking window, without Sundays (except make-up days). Holidays are listed but can't be booked. */
 export function bookableDates(): string[] {
   const out: string[] = [];
   const today = todayIST();
   for (let i = 0; i <= 28; i++) {
     const d = addDays(today, i);
-    if (!isSunday(d)) out.push(d);
+    if (!isClosedSunday(d)) out.push(d);
   }
   return out;
 }
 
-/** Days a week back and four weeks ahead, without Sundays, for browsing the timetable. */
+/** Days a week back and four weeks ahead, without Sundays (except make-up days), for browsing the timetable. */
 export function viewableDates(): string[] {
   const out: string[] = [];
   const today = todayIST();
   for (let i = -7; i <= 28; i++) {
     const d = addDays(today, i);
-    if (!isSunday(d)) out.push(d);
+    if (!isClosedSunday(d)) out.push(d);
   }
   return out;
 }

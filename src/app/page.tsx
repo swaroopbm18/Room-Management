@@ -28,7 +28,7 @@ import {
   dateOption,
   defaultSlot,
   formatDate,
-  isSunday,
+  isClosedSunday,
   mondayOf,
   nextWorkingDay,
   slotOpen,
@@ -64,7 +64,7 @@ export default async function Home({
   const [slots, holidays, dayOrders] = await Promise.all([getSlots(), getHolidays(), getDayOrders()]);
   const today = todayIST();
   // On a Sunday or holiday, say so instead of jumping to the next working day on its own.
-  if (!sp.date && (isSunday(today) || holidays.has(today))) {
+  if (!sp.date && (isClosedSunday(today) || holidays.has(today))) {
     const next = nextWorkingDay(today, holidays);
     return (
       <div className="space-y-6">
@@ -91,7 +91,7 @@ export default async function Home({
   }
   const fallback = defaultSlot(slots, holidays);
   const date =
-    sp.date && DATE_RE.test(sp.date) && !isSunday(sp.date)
+    sp.date && DATE_RE.test(sp.date) && !isClosedSunday(sp.date)
       ? sp.date
       : fallback.date;
   const holiday = holidays.get(date);

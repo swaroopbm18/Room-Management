@@ -10,7 +10,7 @@ import { mergeRuns } from "@/lib/bookings";
 import { getDaySchedule, getHolidays, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { AllotmentRow } from "@/lib/types";
-import { addDays, bookableDates, DATE_RE, dateOption, formatDate, formatDateTime, isSunday, slotEnded, todayIST, workingDay } from "@/lib/time";
+import { addDays, bookableDates, DATE_RE, dateOption, formatDate, formatDateTime, isClosedSunday, slotEnded, todayIST, workingDay, makeupSundayList } from "@/lib/time";
 import { adminFree, adminOverride, adminRestoreSlots } from "../../actions";
 import SlotRange from "./SlotRange";
 import AllotReason from "./AllotReason";
@@ -33,7 +33,7 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
   const sp = await searchParams;
   const holidays = await getHolidays();
   const dates = bookableDates();
-  const date = sp.date && DATE_RE.test(sp.date) && !isSunday(sp.date) ? sp.date : workingDay(todayIST(), holidays);
+  const date = sp.date && DATE_RE.test(sp.date) && !isClosedSunday(sp.date) ? sp.date : workingDay(todayIST(), holidays);
   // Holidays are listed in the forms but can't be picked, so the forms start on a working day.
   const formDate = workingDay(date, holidays);
   const supabase = await createClient();
@@ -68,7 +68,7 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
         <input type="hidden" name="back" value={`/admin/allot?date=${date}`} />
         <div>
           <label className="label" htmlFor="date">Date</label>
-          <DateInput id="date" name="date" required defaultValue={formDate} max={addDays(todayIST(), 28)} holidays={Object.fromEntries(holidays)} />
+          <DateInput id="date" name="date" required defaultValue={formDate} max={addDays(todayIST(), 28)} holidays={Object.fromEntries(holidays)} workingSundays={makeupSundayList()} />
           <p className="muted mt-1 text-xs">Pick an earlier date to record a CIE, event or class that already took place.</p>
         </div>
         <SlotRange slots={slots} />

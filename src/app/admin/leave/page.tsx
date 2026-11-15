@@ -7,7 +7,7 @@ import Substitutes from "@/components/Substitutes";
 import { getHolidays, getSlots } from "@/lib/data";
 import { findSubstitutes } from "@/lib/substitutes";
 import { createClient } from "@/lib/supabase/server";
-import { addDays, formatDate, isSunday, todayIST } from "@/lib/time";
+import { addDays, formatDate, isClosedSunday, todayIST } from "@/lib/time";
 import type { ScheduleRow } from "@/lib/types";
 import { addLeave, removeLeave, updateLeave } from "../../actions";
 
@@ -45,7 +45,7 @@ export default async function LeavePage() {
   const horizon = addDays(today, AHEAD - 1);
   const daysOf = (l: Leave) => {
     const out: string[] = [];
-    for (let d = l.starts_on < today ? today : l.starts_on; d <= l.ends_on && d <= horizon; d = addDays(d, 1)) if (!isSunday(d) && !holidays.has(d)) out.push(d);
+    for (let d = l.starts_on < today ? today : l.starts_on; d <= l.ends_on && d <= horizon; d = addDays(d, 1)) if (!isClosedSunday(d) && !holidays.has(d)) out.push(d);
     return out;
   };
   const dates = [...new Set(leave.flatMap(daysOf))].sort();

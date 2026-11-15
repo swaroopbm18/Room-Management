@@ -5,8 +5,8 @@ import EmptyState from "@/components/EmptyState";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
 import { getDayOrders, getHolidays, getNotices } from "@/lib/data";
-import { addDays, formatDate, todayIST, WEEKDAY_NAMES } from "@/lib/time";
-import { addHoliday, addNotice, removeHoliday, removeNotice, setDayOrder, updateHoliday, updateNotice } from "../../actions";
+import { addDays, formatDate, isSunday, todayIST, weekdayOf, WEEKDAY_NAMES } from "@/lib/time";
+import { addHoliday, addNotice, makeUpHoliday, removeHoliday, removeNotice, setDayOrder, updateHoliday, updateNotice } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +68,17 @@ export default async function Calendar() {
   const otherHolidays = (d: string) => Object.fromEntries([...holidays].filter(([k]) => k !== d));
   const upcoming = [...holidays.entries()].filter(([d]) => d >= today).sort(([a], [b]) => a.localeCompare(b));
   const swaps = [...orders.values()].filter((o) => o.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+  // Holidays that took a teaching day away, and the next Sunday after each as the suggested make-up day
+  const toMakeUp = [...holidays.entries()]
+    .filter(([d]) => d >= addDays(today, -14) && !isSunday(d) && (orders.get(d)?.follows ?? weekdayOf(d)) <= 6)
+    .sort(([a], [b]) => a.localeCompare(b));
+  const nextSunday = (d: string) => addDays(d, 7 - weekdayOf(d));
+  const firstSunday = (() => {
+    const base = toMakeUp.find(([d]) => d >= today)?.[0] ?? today;
+    let d = nextSunday(base);
+    while (d <= today) d = addDays(d, 7);
+    return d;
+  })();
 
   return (
     <div className="space-y-8">
@@ -128,13 +139,47 @@ export default async function Calendar() {
         id="swaps"
         icon={<IconSwap className="h-5 w-5 text-brand-500" />}
         title="Day swaps"
-        hint="A working day that runs another weekday's classes, e.g. a Saturday that follows Monday. Rooms, free slots and faculty availability all follow it. A Saturday that follows a weekday runs the full day."
+        hint="A day that runs another weekday's classes, e.g. a Saturday that follows Monday, or a Sunday that makes up for a holiday. Rooms, free slots and faculty availability all follow it. A Saturday or Sunday that follows a weekday runs the full day; one that follows Saturday ends at 2 PM."
       >
+        <form action={makeUpHoliday} className="space-y-3 rounded-xl border border-brand-200 bg-brand-50/60 p-4 dark:border-brand-900 dark:bg-brand-950/40">
+          <input type="hidden" name="back" value={BACK} />
+          <div>
+            <h3 className="font-semibold">Make up for a holiday</h3>
+            <p className="muted text-sm">
+              Run a holiday&apos;s classes on another day, usually a Sunday. E.g. Monday is a holiday, so the Sunday after it follows Monday&apos;s timetable. Classes, free rooms, free
+              faculty and bookings all follow it, and faculty can request rooms that day.
+            </p>
+          </div>
+          {toMakeUp.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+              <div>
+                <label className="label" htmlFor="m-holiday">Holiday</label>
+                <select id="m-holiday" name="holiday" required className="input" defaultValue={toMakeUp.find(([d]) => d >= today)?.[0] ?? toMakeUp[toMakeUp.length - 1][0]}>
+                  {toMakeUp.map(([d, name]) => (
+                    <option key={d} value={d}>
+                      {formatDate(d, { year: undefined })} · {name} · {WEEKDAY_NAMES[(orders.get(d)?.follows ?? weekdayOf(d)) - 1]}&apos;s classes
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label" htmlFor="m-date">Make-up day</label>
+                <DateInput id="m-date" name="date" required min={tomorrow} defaultValue={firstSunday} holidays={holidayMap} allowSunday />
+              </div>
+              <SubmitButton pendingText="Saving…" message="Saving the make-up day…">
+                <IconSwap className="h-4 w-4" /> Save make-up day
+              </SubmitButton>
+            </div>
+          ) : (
+            <p className="muted text-sm">No recent or upcoming holiday on a working day. Add the holiday below first.</p>
+          )}
+        </form>
+
         <form action={setDayOrder} className="grid gap-3 sm:grid-cols-[auto_auto_1fr_auto] sm:items-end">
           <input type="hidden" name="back" value={BACK} />
           <div>
             <label className="label" htmlFor="o-date">Date</label>
-            <DateInput id="o-date" name="date" required min={tomorrow} holidays={holidayMap} />
+            <DateInput id="o-date" name="date" required min={tomorrow} holidays={holidayMap} allowSunday />
           </div>
           <div>
             <label className="label" htmlFor="o-follows">Follows</label>
@@ -162,6 +207,7 @@ export default async function Calendar() {
                   <span className="inline-flex flex-wrap items-center gap-2">
                     <IconSwap className="h-4 w-4 text-brand-500" />
                     <span className="font-medium">{formatDate(o.date, { weekday: "long" })}</span>
+                    {isSunday(o.date) && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-200">Make-up Sunday</span>}
                     <span className="muted">
                       · follows {WEEKDAY_NAMES[o.follows - 1]}
                       {o.note && ` · ${o.note}`}
@@ -203,7 +249,7 @@ export default async function Calendar() {
             ))}
           </ul>
         ) : (
-          <EmptyState icon={<IconSwap />} title="No day swaps coming up">Every day follows its own timetable. Add a swap when a Saturday runs a weekday&apos;s classes.</EmptyState>
+          <EmptyState icon={<IconSwap />} title="No day swaps coming up">Every day follows its own timetable. Add a swap when a Saturday runs a weekday&apos;s classes, or make up for a holiday on a Sunday.</EmptyState>
         )}
       </Section>
 

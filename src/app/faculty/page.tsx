@@ -7,7 +7,7 @@ import EmptyState from "@/components/EmptyState";
 import PageHeader from "@/components/PageHeader";
 import RequestStatus from "@/components/RequestStatus";
 import { displayName, requireStaff } from "@/lib/auth";
-import { getDaySchedule, getMySchedule, getSlots } from "@/lib/data";
+import { getDaySchedule, getHolidays, getMySchedule, getSlots } from "@/lib/data";
 import { getWeekFor } from "@/lib/faculty";
 import { findSubstitutes } from "@/lib/substitutes";
 import Substitutes from "@/components/Substitutes";
@@ -15,7 +15,7 @@ import WeekTable from "@/components/WeekTable";
 import { groupRequests, slotCount } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
 import type { RequestRow } from "@/lib/types";
-import { addDays, formatDate, formatDateTime, isSunday, slotEnded, slotStarted, todayIST, workingDay } from "@/lib/time";
+import { addDays, formatDate, formatDateTime, isClosedSunday, slotEnded, slotStarted, todayIST, workingDay } from "@/lib/time";
 import { dropClass, editRequest, undoDrop, withdrawRequest } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -25,8 +25,9 @@ export default async function FacultyDashboard() {
   const supabase = await createClient();
   const today = todayIST();
 
+  await getHolidays(); // also loads make-up Sundays
   // My classes over the next 7 days
-  const days = Array.from({ length: 7 }, (_, i) => addDays(today, i)).filter((d) => !isSunday(d));
+  const days = Array.from({ length: 7 }, (_, i) => addDays(today, i)).filter((d) => !isClosedSunday(d));
   const [slots, schedule, todayRows, { data: reqData }, week, { data: dropData }, { data: subjectData }] = await Promise.all([
     getSlots(),
     getMySchedule(today, addDays(today, 6), days),

@@ -8,7 +8,7 @@ import SubmitButton from "@/components/SubmitButton";
 import { requireStaff } from "@/lib/auth";
 import { getHolidays, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
-import { bookableDates, DATE_RE, formatDate, slotEnded, slotOpen, todayIST, weekdayOf, workingDay } from "@/lib/time";
+import { bookableDates, DATE_RE, formatDate, closingDay, makeupFollows, slotEnded, slotOpen, todayIST, workingDay } from "@/lib/time";
 import SlotRange from "../admin/allot/SlotRange";
 import { bookEquipment, cancelEquipment, deleteEquipment, editEquipmentBooking, saveEquipment } from "../actions";
 
@@ -48,7 +48,7 @@ export default async function Equipment({ searchParams }: { searchParams: Promis
     m.set(k, [...(m.get(k) ?? []), b]);
     return m;
   }, new Map<string, Booking[]>()).values()];
-  const wd = weekdayOf(date);
+  const wd = closingDay(date, makeupFollows(date));
   const back = `/equipment?date=${date}`;
 
   return (
