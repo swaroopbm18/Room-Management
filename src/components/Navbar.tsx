@@ -26,7 +26,7 @@ export default async function Navbar() {
             <IconBuilding className="h-5 w-5" />
           </span>
           <span className="leading-tight">
-            Room Management
+            Class and Classroom Management
             <span className="block text-[11px] font-normal text-brand-300">BMSCE · Machine Learning</span>
           </span>
         </Link>

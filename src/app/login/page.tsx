@@ -44,7 +44,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
             <IconCalendarCheck className="h-6 w-6 text-brand-200" />
           </span>
           <div className="leading-tight">
-            <div className="font-semibold">BMSCE Room Management</div>
+            <div className="font-semibold">BMSCE Class and Classroom Management</div>
             <div className="text-[11px] tracking-[0.18em] text-brand-200/80 uppercase">Department of Machine Learning</div>
           </div>
         </div>

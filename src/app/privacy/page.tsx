@@ -66,7 +66,7 @@ const SECTIONS = [
 export default function Privacy() {
   return (
     <div className="mx-auto max-w-3xl">
-      <PageHeader title="Privacy policy" subtitle="BMSCE Room Management, Department of Machine Learning" />
+      <PageHeader title="Privacy policy" subtitle="BMSCE Class and Classroom Management, Department of Machine Learning" />
       <div className="grid gap-4">
         {SECTIONS.map(({ icon: Icon, title, points }, i) => (
           <section key={title} className="card flex gap-4 p-5">

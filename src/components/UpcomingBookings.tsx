@@ -74,15 +74,24 @@ export default function UpcomingBookings({ rows, slots, days }: { rows: Upcoming
                 dark ? "bg-black/20 text-brand-100 ring-1 ring-white/15 ring-inset" : "bg-amber-50 text-amber-900 ring-1 ring-amber-200 ring-inset dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-900"
               }`}
             >
-              <span className="font-semibold">{g.replaced.length === 1 ? "Original class" : "Original classes"}:</span>{" "}
-              {g.replaced.map((x, i) => (
-                <span key={i}>
-                  {i > 0 && "; "}
-                  <s>{x.subject}</s>
-                  {x.faculty && ` · ${x.faculty}`}
-                  {g.replaced.length > 1 && ` (${x.at})`}
-                </span>
-              ))}
+              <div className="font-semibold">
+                {g.replaced.length === 1 ? "Class affected" : `${g.replaced.length} classes affected`}
+              </div>
+              <ul className="mt-1 space-y-1">
+                {g.replaced.map((x, i) => (
+                  <li key={i} className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                    {g.replaced.length > 1 && <span className="min-w-[4.5em] shrink-0 whitespace-nowrap tabular-nums opacity-75">{x.at}</span>}
+                    <span
+                      className={`rounded-md px-1.5 py-px font-semibold ring-1 ring-inset ${
+                        dark ? "bg-amber-300/20 text-amber-100 ring-amber-300/50" : "bg-amber-200/70 text-amber-950 ring-amber-300 dark:bg-amber-500/25 dark:text-amber-100 dark:ring-amber-500/50"
+                      }`}
+                    >
+                      {x.subject}
+                    </span>
+                    {x.faculty && <span>{x.faculty}</span>}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
           {g.approved_by && (
