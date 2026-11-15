@@ -1,284 +1,91 @@
-import SubmitButton from "@/components/SubmitButton";
 import Link from "next/link";
-import { headers } from "next/headers";
-import CalendarLink from "@/components/CalendarLink";
-import { IconCalendar, IconCalendarCheck, IconInbox, IconMinusCircle, IconPlus, IconRestore, IconX } from "@/components/Icons";
-import InlineEdit, { Field } from "@/components/InlineEdit";
-import KpiCard from "@/components/KpiCard";
-import EmptyState from "@/components/EmptyState";
 import PageHeader from "@/components/PageHeader";
-import RequestStatus from "@/components/RequestStatus";
+import PendingLink from "@/components/PendingLink";
+import { IconClock, IconDashboard, IconInbox, IconPlus, IconSwap } from "@/components/Icons";
 import { displayName, requireStaff } from "@/lib/auth";
-import { getDaySchedule, getHolidays, getMySchedule, getSlots } from "@/lib/data";
-import { getWeekFor } from "@/lib/faculty";
-import { findSubstitutes } from "@/lib/substitutes";
-import Substitutes from "@/components/Substitutes";
-import WeekTable from "@/components/WeekTable";
-import { groupRequests, slotCount } from "@/lib/requests";
+import { getHolidays, getSlots } from "@/lib/data";
+import { getMyExchanges, stageOf, isOpenStage } from "@/lib/exchanges";
+import { groupRequests } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
 import type { RequestRow } from "@/lib/types";
-import { addDays, formatDate, formatDateTime, isClosedSunday, slotEnded, slotStarted, todayIST, workingDay } from "@/lib/time";
-import { dropClass, editRequest, resetCalendarLink, undoDrop, withdrawRequest } from "../actions";
+import { slotEnded } from "@/lib/time";
+import ExchangeInbox from "./ExchangeInbox";
+import Meetings, { type MeetingSearch } from "./Meetings";
+import MyRequests from "./MyRequests";
+import Overview from "./Overview";
 
 export const dynamic = "force-dynamic";
 
-export default async function FacultyDashboard() {
-  const person = await requireStaff();
-  const supabase = await createClient();
-  const today = todayIST();
+const TABS = ["overview", "exchange", "requests", "meetings"] as const;
+type Tab = (typeof TABS)[number];
 
+export default async function FacultyDashboard({ searchParams }: { searchParams: Promise<MeetingSearch & { tab?: string }> }) {
+  const person = await requireStaff();
+  const sp = await searchParams;
+  const tab: Tab = TABS.includes(sp.tab as Tab) ? (sp.tab as Tab) : "overview";
+  const supabase = await createClient();
   await getHolidays(); // also loads make-up Sundays
-  // My classes over the next 7 days
-  const days = Array.from({ length: 7 }, (_, i) => addDays(today, i)).filter((d) => !isClosedSunday(d));
-  const [slots, schedule, todayRows, { data: reqData }, week, { data: dropData }, { data: subjectData }, calRes, hdrs] = await Promise.all([
+
+  const [slots, { data: reqData }, exchanges, { data: subjectData }] = await Promise.all([
     getSlots(),
-    getMySchedule(today, addDays(today, 6), days),
-    getDaySchedule(workingDay(today)),
     supabase.from("requests").select("*").eq("requester_email", person.email).order("created_at", { ascending: false }).limit(50),
-    person.initials ? getWeekFor(person.initials) : null,
-    supabase.from("allotments").select("id, room_id, date, slot_id, reason").eq("kind", "drop").eq("created_by", person.email).gte("date", today),
-    supabase.from("faculty_subjects").select("subject").eq("email", person.email).order("subject"),
-    supabase.rpc("my_calendar_token"),
-    headers(),
+    getMyExchanges(person.email),
+    tab === "requests" ? supabase.from("faculty_subjects").select("subject").eq("email", person.email).order("subject") : Promise.resolve({ data: [] }),
   ]);
-  // The private calendar link, on this site's own address (empty before migration 0028)
-  const calToken = typeof calRes.data === "string" ? calRes.data : null;
-  const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host");
-  const calUrl = calToken && host ? `${hdrs.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https")}://${host}/cal/${calToken}.ics` : null;
-  const mySubjects = ((subjectData ?? []) as { subject: string }[]).map((x) => x.subject);
-  const requests = (reqData ?? []) as RequestRow[];
   const slotById = new Map(slots.map((s) => [s.id, s]));
-  const mine = schedule.filter((r) => !r.ended);
-  // Classes I dropped that can still be brought back: nothing has happened in the slot since, and it hasn't started
-  type Drop = { id: number; room_id: string; date: string; slot_id: number; reason: string };
-  const drops = (dropData ?? []) as Drop[];
-  const latestRes = drops.length
-    ? await supabase.from("allotments").select("id, room_id, date, slot_id").in("date", [...new Set(drops.map((d) => d.date))]).order("id", { ascending: false })
-    : { data: [] };
-  const latest = new Map<string, number>();
-  for (const a of (latestRes.data ?? []) as Drop[]) if (!latest.has(`${a.room_id}|${a.date}|${a.slot_id}`)) latest.set(`${a.room_id}|${a.date}|${a.slot_id}`, a.id);
-  const undoable = drops
-    .filter((d) => latest.get(`${d.room_id}|${d.date}|${d.slot_id}`) === d.id && !slotStarted(d.date, slotById.get(d.slot_id)!))
-    .sort((a, b) => a.date.localeCompare(b.date) || a.slot_id - b.slot_id);
-  const subs = await findSubstitutes(undoable, person.initials);
-  const freeToday = todayRows.filter((r) => r.status === "free" && !r.ended).length;
   // One entry per request, however many slots it covers. A request is over once its first slot ends.
-  const groups = groupRequests(requests, slotById).map((g) => ({
-    ...g,
-    ended: slotEnded(g.first.date, slotById.get(g.first.slot_id)!),
-  }));
-  const pending = groups.filter((g) => g.first.status === "pending" && !g.ended).length;
+  const groups = groupRequests((reqData ?? []) as RequestRow[], slotById).map((g) => ({ ...g, ended: slotEnded(g.first.date, slotById.get(g.first.slot_id)!) }));
+  const pendingRooms = groups.filter((g) => g.first.status === "pending" && !g.ended).length;
+  const sent = exchanges?.sent ?? [];
+  const received = exchanges?.received ?? [];
+  const waitingOnMe = received.filter((x) => stageOf(x, slotById) === "pending").length;
+  const openSent = sent.filter((x) => isOpenStage(stageOf(x, slotById))).length;
+
+  const tabs: { key: Tab; label: string; icon: React.ReactNode; count?: number; alert?: boolean }[] = [
+    { key: "overview", label: "Overview", icon: <IconDashboard className="h-4 w-4" /> },
+    { key: "exchange", label: "Exchange requests", icon: <IconSwap className="h-4 w-4" />, count: waitingOnMe, alert: true },
+    { key: "requests", label: "My requests", icon: <IconInbox className="h-4 w-4" />, count: pendingRooms + openSent },
+    { key: "meetings", label: "Meetings", icon: <IconClock className="h-4 w-4" /> },
+  ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader title={`Welcome, ${displayName(person)}`} subtitle={person.email}>
         <Link href="/free" className="btn-primary">
           <IconPlus className="h-4 w-4" /> Request a free room
         </Link>
       </PageHeader>
 
-      <section className="grid grid-cols-3 gap-2 sm:gap-4">
-        <KpiCard label="Free slots today" value={freeToday} href="/free" linkText="Explore free slots" tone="navy" icon={<IconCalendarCheck />} />
-        <KpiCard label="My classes, next 7 days" value={mine.length} icon={<IconCalendar />} />
-        <KpiCard label="My pending requests" value={pending} tone="ink" icon={<IconInbox />} />
-      </section>
-
-      {calUrl && (
-        <section className="card space-y-3 p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="inline-flex items-center gap-2 font-semibold">
-                <IconCalendar className="h-5 w-5 text-brand-500" /> Your classes in your own calendar
-              </h2>
-              <p className="muted text-sm">
-                Add this link once and your classes, room bookings, substitute classes and make-up Sundays show in Google Calendar, Outlook or your phone, and stay up to date by
-                themselves. Keep the link to yourself: anyone with it can see your classes.
-              </p>
-            </div>
-            <form action={resetCalendarLink}>
-              <input type="hidden" name="back" value="/faculty" />
-              <SubmitButton className="btn-secondary py-1 text-xs" pendingText="Making a new link…" message="Making a new calendar link…" confirm="Make a new link? The old one stops working, so you'll need to add the new one to your calendar.">
-                New link
-              </SubmitButton>
-            </form>
-          </div>
-          <CalendarLink url={calUrl} />
-        </section>
-      )}
-
-      <section>
-        <h2 className="mb-3 text-lg font-semibold">My upcoming classes</h2>
-        {mine.length === 0 ? (
-          <div className="card muted p-6 text-sm">
-            No classes in the next 7 days.
-            {!person.initials && " Your timetable initials are not set yet, so regular classes can't be matched to you. Ask an admin to add them."}
-          </div>
-        ) : (
-          <div className="card overflow-x-auto">
-            <table className="table-cards w-full sm:min-w-[640px]">
-              <thead className="thead-ink">
-                <tr>
-                  <th className="th">Date</th>
-                  <th className="th">Slot</th>
-                  <th className="th">Room</th>
-                  <th className="th">Subject</th>
-                  <th className="th text-right">Drop this class</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-brand-100 dark:divide-brand-900">
-                {mine.map((r) => (
-                  <tr key={`${r.date}-${r.slot_id}-${r.room_id}`}>
-                    <td data-label="Date" className="td whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td data-label="Slot" className="td whitespace-nowrap">{r.slot_label}</td>
-                    <td data-label="Room" className="td font-medium">{r.room_name}</td>
-                    <td data-label="Subject" className="td">
-                      {r.subject}
-                      {r.status === "booked" && <span className="muted"> · your booking</span>}
-                    </td>
-                    <td data-label="Drop this class" className="td">
-                      <form action={dropClass} className="flex justify-end gap-2">
-                        <input type="hidden" name="room" value={r.room_id} />
-                        <input type="hidden" name="date" value={r.date} />
-                        <input type="hidden" name="slot" value={r.slot_id} />
-                        <input type="hidden" name="back" value="/faculty" />
-                        <input name="reason" required placeholder="Reason" className="input w-36 py-1.5" />
-                        <SubmitButton className="btn-danger py-1.5" pendingText="Dropping…" message="Dropping the class…">
-                          <IconMinusCircle className="h-4 w-4" /> Drop
-                        </SubmitButton>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      {undoable.length > 0 && (
-        <section>
-          <h2 className="text-lg font-semibold">Classes I dropped</h2>
-          <p className="muted mb-3 text-sm">
-            Dropped one by mistake? Bring it back any time before it starts, as long as nobody has been given the room. Faculty free then are listed, those who teach the
-            course or class first, in case someone can take it.
-          </p>
-          <div className="card divide-y divide-brand-100 dark:divide-brand-900">
-            {undoable.map((d) => (
-              <form key={d.id} action={undoDrop} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-                <input type="hidden" name="room" value={d.room_id} />
-                <input type="hidden" name="date" value={d.date} />
-                <input type="hidden" name="slot" value={d.slot_id} />
-                <span className="min-w-0 flex-1 text-sm">
-                  <span className="font-medium">{formatDate(d.date)}</span> · {slotById.get(d.slot_id)?.label} · Room {d.room_id}
-                  {subs.get(`${d.room_id}|${d.date}|${d.slot_id}`)?.subject && <> · {subs.get(`${d.room_id}|${d.date}|${d.slot_id}`)!.subject}</>}
-                  <span className="muted block text-xs">Dropped: {d.reason}</span>
-                  <Substitutes people={subs.get(`${d.room_id}|${d.date}|${d.slot_id}`)?.people ?? []} />
+      <nav className="-mx-1 flex gap-1 overflow-x-auto rounded-xl bg-brand-100 p-1 text-sm [scrollbar-width:none] sm:mx-0 sm:inline-flex sm:flex-wrap dark:bg-brand-950" aria-label="Dashboard">
+        {tabs.map((t) => {
+          const on = t.key === tab;
+          return (
+            <PendingLink
+              key={t.key}
+              href={t.key === "overview" ? "/faculty" : `/faculty?tab=${t.key}`}
+              aria-current={on ? "page" : undefined}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-2 font-medium whitespace-nowrap sm:py-1.5 ${
+                on ? "bg-white text-brand-950 shadow-sm dark:bg-brand-700 dark:text-white" : "text-brand-700 hover:bg-white/60 dark:text-brand-300 dark:hover:bg-brand-900"
+              }`}
+            >
+              {t.icon}
+              {t.label}
+              {!!t.count && (
+                <span className={`rounded-full px-1.5 text-[11px] leading-[18px] font-semibold ${t.alert ? "bg-amber-400 text-black" : on ? "bg-brand-100 text-brand-800 dark:bg-brand-900 dark:text-brand-100" : "bg-white text-brand-800 dark:bg-brand-900 dark:text-brand-100"}`}>
+                  {t.count}
                 </span>
-                <SubmitButton className="btn-secondary py-1.5" pendingText="Bringing back…" message="Bringing the class back…">
-                  <IconRestore className="h-4 w-4" /> Undo drop
-                </SubmitButton>
-              </form>
-            ))}
-          </div>
-        </section>
+              )}
+            </PendingLink>
+          );
+        })}
+      </nav>
+
+      {tab === "overview" && <Overview person={person} pending={pendingRooms + openSent} waitingOnMe={waitingOnMe} sent={sent} />}
+      {tab === "exchange" && <ExchangeInbox received={received} slots={slots} ready={exchanges !== null} />}
+      {tab === "requests" && (
+        <MyRequests groups={groups} mySubjects={((subjectData ?? []) as { subject: string }[]).map((x) => x.subject)} sent={sent} slots={slots} exchangesReady={exchanges !== null} />
       )}
-
-      <section>
-        <h2 className="text-lg font-semibold">My week</h2>
-        <p className="muted mb-3 text-sm">Your regular timetable from tomorrow, Monday to Saturday. One-off bookings and dropped classes are in the list above.</p>
-        {week ? (
-          <div className="card overflow-hidden">
-            <WeekTable week={week} slots={slots} />
-          </div>
-        ) : (
-          <div className="card muted p-6 text-sm">Your timetable initials are not set yet, so your timetable can&apos;t be shown. Ask an admin to add them.</div>
-        )}
-      </section>
-
-      <section>
-        <h2 id="requests" className="mb-3 scroll-mt-4 text-lg font-semibold">My requests</h2>
-        {requests.length === 0 ? (
-          <EmptyState icon={<IconInbox />} title="You haven't requested any rooms yet" action={{ href: "/free", label: "Find a free slot" }}>
-            Need a room for an extra class or an event? Pick a free slot and send a request; you&apos;ll see its status here.
-          </EmptyState>
-        ) : (
-          <div className="card overflow-x-auto">
-            <table className="table-cards w-full sm:min-w-[720px]">
-              <thead className="thead-ink">
-                <tr>
-                  <th className="th">Date & slot</th>
-                  <th className="th">Room</th>
-                  <th className="th">Type</th>
-                  <th className="th">Description</th>
-                  <th className="th">Status</th>
-                  <th className="th" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-brand-100 dark:divide-brand-900">
-                {groups.map((g) => {
-                  const r = g.first;
-                  const ended = g.ended;
-                  return (
-                    <tr key={g.group_id}>
-                      <td data-label="Date &amp; slot" className="td whitespace-nowrap">
-                        {formatDate(r.date)}
-                        <div className="muted text-xs">
-                          {g.range}
-                          {g.rows.length > 1 && <> · {slotCount(g)}</>}
-                        </div>
-                      </td>
-                      <td data-label="Room" className="td font-medium">{r.room_id}</td>
-                      <td data-label="Type" className="td">
-                        {r.type === "event" ? "Event" : "Class"}
-                        {r.subject && <div className="muted text-xs">{r.subject}</div>}
-                      </td>
-                      <td data-label="Description" className="td max-w-xs">
-                        {r.description}
-                        {r.status === "pending" && !ended && (
-                          <InlineEdit action={editRequest} back="/faculty" title="Edit this request" message="Saving your request…" className="mt-1">
-                            <input type="hidden" name="id" value={g.group_id} />
-                            {r.type === "class" && mySubjects.length > 0 && (
-                              <Field label="Subject">
-                                <select name="subject" defaultValue={r.subject ?? ""} className="input py-1.5 font-normal">
-                                  {!r.subject && <option value="">Pick a subject</option>}
-                                  {[...new Set([...(r.subject ? [r.subject] : []), ...mySubjects])].map((x) => (
-                                    <option key={x} value={x}>
-                                      {x}
-                                    </option>
-                                  ))}
-                                </select>
-                              </Field>
-                            )}
-                            <Field label="Description" className="min-w-56 flex-1">
-                              <textarea name="description" required minLength={5} maxLength={500} rows={2} defaultValue={r.description} className="input py-1.5 font-normal" />
-                            </Field>
-                          </InlineEdit>
-                        )}
-                      </td>
-                      <td data-label="Status" className="td">
-                        <RequestStatus status={r.status} expired={ended} />
-                        {r.decision_note && <div className="muted mt-1 text-xs">{r.decision_note}</div>}
-                        {r.decided_at && <div className="muted text-xs">{formatDateTime(r.decided_at)}</div>}
-                      </td>
-                      <td className="td text-right">
-                        {r.status === "pending" && !ended && (
-                          <form action={withdrawRequest}>
-                            <input type="hidden" name="id" value={g.group_id} />
-                            <SubmitButton className="btn-secondary py-1.5" pendingText="Withdrawing…" message="Withdrawing your request…" confirm="Withdraw this request? You can request the room again later if it's still free.">
-                              <IconX className="h-4 w-4" /> Withdraw
-                            </SubmitButton>
-                          </form>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      {tab === "meetings" && <Meetings sp={sp} />}
     </div>
   );
 }
-

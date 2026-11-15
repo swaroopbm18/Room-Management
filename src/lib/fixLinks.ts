@@ -13,7 +13,7 @@ export function fixFor(message: string): { href: string; label: string } | undef
     [/^Initials (\S+) (are already used|already belong)/, (m) => ({ href: `/admin/people?find=${q(m[1])}`, label: `Show who has ${m[1]}` })],
     [/already a holiday/i, () => ({ href: "/admin/holidays#holidays", label: "Show the holidays" })],
     [/^There is already equipment called/, () => ({ href: "/equipment#manage", label: "Show the equipment" })],
-    [/^You already have a pending request/, () => ({ href: "/faculty#requests", label: "Show my requests" })],
+    [/^You already have a pending request/, () => ({ href: "/faculty?tab=requests", label: "Show my requests" })],
     [/has already been decided|already decided/, () => ({ href: "/admin/history", label: "Show decided requests" })],
     [/^(Slot .* is|The slot is) no longer free/, () => ({ href: "/admin/allot", label: "Show the day's rooms" })],
     [/^Already booked by/, () => ({ href: "/equipment", label: "Show who has it" })],
