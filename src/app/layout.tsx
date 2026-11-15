@@ -38,7 +38,7 @@ export const metadata: Metadata = {
 };
 
 // Applies the saved theme and colour before first paint, so neither flashes.
-const themeScript = `try{var d=document.documentElement,t=localStorage.getItem('theme'),c=localStorage.getItem('color');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches))d.classList.add('dark');if(c==='emerald'||c==='slate')d.dataset.color=c}catch(e){}`;
+const themeScript = `try{var d=document.documentElement,t=localStorage.getItem('theme'),c=localStorage.getItem('color');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches))d.classList.add('dark');if(['violet','red','amber','emerald','slate'].indexOf(c)>=0)d.dataset.color=c}catch(e){}`;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
