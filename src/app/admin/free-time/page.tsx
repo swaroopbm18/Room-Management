@@ -237,7 +237,7 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
                 <option value="3">3 slots in a row</option>
               </select>
             </div>
-            <p className="muted self-end pb-2 text-sm">The 3 best times, then every time in the week: Monday to Friday 8:00 AM to 4:45 PM and Saturday until 2 PM.</p>
+            <p className="muted self-end pb-2 text-sm">The 3 best times, then every time all are free: Monday to Friday 8:00 AM to 4:45 PM and Saturday until 2 PM.</p>
           </MeetingPicker>
           <div className="flex justify-end sm:col-span-3">
             <button className="btn-primary">
@@ -299,64 +299,36 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
 
         {everyTime.length > 0 && (
           <div id="all-times" className="card scroll-mt-4 overflow-hidden">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-100 px-4 py-3 dark:border-brand-900/70">
-              <div>
-                <h3 className="font-semibold">Every possible time this week</h3>
-                <p className="muted text-xs">
-                  {allFree.length
-                    ? `${allFree.length} of ${everyTime.length} times have all ${attendees.length} free`
-                    : `No time has all ${attendees.length} free. Each time shows how many can attend.`}
-                  {length > 1 ? ` · ${length} slots in a row` : ""}
-                </p>
-              </div>
-              <span className="muted flex items-center gap-3 text-xs">
-                <span className="flex items-center gap-1.5">
-                  <span className="h-3 w-3 rounded bg-brand-700 dark:bg-brand-500" aria-hidden /> Everyone free
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="h-3 w-3 rounded border border-brand-200 bg-white dark:border-brand-900 dark:bg-ink" aria-hidden /> Some busy
-                </span>
-              </span>
+            <div className="border-b border-brand-100 px-4 py-3 dark:border-brand-900/70">
+              <h3 className="font-semibold">When all {attendees.length} are free, day by day</h3>
+              <p className="muted text-xs">
+                {allFree.length
+                  ? `${allFree.length} ${allFree.length === 1 ? "time" : "times"} this week${length > 1 ? `, ${length} slots in a row` : ""}. A time with even one person busy is left out.`
+                  : `No time this week has all ${attendees.length} free${length > 1 ? ` for ${length} slots in a row` : ""}. Try a shorter meeting or fewer people.`}
+              </p>
             </div>
             <div className="grid gap-px bg-brand-100 sm:grid-cols-2 lg:grid-cols-3 dark:bg-brand-900/70">
               {DAY_NAMES.map((day, i) => {
-                const times = everyTime.filter((m) => m.weekday === i + 1);
-                const clear = times.filter((m) => m.busy.length === 0).length;
+                const times = allFree.filter((m) => m.weekday === i + 1);
                 return (
                   <div key={day} className="bg-white p-4 dark:bg-ink">
                     <div className="mb-2 flex items-baseline justify-between gap-2">
                       <span className="font-semibold">{day}</span>
-                      <span className={`text-xs ${clear ? "font-medium text-brand-700 dark:text-brand-300" : "muted"}`}>
-                        {clear ? `${clear} with everyone free` : "No time with everyone free"}
+                      <span className={`text-xs ${times.length ? "font-medium text-brand-700 dark:text-brand-300" : "muted"}`}>
+                        {times.length ? `${times.length} ${times.length === 1 ? "time" : "times"}` : "None"}
                       </span>
                     </div>
-                    <ul className="space-y-1.5">
-                      {times.map((m) => {
-                        const ok = m.busy.length === 0;
-                        return (
-                          <li
-                            key={m.slotIds.join()}
-                            className={`rounded-lg px-3 py-1.5 text-sm ${
-                              ok
-                                ? "bg-gradient-to-br from-brand-700 to-brand-900 text-white"
-                                : "border border-brand-100 dark:border-brand-900"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-medium whitespace-nowrap">{runLabel(m.slotIds)}</span>
-                              <span className={`text-xs whitespace-nowrap ${ok ? "text-brand-100" : "muted"}`}>
-                                {ok ? "Everyone free" : `${m.free.length} / ${attendees.length} free`}
-                              </span>
-                            </div>
-                            {!ok && (
-                              <div className="muted mt-0.5 truncate text-xs" title={m.busy.map((f) => `${f.name}: ${what(f.initials, m.weekday, m.slotIds)}`).join("\n")}>
-                                Busy: {m.busy.map((f) => f.initials).join(", ")}
-                              </div>
-                            )}
+                    {times.length ? (
+                      <ul className="space-y-1.5">
+                        {times.map((m) => (
+                          <li key={m.slotIds.join()} className="rounded-lg bg-gradient-to-br from-brand-700 to-brand-900 px-3 py-1.5 text-sm font-medium text-white">
+                            {runLabel(m.slotIds)}
                           </li>
-                        );
-                      })}
-                    </ul>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="muted rounded-lg border border-dashed border-brand-200 px-3 py-1.5 text-sm dark:border-brand-900">No time with everyone free</p>
+                    )}
                   </div>
                 );
               })}
