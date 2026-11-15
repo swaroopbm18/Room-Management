@@ -1,4 +1,4 @@
-# BMSCE Room Management
+# BMSCE Class and Classroom Management
 
 Classroom allotment for the Department of Machine Learning, BMSCE. Students see which room is used by whom in every slot. Faculty request free rooms or drop a class. The HoD and Time Table Officers approve requests and take rooms for CIEs and college events.
 

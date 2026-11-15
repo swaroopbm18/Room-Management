@@ -44,7 +44,7 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   name: SITE_NAME,
-  alternateName: ["BMSCE Classroom Allotment", "BMSCE ML Room Management"],
+  alternateName: ["BMSCE Room Management", "BMSCE Classroom Allotment", "BMSCE ML Room Management"],
   url: SITE_URL,
   description: SITE_DESCRIPTION,
   publisher: {
@@ -74,7 +74,7 @@ export default async function Home({
         />
         <div>
           <div className="text-xs font-semibold tracking-wider text-brand-600 uppercase dark:text-brand-400">
-            BMSCE Room Management
+            BMSCE Class and Classroom Management
           </div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Classroom allotment
@@ -138,7 +138,7 @@ export default async function Home({
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-xs font-semibold tracking-wider text-brand-600 uppercase dark:text-brand-400">
-            BMSCE Room Management
+            BMSCE Class and Classroom Management
           </div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Classroom allotment

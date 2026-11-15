@@ -4,6 +4,6 @@ export const SITE_URL = (
   (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000")
 ).replace(/\/$/, "");
 
-export const SITE_NAME = "BMSCE Room Management";
+export const SITE_NAME = "BMSCE Class and Classroom Management";
 export const SITE_DESCRIPTION =
-  "BMSCE Room Management: live classroom allotment, free classrooms and room booking for the Department of Machine Learning, B.M.S. College of Engineering, Bengaluru.";
+  "BMSCE Class and Classroom Management: live classroom allotment, free classrooms and room booking for the Department of Machine Learning, B.M.S. College of Engineering, Bengaluru.";

@@ -21,6 +21,7 @@ export const metadata: Metadata = {
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
   keywords: [
+    "BMSCE class and classroom management",
     "BMSCE room management",
     "BMSCE classroom allotment",
     "BMSCE free classrooms",
