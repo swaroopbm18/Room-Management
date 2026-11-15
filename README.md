@@ -53,7 +53,7 @@ Classroom allotment for the Department of Machine Learning, BMSCE. Students see 
 
 ### For admins
 
-The admin pages are in five groups: **Requests**, **Rooms** (allot or free, holidays), **Timetables** (room and class timetables), **Faculty** (profiles, free time and meetings, subjects, sign-in list) and **Records** (report, history).
+The admin pages are in six groups: **Requests** (room requests, class cover), **Rooms** (allot or free, CIE, room details, equipment and supplies, calendar), **Timetables** (room and class timetables with the health check, new semester), **Faculty** (profiles, leave and substitutes, subjects, sign-in list), **Records** (report, room usage, workload, activity log) and **Help** (the admin and faculty manuals). A page with several views, such as CIE (book rooms, then plan seating), shows them as tabs at the top.
 
 
 - **Requests:** approve or reject in priority order, with a warning when the faculty member or the section already has a class in that slot. Approving a request declines the others for the same slots. Event requests sent without a permission letter are marked so you can reject them.
@@ -62,10 +62,11 @@ The admin pages are in five groups: **Requests**, **Rooms** (allot or free, holi
 - **Class timetable:** each class's week (3A, 3B, … plus the whole-semester subjects), built from the room timetable. Click the pencil on a class to fix its subject, faculty initials or room (only free rooms are offered), with Save and Delete, or add a class to a free slot. Initials not in the faculty list are marked so typos stand out. Changes take effect from tomorrow, like every timetable edit.
 - **Report:** events, CIEs, dropped classes and extra classes between two dates, ready to print with signature lines for HoD (Cluster A) and HoD (Cluster B), or as CSV.
 - **Faculty profiles:** one place per faculty member for their name and initials, sign-in, cluster, subjects, other duties and weekly timetable. A card for every faculty member with their classes a week, other duties and free slots, and their full weekly timetable on a click. Classes come from the room timetable by initials; other duties (proctoring, committees) are added by hand or uploaded as a CSV.
-- **Free time & meetings:** how many faculty are free in each slot, for the whole department or each HoD's cluster (A or B), who exactly is free, and the best meeting times (1 to 3 slots) for the department, one cluster or a chosen group. Faculty are put into clusters on the Faculty timetables page.
+- **Faculty availability:** one page with three tabs. Day: who is free or busy in each slot. Find a meeting time: the best times (1 to 3 slots) over the next six working days for the department, one cluster or a chosen group, open to every signed-in faculty member. Week (admins): how many faculty are free in each slot of the regular week. Faculty are put into clusters on the Faculty profiles page.
 - **Subjects:** allot subjects to faculty by hand or straight from the timetable.
 - **Faculty & admins:** admins first, then faculty, each with an add form. Initials are picked from the timetable so they always match.
-- **History:** every change ever made, which nobody can edit.
+- **Activity log:** every change, who made it and when, with a Bookings and decisions tab listing every allotment and rejected request, which nobody can edit.
+- **Class cover:** every class handed to someone else in one list: class exchanges between faculty (approve or deny once the colleague accepts) and substitutes the admin assigned for leave.
 
 | Requests | Allot or free a room |
 | --- | --- |
@@ -95,7 +96,7 @@ The [privacy page](src/app/privacy/page.tsx) on the site explains the same roles
 - `allotments` is an append-only log of every change to a (room, date, slot): approved requests, CIE/event overrides, dropped classes and restores. The latest row wins.
 - `requests` holds faculty requests. Several requests per slot are allowed; approving one declines the rest. Anyone can see the requests for a slot (name, type, subject, description and status) by clicking it; email addresses, letters and the admin's notes stay private.
 - **Past data is locked in the database itself.** Triggers reject any update or delete on `allotments` and the timetable, any change to a request once its slot has ended, and any new allotment for a slot that has ended. The one exception: an admin can add a record of a CIE, event or class that already took place (from Allot a room), so the department's records are complete. Faculty requests are always for slots still to come, and nothing already recorded can be changed.
-- Users never write to tables directly. Every action goes through a Postgres function that checks the caller's role (see `supabase/migrations/0001_init.sql`). Row-level security keeps email addresses and approval letters private; the public request list comes from `slot_requests`, which returns only the safe columns.
+- Users never write to tables directly. Every action goes through a Postgres function that checks the caller's role (see `supabase/schema.sql`). Row-level security keeps email addresses and approval letters private; the public request list comes from `slot_requests`, which returns only the safe columns.
 - Holidays have no classes, are left out of every date list, and cannot be booked from the website.
 - All times are IST. Slots: 8:00, 8:55, 10:20, 11:15, 12:10, 1:05, 2:00, 2:55, 3:50 and 4:45 (55 minutes each), Monday to Saturday. Bookings open up to 4 weeks ahead.
 
@@ -104,7 +105,7 @@ The [privacy page](src/app/privacy/page.tsx) on the site explains the same roles
 ### 1. Supabase (database and login)
 
 1. Sign up at [supabase.com](https://supabase.com) with GitHub and create a project. Pick the **Mumbai (ap-south-1)** region and save the database password somewhere safe.
-2. Open **SQL Editor** and run these files one after another, pasting the whole of each: `supabase/migrations/0001_init.sql`, `supabase/migrations/0002_faculty_directory.sql` (full names for the timetable initials), `supabase/migrations/0003_multi_slot_requests.sql` (requests covering several slots in a row), `supabase/migrations/0004_admin_slot_range.sql` (admins allot a start-to-end range), `supabase/migrations/0005_admin_free_slots.sql` (admins free up a room), `supabase/migrations/0006_reports_and_timetable_edits.sql` (reports and timetable edits), `supabase/migrations/0007_holidays_and_timetable_upload.sql` (holidays and Word timetable upload), `supabase/migrations/0008_faculty_subjects.sql` (subjects for class requests), `supabase/migrations/0009_upcoming_bookings.sql` (upcoming events on the home page), `supabase/migrations/0010_public_slot_requests.sql` (anyone can see a slot's requests), `supabase/migrations/0011_optional_letter_and_rename.sql` (optional event letter, renaming bookings), `supabase/migrations/0013_faculty_timetables.sql` (faculty timetables and duties), `supabase/migrations/0014_faculty_clusters.sql` (faculty in each HoD's cluster), `supabase/migrations/0015_upcoming_approved_by.sql` (who approved each upcoming booking), `supabase/migrations/0016_faculty_status_and_names.sql` (free and busy faculty, faculty names and initials), `supabase/migrations/0017_faculty_read_own_duties.sql` (faculty see their own duties in My week), `supabase/migrations/0018_classes_dashboard_undo_drop.sql` (public class timetables, a faster dashboard, undoing a dropped class), `supabase/migrations/0019_saturday_ends_at_2pm.sql` (no classes, free slots or requests on Saturday after 2 PM), `supabase/migrations/0020_day_swaps_notices_rooms.sql` (day swaps, home-page notices, room details), `supabase/migrations/0021_edit_booking_description.sql` (admins edit a booking's description), `supabase/migrations/0022_delete_faculty_and_rooms.sql` (delete faculty, add and delete rooms), `supabase/migrations/0023_leave_and_activity_log.sql` (faculty leave and the activity log), `supabase/migrations/0024_equipment_and_rollover.sql` (equipment booking and the new-semester steps), `supabase/migrations/0025_edit_and_delete_everywhere.sql` (edit and delete holidays, notices, leave, requests, equipment, people, rooms and subjects; undo a decision), `supabase/migrations/0026_past_records_and_admin_classes.sql` (admins record past events, allot a room for a class, and the original class shows next to the event that replaced it), `supabase/migrations/0027_sunday_makeup_days.sql` (make-up Sundays for a holiday, and faster reads: about 20 times more page loads per second), `supabase/migrations/0028_calendar_resources.sql` (calendar links for faculty, resource requests with stock counts, and day swaps on past dates for the records), then `supabase/seed.sql` (rooms, slots and the timetable).
+2. Open **SQL Editor** and run `supabase/schema.sql` (the whole database in one file), then `supabase/seed.sql` (rooms, slots and the timetable). Paste the whole of each file and press Run.
 3. Still in the SQL Editor, add yourself as the first admin (use your real email and name):
    ```sql
    insert into public.people (email, full_name, title, role)
@@ -134,13 +135,19 @@ Supabase pauses free projects after 7 days with no visits. In GitHub, open **Set
 
 The easiest way: sign in as an admin, open **Admin → Timetables → Room timetable**, and upload the revised Word file under "Upload the timetable as a Word file". The site lists every cell that would change, and nothing is saved until you click **Apply**. Changes take effect from tomorrow; only the rooms in the file are touched, and earlier days keep the old timetable. Single cells can be edited on the same page.
 
+## Database schema
+
+`supabase/schema.sql` builds the whole database for a new install. `supabase/migrations/` keeps every change in order (0001 onwards); a site that is already running applies only the new ones, in the SQL Editor, before the code that needs them is deployed.
+
+After adding a migration, regenerate `schema.sql` from a database built from all the migrations, so new installs stay in step: `pg_dump --schema=public --schema-only --no-owner`, then keep the header, the faculty names and the storage section at the end of the current file.
+
 ## Subjects
 
 A class request names one of the faculty member's subjects (e.g. `DBMS-3B`). Admins allot them under **Admin → Subjects**, either by hand or with **Add subjects from the timetable**, which gives everyone the subjects next to their initials in the current timetable (including a newly uploaded Word file). Faculty with no subjects can still request rooms for events. Removing a subject never changes past requests, and an approved class shows its subject in the timetable.
 
 ## Holidays
 
-Admins add holidays under **Admin → Rooms → Holidays**, from tomorrow on. A holiday shows no classes, is left out of every date dropdown, and shows as an empty row in a room's week view. Past holidays stay as they were.
+Admins add holidays under **Admin → Rooms → Calendar & notices**, from tomorrow on. A holiday shows no classes, is left out of every date dropdown, and shows as an empty row in a room's week view. Past holidays stay as they were.
 
 ## Local development
 

@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { cache } from "react";
 import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { createClient } from "./supabase/server";
+import { semestersOf, type Cell } from "./classTimetable";
 import { setMakeupSundays } from "./time";
 import type { PublicRequest, Room, ScheduleRow, Slot, UpcomingRow } from "./types";
 
@@ -23,6 +24,17 @@ export const getAllRooms = unstable_cache(async (): Promise<Room[]> => {
   if (error) throw new Error(error.message);
   return data ?? [];
 }, ["rooms"], { revalidate: 3600, tags: ["rooms"] });
+
+/**
+ * The semesters and their classes (3rd: 3A 3B 3C) in the timetable on a date, for the class
+ * pickers on the home page, CIE week and Class changes. Cached for 10 minutes, since timetable
+ * edits only take effect from the next day.
+ */
+export const getClassSemesters = unstable_cache(async (date: string) => {
+  const { data, error } = await publicClient().rpc("get_timetable_all", { p_date: date });
+  if (error) throw new Error(error.message);
+  return semestersOf([...new Set(((data ?? []) as Cell[]).filter((c) => !c.is_department).map((c) => c.subject))]).semesters;
+}, ["class-semesters"], { revalidate: 600 });
 
 /** The rooms in use: archived rooms are left out of booking and schedule pages. */
 export async function getRooms(): Promise<Room[]> {

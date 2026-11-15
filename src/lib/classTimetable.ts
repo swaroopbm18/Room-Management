@@ -28,14 +28,17 @@ export function classesOf(subject: string): string[] {
 export const ordinal = (n: string) => `${n}${n === "1" ? "st" : n === "2" ? "nd" : n === "3" ? "rd" : "th"} semester`;
 
 /** Every class in the timetable, the chosen one (from `requested`, else the first) and its week. */
-export function buildClassTimetable(cells: Cell[], slots: Slot[], requested?: string) {
-  // Every class with a section, by semester; a semester with only whole-semester subjects is a class of its own
+/**
+ * Every class with a section, by semester, from the subjects taught (e.g. DBMS-3B); a semester with
+ * only whole-semester subjects is a class of its own. `hasOther`: some subject names no class;
+ * `wholeSemester`: semesters with a subject taught to every section together.
+ */
+export function semestersOf(subjects: string[]) {
   const sections = new Map<string, Set<string>>();
   const wholeSemester = new Set<string>();
   let hasOther = false;
-  for (const c of cells) {
-    if (c.is_department) continue;
-    const keys = classesOf(c.subject);
+  for (const subject of subjects) {
+    const keys = classesOf(subject);
     if (keys.length === 0) hasOther = true;
     for (const k of keys) {
       if (!sections.has(k[0])) sections.set(k[0], new Set());
@@ -46,6 +49,11 @@ export function buildClassTimetable(cells: Cell[], slots: Slot[], requested?: st
   const semesters = [...sections.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([sem, set]) => ({ sem, classes: set.size ? [...set].sort() : [sem] }));
+  return { semesters, hasOther, wholeSemester };
+}
+
+export function buildClassTimetable(cells: Cell[], slots: Slot[], requested?: string) {
+  const { semesters, hasOther, wholeSemester } = semestersOf(cells.filter((c) => !c.is_department).map((c) => c.subject));
   const allClasses = [...semesters.flatMap((s) => s.classes), ...(hasOther ? [OTHER] : [])];
   const chosen = allClasses.includes(String(requested ?? "").toUpperCase()) ? String(requested).toUpperCase() : requested === OTHER && hasOther ? OTHER : allClasses[0];
   const label = (k: string) => (k === OTHER ? "Other classes" : k.length === 1 ? `Semester ${k} (all sections)` : `Class ${k}`);

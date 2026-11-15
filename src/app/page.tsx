@@ -13,6 +13,7 @@ import UpcomingBookings from "@/components/UpcomingBookings";
 import OriginalClass from "@/components/OriginalClass";
 import {
   getDayOrders,
+  getClassSemesters,
   getDaySchedule,
   getFacultyStatus,
   getHolidays,
@@ -22,8 +23,7 @@ import {
   type FacultySlotStatus,
 } from "@/lib/data";
 import { sameStudents, sectionOf } from "@/lib/clashes";
-import { buildClassTimetable, classesOf, ordinal, type Cell } from "@/lib/classTimetable";
-import { createClient } from "@/lib/supabase/server";
+import { ordinal } from "@/lib/classTimetable";
 import type { ScheduleRow, Slot } from "@/lib/types";
 import {
   DATE_RE,
@@ -68,8 +68,7 @@ export default async function Home({
   // On a Sunday or holiday, say so instead of jumping to the next working day on its own.
   if (!sp.date && (isClosedSunday(today) || holidays.has(today))) {
     const next = nextWorkingDay(today, holidays);
-    const closedTt = await (await createClient()).rpc("get_timetable_all", { p_date: today });
-    const closedSems = buildClassTimetable(((closedTt.data ?? []) as Cell[]).filter((c) => classesOf(c.subject).length), slots).semesters;
+    const closedSems = await getClassSemesters(today);
     return (
       <div className="space-y-6">
         <script
@@ -111,16 +110,14 @@ export default async function Home({
   const lastOpen = [...slots].reverse().find((s) => slotOpen(weekday, s))!;
 
   const UPCOMING_DAYS = 14;
-  const supabase = await createClient();
-  const [day, upcoming, status, notices, ttRes] = await Promise.all([
+  // Every class, by semester, for the Class timetables section
+  const [day, upcoming, status, notices, semesters] = await Promise.all([
     getDaySchedule(date),
     getUpcomingBookings(UPCOMING_DAYS),
     getFacultyStatus(date),
     getNotices(today),
-    supabase.rpc("get_timetable_all", { p_date: today }),
+    getClassSemesters(today),
   ]);
-  // Every class, by semester, for the Class timetables section
-  const { semesters } = buildClassTimetable(((ttRes.data ?? []) as Cell[]).filter((c) => classesOf(c.subject).length), slots);
   const inSlot = (status ?? []).filter((f) => f.slot_id === slotId);
   // Free and busy faculty in the chosen slot: the whole department (null) or one cluster
   const counts = (cluster: "A" | "B" | null) => {
