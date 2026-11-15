@@ -5,32 +5,40 @@ import ExchangeStatus from "@/components/ExchangeStatus";
 import { IconArrowRight, IconSwap } from "@/components/Icons";
 import { requireStaff } from "@/lib/auth";
 import { getHolidays, getMySchedule, getSlots } from "@/lib/data";
-import { exchangeCandidates, getMyExchanges, isOpenStage, stageOf } from "@/lib/exchanges";
+import { exchangeCandidates, getMyExchanges, isOpenStage, slotRange, slotsOf, stageOf } from "@/lib/exchanges";
 import { DATE_RE, formatDate, slotStarted } from "@/lib/time";
 import { requestExchange } from "../../actions";
 import ExchangePicker from "./ExchangePicker";
 
 export const dynamic = "force-dynamic";
 
-type Search = { room?: string; date?: string; slot?: string };
+type Search = { room?: string; date?: string; slot?: string; slots?: string };
 
 export default async function ExchangePage({ searchParams }: { searchParams: Promise<Search> }) {
   const person = await requireStaff();
   const sp = await searchParams;
   await getHolidays();
   const date = DATE_RE.test(sp.date ?? "") ? sp.date! : "";
-  const slotId = Number(sp.slot);
+  // One slot (?slot=3) or a back-to-back block such as a lab (?slots=3,4)
+  const asked = (sp.slots ?? sp.slot ?? "").split(",").map(Number).filter((n) => Number.isInteger(n) && n > 0);
   const [slots, mine, exchanges] = await Promise.all([getSlots(), date ? getMySchedule(date, date, [date]) : [], getMyExchanges(person.email)]);
   const slotById = new Map(slots.map((s) => [s.id, s]));
+  const pos = new Map(slots.map((s, i) => [s.id, i]));
+  const slotIds = [...new Set(asked)].filter((id) => slotById.has(id)).sort((a, b) => pos.get(a)! - pos.get(b)!);
+  const slotId = slotIds[0];
   const slot = slotById.get(slotId);
   const cls = mine.find((r) => r.room_id === sp.room && r.slot_id === slotId);
+  // Every slot must be the same class of mine in the same room, with no gap between them
+  const block =
+    !!cls &&
+    slotIds.every((id, i) => (i === 0 || pos.get(id)! === pos.get(slotIds[i - 1])! + 1) && mine.some((r) => r.room_id === cls.room_id && r.slot_id === id && r.subject === cls.subject));
   const back = (
     <Link href="/faculty" className="btn-secondary">
       Back to my dashboard
     </Link>
   );
 
-  if (!date || !slot || !cls || slotStarted(date, slot)) {
+  if (!date || !slot || !cls || !block || slotStarted(date, slot)) {
     return (
       <div className="space-y-6">
         <PageHeader title="Class exchange" subtitle="Ask a free colleague to take one of your classes.">{back}</PageHeader>
@@ -41,8 +49,9 @@ export default async function ExchangePage({ searchParams }: { searchParams: Pro
     );
   }
 
-  const open = exchanges?.sent.find((x) => x.room_id === cls.room_id && x.date === date && x.slot_id === slotId && isOpenStage(stageOf(x, slotById)));
-  const { section, sameClass, others, ready } = await exchangeCandidates(date, slotId, cls.subject, person.initials);
+  const open = exchanges?.sent.find((x) => x.room_id === cls.room_id && x.date === date && slotsOf(x).some((id) => slotIds.includes(id)) && isOpenStage(stageOf(x, slotById)));
+  const { section, sameClass, others, ready } = await exchangeCandidates(date, slotIds, cls.subject, person.initials);
+  const multi = slotIds.length > 1;
 
   return (
     <div className="space-y-6">
@@ -54,9 +63,14 @@ export default async function ExchangePage({ searchParams }: { searchParams: Pro
         <div className="text-xs font-medium tracking-wide text-brand-200 uppercase">Class to hand over</div>
         <div className="mt-1 text-2xl font-semibold">{cls.subject ?? "Class"}</div>
         <div className="mt-1 text-sm text-brand-100">
-          {formatDate(date)} · {slot.label} · Room {cls.room_name}
+          {formatDate(date)} · {slotRange(slotIds, slotById)} · Room {cls.room_name}
           {section && <> · Class {section}</>}
         </div>
+        {multi && (
+          <div className="mt-2 inline-flex rounded-full bg-amber-300/20 px-2.5 py-1 text-xs font-medium text-amber-100 ring-1 ring-amber-300/40 ring-inset">
+            {slotIds.length} back-to-back slots, sent as one request. Only faculty free for all {slotIds.length} slots are listed.
+          </div>
+        )}
         <ol className="mt-4 flex flex-wrap items-center gap-2 text-xs text-brand-100">
           <li className="rounded-full bg-white/15 px-2.5 py-1">1. You ask a free colleague</li>
           <IconArrowRight className="h-3.5 w-3.5 opacity-70" />
@@ -86,9 +100,9 @@ export default async function ExchangePage({ searchParams }: { searchParams: Pro
         <form action={requestExchange} className="card space-y-5 p-5">
           <input type="hidden" name="room" value={cls.room_id} />
           <input type="hidden" name="date" value={date} />
-          <input type="hidden" name="slot" value={slotId} />
-          <input type="hidden" name="back" value={`/faculty/exchange?room=${encodeURIComponent(cls.room_id)}&date=${date}&slot=${slotId}`} />
-          <ExchangePicker classLabel={section} sameClass={sameClass} others={others} />
+          <input type="hidden" name="slots" value={slotIds.join(",")} />
+          <input type="hidden" name="back" value={`/faculty/exchange?room=${encodeURIComponent(cls.room_id)}&date=${date}&slots=${slotIds.join(",")}`} />
+          <ExchangePicker classLabel={section} sameClass={sameClass} others={others} slotCount={slotIds.length} />
           <div>
             <label className="label" htmlFor="ex-note">
               Note to them <span className="muted font-normal">(optional)</span>

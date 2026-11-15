@@ -5,7 +5,7 @@ import CalendarLink from "@/components/CalendarLink";
 import { IconCalendar, IconCalendarCheck, IconInbox, IconMinusCircle, IconRestore, IconSwap } from "@/components/Icons";
 import KpiCard from "@/components/KpiCard";
 import type { Person } from "@/lib/types";
-import { isOpenStage, stageOf, type ExchangeRow } from "@/lib/exchanges";
+import { classBlocks, isOpenStage, slotRange, slotsOf, stageOf, type ExchangeRow } from "@/lib/exchanges";
 import { getDaySchedule, getHolidays, getMySchedule, getSlots } from "@/lib/data";
 import { getWeekFor } from "@/lib/faculty";
 import { findSubstitutes } from "@/lib/substitutes";
@@ -52,13 +52,15 @@ export default async function Overview({ person, pending, waitingOnMe, sent }: {
   const subs = await findSubstitutes(undoable, person.initials);
   const freeToday = todayRows.filter((r) => r.status === "free" && !r.ended).length;
   // Exchange requests still open for a class, to show instead of the Exchange button
-  const asked = new Map(sent.filter((x) => isOpenStage(stageOf(x, slotById))).map((x) => [`${x.room_id}|${x.date}|${x.slot_id}`, x]));
+  const asked = new Map(sent.filter((x) => isOpenStage(stageOf(x, slotById))).flatMap((x) => slotsOf(x).map((id) => [`${x.room_id}|${x.date}|${id}`, x] as const)));
+  // Back-to-back slots of the same class (a lab or a double class) are one line, exchanged or dropped together
+  const blocks = classBlocks(mine, slots);
 
   return (
     <div className="space-y-8">
       <section className="grid grid-cols-3 gap-2 sm:gap-4">
         <KpiCard label="Free slots today" value={freeToday} href="/free" linkText="Explore free slots" tone="navy" icon={<IconCalendarCheck />} />
-        <KpiCard label="My classes, next 7 days" value={mine.length} icon={<IconCalendar />} />
+        <KpiCard label="My classes, next 7 days" value={blocks.length} icon={<IconCalendar />} />
         {waitingOnMe > 0 ? (
           <KpiCard label="Exchanges waiting on me" value={waitingOnMe} href="/faculty?tab=exchange" linkText="Accept or decline" tone="ink" icon={<IconSwap />} />
         ) : (
@@ -109,10 +111,13 @@ export default async function Overview({ person, pending, waitingOnMe, sent }: {
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-100 dark:divide-brand-900">
-                {mine.map((r) => (
+                {blocks.map((r) => (
                   <tr key={`${r.date}-${r.slot_id}-${r.room_id}`}>
                     <td data-label="Date" className="td whitespace-nowrap">{formatDate(r.date)}</td>
-                    <td data-label="Slot" className="td whitespace-nowrap">{r.slot_label}</td>
+                    <td data-label="Slot" className="td whitespace-nowrap">
+                      {slotRange(r.slotIds, slotById)}
+                      {r.slotIds.length > 1 && <span className="muted block text-xs">{r.slotIds.length} slots back to back</span>}
+                    </td>
                     <td data-label="Room" className="td font-medium">{r.room_name}</td>
                     <td data-label="Subject" className="td">
                       {r.subject}
@@ -121,7 +126,7 @@ export default async function Overview({ person, pending, waitingOnMe, sent }: {
                     <td data-label="Drop or hand over" className="td">
                       <div className="flex flex-wrap items-center justify-end gap-2">
                         {(() => {
-                          const x = asked.get(`${r.room_id}|${r.date}|${r.slot_id}`);
+                          const x = r.slotIds.map((id) => asked.get(`${r.room_id}|${r.date}|${id}`)).find(Boolean);
                           if (x)
                             return (
                               <Link href="/faculty?tab=requests" className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-900 hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-200">
@@ -129,7 +134,11 @@ export default async function Overview({ person, pending, waitingOnMe, sent }: {
                               </Link>
                             );
                           return (
-                            <Link href={`/faculty/exchange?room=${encodeURIComponent(r.room_id)}&date=${r.date}&slot=${r.slot_id}`} className="btn-secondary py-1.5" title="Ask a free colleague to take this class">
+                            <Link
+                              href={`/faculty/exchange?room=${encodeURIComponent(r.room_id)}&date=${r.date}&slots=${r.slotIds.join(",")}`}
+                              className="btn-secondary py-1.5"
+                              title={r.slotIds.length > 1 ? `Ask a colleague free for all ${r.slotIds.length} slots to take this class` : "Ask a free colleague to take this class"}
+                            >
                               <IconSwap className="h-4 w-4" /> Exchange
                             </Link>
                           );
@@ -138,6 +147,7 @@ export default async function Overview({ person, pending, waitingOnMe, sent }: {
                           <input type="hidden" name="room" value={r.room_id} />
                           <input type="hidden" name="date" value={r.date} />
                           <input type="hidden" name="slot" value={r.slot_id} />
+                          <input type="hidden" name="slots" value={r.slotIds.join(",")} />
                           <input type="hidden" name="back" value="/faculty" />
                           <input name="reason" required placeholder="Reason" className="input w-32 py-1.5" />
                           <SubmitButton className="btn-danger py-1.5" pendingText="Dropping…" message="Dropping the class…">

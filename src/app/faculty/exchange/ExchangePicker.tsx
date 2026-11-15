@@ -9,7 +9,8 @@ const busyText = (n: number) => (n === 0 ? "free all day" : `${n} slot${n === 1 
  * Who to ask, in two tabs: faculty who teach the same class first (e.g. 3A), then every other
  * faculty member free then. One choice goes with the form, whichever tab it is in.
  */
-export default function ExchangePicker({ classLabel, sameClass, others }: { classLabel: string | null; sameClass: Candidate[]; others: Candidate[] }) {
+export default function ExchangePicker({ classLabel, sameClass, others, slotCount = 1 }: { classLabel: string | null; sameClass: Candidate[]; others: Candidate[]; slotCount?: number }) {
+  const slotWord = slotCount > 1 ? `all ${slotCount} slots` : "this slot";
   const [tab, setTab] = useState<"class" | "others">(sameClass.length || !others.length ? "class" : "others");
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<string>("");
@@ -48,11 +49,11 @@ export default function ExchangePicker({ classLabel, sameClass, others }: { clas
           // Both lists stay in the form so a choice made in one tab is still sent from the other
           <div key={t.key} role="tabpanel" className={tab === t.key ? "" : "hidden"}>
             {t.key === "class" && classLabel && (
-              <p className="muted mb-2 text-sm">Free then and already teach {classLabel}, so the students know them and they can take their own subject in this slot.</p>
+              <p className="muted mb-2 text-sm">Free for {slotWord} and already teach {classLabel}, so the students know them and they can take their own subject then.</p>
             )}
-            {t.key === "others" && <p className="muted mb-2 text-sm">Everyone else free in this slot, lightest day first.</p>}
+            {t.key === "others" && <p className="muted mb-2 text-sm">Everyone else free for {slotWord}, lightest day first.</p>}
             {shown.length === 0 ? (
-              <p className="card muted p-4 text-sm">{t.list.length ? `No one here matches “${query}”.` : t.key === "class" ? `Nobody who teaches ${classLabel ?? "this class"} is free then. Try Other free faculty.` : "Nobody else is free then."}</p>
+              <p className="card muted p-4 text-sm">{t.list.length ? `No one here matches “${query}”.` : t.key === "class" ? `Nobody who teaches ${classLabel ?? "this class"} is free for ${slotWord}. Try Other free faculty.` : `Nobody else is free for ${slotWord}.`}</p>
             ) : (
               <ul className="grid gap-2 sm:grid-cols-2">
                 {shown.map((c) => {

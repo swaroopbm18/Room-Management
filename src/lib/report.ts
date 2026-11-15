@@ -20,6 +20,9 @@ type ReportRow = {
   original_faculty?: string | null;
 };
 
+/** A class handed over through a class exchange that an admin approved (admin_decide_exchange). */
+const exchanged = (r: Pick<ReportRow, "kind" | "request_id" | "reason">) => r.kind === "class_request" && !r.request_id && r.reason.startsWith("Class exchange:");
+
 /** A class an admin allotted directly, not a faculty request (needs migration 0026 to tell). */
 const adminClass = (r: Pick<ReportRow, "kind" | "request_id">) => r.kind === "class_request" && r.request_id === null;
 
@@ -38,6 +41,8 @@ const TYPE: Partial<Record<AllotmentRow["kind"], string>> = {
  * an admin allotted it directly, or the class was dropped by its faculty or removed by an admin.
  */
 function modeOf(r: Pick<ReportRow, "kind" | "reason" | "request_id">): string {
+  // A class exchange (0029): the two faculty agreed between themselves, then an admin approved it
+  if (exchanged(r)) return "Faculty mutually agreed, admin approved";
   if (adminClass(r)) return "Admin allotment";
   switch (r.kind) {
     case "class_request":
@@ -47,8 +52,8 @@ function modeOf(r: Pick<ReportRow, "kind" | "reason" | "request_id">): string {
     case "event":
       return "Admin allotment";
     default:
-      // admin_free_slots (0005) writes "Removed by admin: …"; drop_class is the faculty's own
-      return r.reason.startsWith("Removed by admin") ? "Removed by admin" : "Dropped by faculty";
+      // admin_free_slots (0005) writes "Removed by admin: …", a CIE day (0030) "Cancelled for CIE: …"; drop_class is the faculty's own
+      return r.reason.startsWith("Removed by admin") ? "Removed by admin" : r.reason.startsWith("Cancelled for CIE") ? "Cancelled for CIE by admin" : "Dropped by faculty";
   }
 }
 
@@ -98,13 +103,14 @@ export async function getReport(start: string, end: string, fromSlot: number, to
           : m.kind === "class_request"
             ? [adminClass(m) && m.title && m.title !== "Class" ? m.title : null, m.reason].filter(Boolean).join(": ")
             : [m.title && !["Event", "CIE"].includes(m.title) ? m.title : null, m.reason].filter(Boolean).join(": ");
-      const what = m.replaced.length ? `${base} (in place of ${m.replaced.join(", ")})` : base;
+      // An exchange names both faculty in its reason, so it needs no "in place of"
+      const what = exchanged(m) ? m.reason : m.replaced.length ? `${base} (in place of ${m.replaced.join(", ")})` : base;
       return {
         date: m.date,
         time: `${clock(m.starts)} – ${clock(m.last.ends)}`,
         room: m.room_id,
         faculty: m.faculty_name ?? (adminClass(m) ? "No faculty assigned" : ""),
-        type: adminClass(m) ? "Class" : TYPE[m.kind]!,
+        type: exchanged(m) ? "Class exchange" : m.kind === "drop" && m.reason.startsWith("Cancelled for CIE") ? "Class cancelled" : adminClass(m) ? "Class" : TYPE[m.kind]!,
         mode: modeOf(m),
         description: what,
       };

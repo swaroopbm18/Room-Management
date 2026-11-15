@@ -1,5 +1,5 @@
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
-import { IconCalendarCheck, IconClock, IconSearch } from "@/components/Icons";
+import { IconArrowRight, IconCalendar, IconCalendarCheck, IconClock, IconSearch } from "@/components/Icons";
 import FacultyCard from "@/components/FacultyCard";
 import KpiCard from "@/components/KpiCard";
 import PendingLink from "@/components/PendingLink";
@@ -22,6 +22,8 @@ import {
   type FacultySlotStatus,
 } from "@/lib/data";
 import { sameStudents, sectionOf } from "@/lib/clashes";
+import { buildClassTimetable, classesOf, ordinal, type Cell } from "@/lib/classTimetable";
+import { createClient } from "@/lib/supabase/server";
 import type { ScheduleRow, Slot } from "@/lib/types";
 import {
   DATE_RE,
@@ -66,6 +68,8 @@ export default async function Home({
   // On a Sunday or holiday, say so instead of jumping to the next working day on its own.
   if (!sp.date && (isClosedSunday(today) || holidays.has(today))) {
     const next = nextWorkingDay(today, holidays);
+    const closedTt = await (await createClient()).rpc("get_timetable_all", { p_date: today });
+    const closedSems = buildClassTimetable(((closedTt.data ?? []) as Cell[]).filter((c) => classesOf(c.subject).length), slots).semesters;
     return (
       <div className="space-y-6">
         <script
@@ -86,6 +90,7 @@ export default async function Home({
           nextDate={next}
           nextHref={`/?date=${next}&slot=${slots[0].id}`}
         />
+        {closedSems.length > 0 && <ClassTimetables semesters={closedSems} />}
       </div>
     );
   }
@@ -106,12 +111,16 @@ export default async function Home({
   const lastOpen = [...slots].reverse().find((s) => slotOpen(weekday, s))!;
 
   const UPCOMING_DAYS = 14;
-  const [day, upcoming, status, notices] = await Promise.all([
+  const supabase = await createClient();
+  const [day, upcoming, status, notices, ttRes] = await Promise.all([
     getDaySchedule(date),
     getUpcomingBookings(UPCOMING_DAYS),
     getFacultyStatus(date),
     getNotices(today),
+    supabase.rpc("get_timetable_all", { p_date: today }),
   ]);
+  // Every class, by semester, for the Class timetables section
+  const { semesters } = buildClassTimetable(((ttRes.data ?? []) as Cell[]).filter((c) => classesOf(c.subject).length), slots);
   const inSlot = (status ?? []).filter((f) => f.slot_id === slotId);
   // Free and busy faculty in the chosen slot: the whole department (null) or one cluster
   const counts = (cluster: "A" | "B" | null) => {
@@ -267,6 +276,7 @@ export default async function Home({
           weekday={weekday}
         />
       )}
+      {semesters.length > 0 && <ClassTimetables semesters={semesters} />}
       {upcoming && (
         <UpcomingBookings
           rows={upcoming.filter((r) => !holidays.has(r.date))}
@@ -514,6 +524,51 @@ function SearchResults({
             </div>
           );
         })}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Class timetables on the home page: one chip per class. A chip opens the classes altered for
+ * that class in the coming days (cancelled, moved, taken by someone else, or replaced by an event).
+ */
+function ClassTimetables({ semesters }: { semesters: { sem: string; classes: string[] }[] }) {
+  return (
+    <section className="card overflow-hidden" aria-labelledby="class-timetables">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-brand-100 px-4 py-3 dark:border-brand-900">
+        <div>
+          <h2 id="class-timetables" className="inline-flex items-center gap-2 font-semibold">
+            <IconCalendar className="h-4 w-4 text-brand-500" /> Class timetables
+          </h2>
+          <p className="muted text-xs">Pick a class to see its classes altered in the coming days: cancelled, moved, taken by another faculty member or replaced by an event.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <PendingLink href="/classes/changes" className="btn-primary py-1.5 text-sm">
+            All class changes <IconArrowRight className="h-4 w-4" />
+          </PendingLink>
+          <PendingLink href="/classes" className="btn-secondary py-1.5 text-sm">
+            Weekly timetables
+          </PendingLink>
+        </div>
+      </div>
+      <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+        {semesters.map(({ sem, classes }) => (
+          <div key={sem} className="rounded-xl bg-brand-50/70 p-3 dark:bg-brand-950/40">
+            <div className="mb-2 text-xs font-semibold tracking-wide text-brand-700 uppercase dark:text-brand-300">{ordinal(sem)}</div>
+            <div className="flex flex-wrap gap-1.5">
+              {classes.map((k) => (
+                <PendingLink
+                  key={k}
+                  href={`/classes/changes?class=${encodeURIComponent(k)}`}
+                  className="rounded-lg bg-white px-3 py-1 text-sm font-semibold text-brand-800 shadow-sm ring-1 ring-brand-200 ring-inset transition hover:bg-brand-600 hover:text-white hover:ring-brand-600 dark:bg-ink dark:text-brand-200 dark:ring-brand-800 dark:hover:bg-brand-500 dark:hover:text-black"
+                >
+                  {k.length === 1 ? "All sections" : k}
+                </PendingLink>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );

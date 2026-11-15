@@ -1,3 +1,4 @@
+import AffectedClasses from "./AffectedClasses";
 import { IconCheck, IconFlag } from "./Icons";
 import PendingLink from "./PendingLink";
 import StatusBadge from "./StatusBadge";
@@ -44,11 +45,8 @@ export default function UpcomingBookings({ rows, slots, days }: { rows: Upcoming
     const sub = dark ? "text-brand-200" : "text-brand-700 dark:text-brand-300";
     const requested = g.kind === "class_request" || g.kind === "event_request";
     return (
-      <li key={`${g.date}|${g.room_id}|${g.first.id}`}>
-        <PendingLink
-          href={`/room/${encodeURIComponent(g.room_id)}?week=${mondayOf(g.date)}`}
-          className={`flex h-full flex-col rounded-2xl p-3 transition sm:p-4 hover:-translate-y-0.5 hover:ring-2 hover:ring-brand-400 ${TONE[g.kind]}`}
-        >
+      <li key={`${g.date}|${g.room_id}|${g.first.id}`} className={`flex h-full flex-col rounded-2xl transition hover:-translate-y-0.5 hover:ring-2 hover:ring-brand-400 ${TONE[g.kind]}`}>
+        <PendingLink href={`/room/${encodeURIComponent(g.room_id)}?week=${mondayOf(g.date)}`} className="flex flex-1 flex-col rounded-2xl p-3 sm:p-4">
           <div className="flex items-start justify-between gap-2">
             <span className={`text-xs font-medium sm:text-sm ${sub}`}>{g.date === today ? "Today" : formatDate(g.date, { year: undefined })}</span>
             {dark ? (
@@ -67,33 +65,6 @@ export default function UpcomingBookings({ rows, slots, days }: { rows: Upcoming
               {!g.allotted ? `Requested by ${g.faculty_name}` : g.faculty_name ? `Faculty: ${g.faculty_name}` : "No faculty assigned"}
             </div>
           )}
-          {/* The regular class this replaced, e.g. DBMS-3B replaced by an IEEE event */}
-          {g.replaced.length > 0 && (
-            <div
-              className={`mt-2 rounded-xl px-2 py-1 text-[11px] leading-snug sm:text-xs ${
-                dark ? "bg-black/20 text-brand-100 ring-1 ring-white/15 ring-inset" : "bg-amber-50 text-amber-900 ring-1 ring-amber-200 ring-inset dark:bg-amber-950/40 dark:text-amber-100 dark:ring-amber-900"
-              }`}
-            >
-              <div className="font-semibold">
-                {g.replaced.length === 1 ? "Class affected" : `${g.replaced.length} classes affected`}
-              </div>
-              <ul className="mt-1 space-y-1">
-                {g.replaced.map((x, i) => (
-                  <li key={i} className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                    {g.replaced.length > 1 && <span className="min-w-[4.5em] shrink-0 whitespace-nowrap tabular-nums opacity-75">{x.at}</span>}
-                    <span
-                      className={`rounded-md px-1.5 py-px font-semibold ring-1 ring-inset ${
-                        dark ? "bg-amber-300/20 text-amber-100 ring-amber-300/50" : "bg-amber-200/70 text-amber-950 ring-amber-300 dark:bg-amber-500/25 dark:text-amber-100 dark:ring-amber-500/50"
-                      }`}
-                    >
-                      {x.subject}
-                    </span>
-                    {x.faculty && <span>{x.faculty}</span>}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
           {g.approved_by && (
             <div
               className={`mt-2 inline-flex max-w-full items-start gap-1 self-start rounded-xl px-2 py-0.5 text-[11px] font-medium sm:text-xs ${
@@ -106,6 +77,17 @@ export default function UpcomingBookings({ rows, slots, days }: { rows: Upcoming
           )}
           {g.reason && <div className={`mt-1.5 line-clamp-2 text-xs ${dark ? "text-brand-100/90" : "text-neutral-600 dark:text-neutral-300"}`}>{g.reason}</div>}
         </PendingLink>
+        {/* The regular classes this replaced, behind a button that opens them in a pop-up */}
+        {g.replaced.length > 0 && (
+          <div className="px-3 pb-3 sm:px-4 sm:pb-4">
+            <AffectedClasses
+              classes={g.replaced}
+              dark={dark}
+              title={`${g.title || (g.kind === "cie" ? "CIE" : "Event")} in ${g.room_id}`}
+              when={`${g.date === today ? "Today" : formatDate(g.date, { weekday: "short", year: undefined })}, ${g.first.label.split(" – ")[0]} – ${g.last.label.split(" – ")[1]}`}
+            />
+          </div>
+        )}
       </li>
     );
   };

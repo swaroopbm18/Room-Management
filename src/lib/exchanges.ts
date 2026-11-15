@@ -10,6 +10,8 @@ export type ExchangeRow = {
   room_id: string;
   date: string;
   slot_id: number;
+  /** Every slot of a back-to-back class (migration 0030); missing or null means just slot_id. */
+  slot_ids?: number[] | null;
   subject: string | null;
   new_subject: string | null;
   requester_email: string;
@@ -27,6 +29,39 @@ export type ExchangeRow = {
   decided_at: string | null;
   created_at: string;
 };
+
+/** Every slot of an exchange, first to last. */
+export const slotsOf = (x: Pick<ExchangeRow, "slot_id" | "slot_ids">): number[] => (x.slot_ids?.length ? x.slot_ids : [x.slot_id]);
+
+/** "8:00 AM – 9:50 AM" for the first slot's start to the last slot's end. */
+export function slotRange(ids: number[], slotById: Map<number, Slot>): string {
+  const first = slotById.get(ids[0]);
+  const last = slotById.get(ids[ids.length - 1]);
+  if (!first || !last) return "";
+  return ids.length === 1 ? first.label : `${first.label.split(" – ")[0]} – ${last.label.split(" – ")[1]}`;
+}
+
+/** "10:20 AM – 12:10 PM (2 slots)" for a block, the plain label for one slot. */
+export const exchangeTime = (x: Pick<ExchangeRow, "slot_id" | "slot_ids">, slotById: Map<number, Slot>) => {
+  const ids = slotsOf(x);
+  return `${slotRange(ids, slotById)}${ids.length > 1 ? ` (${ids.length} slots)` : ""}`;
+};
+
+/**
+ * Consecutive slots of the same class in the same room on the same day, e.g. a two-slot lab,
+ * merged into one block. Slots are back to back when no other slot comes between them.
+ */
+export function classBlocks<T extends { date: string; room_id: string; slot_id: number; subject: string | null }>(rows: T[], slots: Slot[]): (T & { slotIds: number[] })[] {
+  const pos = new Map(slots.map((s, i) => [s.id, i]));
+  const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date) || (pos.get(a.slot_id) ?? 0) - (pos.get(b.slot_id) ?? 0) || a.room_id.localeCompare(b.room_id));
+  const out: (T & { slotIds: number[] })[] = [];
+  for (const r of sorted) {
+    const prev = out.findLast((b) => b.date === r.date && b.room_id === r.room_id);
+    if (prev && prev.subject && prev.subject === r.subject && (pos.get(prev.slotIds[prev.slotIds.length - 1]) ?? -9) + 1 === pos.get(r.slot_id)) prev.slotIds.push(r.slot_id);
+    else out.push({ ...r, slotIds: [r.slot_id] });
+  }
+  return out;
+}
 
 /** Where an exchange stands, with "expired" for one still open when the class started. */
 export type ExchangeStage = ExchangeRow["status"] | "expired";
@@ -74,11 +109,11 @@ export type Candidate = {
 type TimetableCell = { room_id: string; slot_id: number; subject: string; faculty_initials: string[]; is_department: boolean };
 
 /**
- * Who could take a class: everyone free in that slot that day, split into those who teach the
+ * Who could take a class: everyone free in every one of its slots that day, split into those who teach the
  * same class (the students know them, and they can teach their own subject) and everyone else.
  * Each list is ordered by the lightest day first.
  */
-export async function exchangeCandidates(date: string, slotId: number, subject: string | null, me: string | null) {
+export async function exchangeCandidates(date: string, slotIds: number[], subject: string | null, me: string | null) {
   const supabase = await createClient();
   const [status, all, signed] = await Promise.all([
     getFacultyStatus(date),
@@ -96,8 +131,11 @@ export async function exchangeCandidates(date: string, slotId: number, subject: 
   const load = new Map<string, number>();
   for (const f of status ?? []) if (f.busy) load.set(f.initials, (load.get(f.initials) ?? 0) + 1);
 
+  // Free in every slot of the class (both slots of a lab, say)
+  const freeIn = new Map<string, number>();
+  for (const f of status ?? []) if (slotIds.includes(f.slot_id) && !f.busy) freeIn.set(f.initials, (freeIn.get(f.initials) ?? 0) + 1);
   const free: Candidate[] = (status ?? [])
-    .filter((f) => f.slot_id === slotId && !f.busy && f.initials !== me)
+    .filter((f) => f.slot_id === slotIds[0] && freeIn.get(f.initials) === slotIds.length && f.initials !== me)
     .map((f) => {
       const own = section ? (teaches.get(f.initials) ?? []).filter((s) => sectionOf(s) && sameStudents(sectionOf(s)!, section)) : [];
       // Prefer a theory class over a lab for the same students

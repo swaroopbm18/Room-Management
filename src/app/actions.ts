@@ -92,7 +92,19 @@ export async function withdrawRequest(form: FormData) {
 }
 
 export async function dropClass(form: FormData) {
-  const slot = { p_room: s(form, "room"), p_date: s(form, "date"), p_slot: Number(s(form, "slot")) };
+  // A back-to-back class (a lab, say) is dropped in every slot at once
+  const many = s(form, "slots").split(",").map(Number).filter((n) => n > 0);
+  if (many.length > 1) {
+    const supabase = await createClient();
+    let error: { message: string } | null = null;
+    for (const p_slot of many) {
+      ({ error } = await supabase.rpc("drop_class", { p_room: s(form, "room"), p_date: s(form, "date"), p_slot, p_reason: s(form, "reason") }));
+      if (error) break;
+    }
+    revalidatePath("/", "layout");
+    redirect(withParam(back(form, "/faculty"), error ? "error" : "msg", error ? error.message : `Class dropped in all ${many.length} slots. The room is now free for others to request.`));
+  }
+  const slot = { p_room: s(form, "room"), p_date: s(form, "date"), p_slot: Number(s(form, "slot") || many[0]) };
   await run(form, "/faculty", "drop_class", { ...slot, p_reason: s(form, "reason") }, "Class dropped. The room is now free for others to request.", undoToken("drop", slot));
 }
 
@@ -538,7 +550,9 @@ export async function blockCieWeek(form: FormData) {
   const rooms = form.getAll("rooms").map(String).filter(Boolean);
   const from = s(form, "from_date");
   const until = s(form, "to_date") || from;
-  if (!rooms.length) redirect(withParam(to, "error", "Pick at least one room."));
+  const semesters = form.getAll("semesters").map(String).filter((x) => /^\d$/.test(x));
+  const cancel = semesters.length > 0 && s(form, "cancel_classes") === "on";
+  if (!rooms.length && !cancel) redirect(withParam(to, "error", "Pick at least one room, or a semester whose classes to cancel."));
   if (!from || until < from) redirect(withParam(to, "error", "The last day must be on or after the first day."));
   const [picked, holidays] = await Promise.all([slotRange(form, to), getHolidays()]);
   const days: string[] = [];
@@ -563,8 +577,23 @@ export async function blockCieWeek(form: FormData) {
       else done++;
     }
   }
+  // Cancel every class of the semesters writing the CIE, on each of those days (migration 0030)
+  let cancelled = 0;
+  if (cancel) {
+    const label = `${s(form, "title") || (s(form, "kind") === "event" ? "College event" : "CIE")}, semester ${semesters.join(", ")}`;
+    for (const d of days) {
+      const { data, error } = await supabase.rpc("admin_cancel_semester_classes", { p_date: d, p_semesters: semesters, p_reason: label });
+      if (error) {
+        failed.push(error.message.includes("admin_cancel_semester_classes") ? "class cancellations (run supabase/migrations/0030_exchange_blocks_and_cie_cancel.sql first)" : `classes on ${formatDate(d, { year: undefined })} (${error.message})`);
+        if (error.message.includes("admin_cancel_semester_classes")) break;
+      } else cancelled += Number(data ?? 0);
+    }
+  }
   revalidatePath("/", "layout");
-  const ok = `Booked ${done} room-${done === 1 ? "day" : "days"} across ${days.length} ${days.length === 1 ? "day" : "days"}.`;
+  const ok = (
+    (rooms.length ? `Booked ${done} room-${done === 1 ? "day" : "days"} across ${days.length} ${days.length === 1 ? "day" : "days"}.` : "") +
+    (cancel ? ` Cancelled ${cancelled} class ${cancelled === 1 ? "slot" : "slots"} of semester ${semesters.join(", ")}.` : "")
+  ).trim();
   redirect(withParam(to, failed.length ? "error" : "msg", failed.length ? `${done ? ok + " " : ""}Not booked: ${failed.slice(0, 6).join("; ")}${failed.length > 6 ? ` and ${failed.length - 6} more` : ""}.` : ok));
 }
 
@@ -935,13 +964,20 @@ export async function saveSupply(form: FormData) {
 // ---------------------------------------------------------------------------
 
 const MIGRATION_0029 = "Run supabase/migrations/0029_class_exchanges.sql in the Supabase SQL Editor first.";
+const MIGRATION_0030 = "Run supabase/migrations/0030_exchange_blocks_and_cie_cancel.sql in the Supabase SQL Editor first.";
 
 async function run29(form: FormData, fallback: string, fn: string, args: Record<string, unknown>, ok: string, okTo?: string) {
   const supabase = await createClient();
   const { error } = await supabase.rpc(fn, args);
   const to = !error && okTo ? okTo : back(form, fallback);
   revalidatePath("/", "layout");
-  const m = error ? (error.message.includes(fn) || error.message.includes("class_exchanges") ? MIGRATION_0029 : error.message) : ok;
+  const m = error
+    ? ["request_exchange_slots", "admin_undo_exchange"].includes(fn) && error.message.includes(fn)
+      ? MIGRATION_0030
+      : error.message.includes(fn) || error.message.includes("class_exchanges")
+        ? MIGRATION_0029
+        : error.message
+    : ok;
   redirect(withParam(to, error ? "error" : "msg", m));
 }
 
@@ -950,14 +986,12 @@ export async function requestExchange(form: FormData) {
   const target = s(form, "target");
   if (!target) redirect(withParam(back(form, "/faculty"), "error", "Pick who should take the class."));
   const [ini, name, teaches] = target.split("|");
-  await run29(
-    form,
-    "/faculty?tab=requests",
-    "request_exchange",
-    { p_room: s(form, "room"), p_date: s(form, "date"), p_slot: Number(s(form, "slot")), p_target: ini, p_note: s(form, "note"), p_new_subject: teaches || null },
-    `Request sent to ${name || ini}. Once they accept, an admin gives the final approval; you'll see each step here.`,
-    "/faculty?tab=requests",
-  );
+  // Back-to-back slots of one class (a lab, say) go as one request
+  const slots = (s(form, "slots") || s(form, "slot")).split(",").map(Number).filter((n) => n > 0);
+  const common = { p_room: s(form, "room"), p_date: s(form, "date"), p_target: ini, p_note: s(form, "note"), p_new_subject: teaches || null };
+  const sent = `Request sent to ${name || ini}${slots.length > 1 ? ` for all ${slots.length} slots` : ""}. Once they accept, an admin gives the final approval; you'll see each step here.`;
+  if (slots.length > 1) await run29(form, "/faculty?tab=requests", "request_exchange_slots", { ...common, p_slots: slots }, sent, "/faculty?tab=requests");
+  else await run29(form, "/faculty?tab=requests", "request_exchange", { ...common, p_slot: slots[0] }, sent, "/faculty?tab=requests");
 }
 
 export async function acceptExchange(form: FormData) {
@@ -977,5 +1011,10 @@ export async function approveExchange(form: FormData) {
 }
 
 export async function rejectExchange(form: FormData) {
-  await run29(form, "/admin/exchanges", "admin_decide_exchange", { p_id: Number(s(form, "id")), p_approve: false, p_note: s(form, "note") }, "Exchange rejected.");
+  await run29(form, "/admin/exchanges", "admin_decide_exchange", { p_id: Number(s(form, "id")), p_approve: false, p_note: s(form, "note") }, "Exchange denied. The original classes stay as they are.");
+}
+
+/** Take back an approved exchange before the class starts: the original faculty gets every slot back. */
+export async function undoExchange(form: FormData) {
+  await run29(form, "/admin/exchanges", "admin_undo_exchange", { p_id: Number(s(form, "id")), p_note: s(form, "note") }, "Approval taken back. The original classes are back on the timetable.");
 }

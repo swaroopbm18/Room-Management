@@ -2,6 +2,7 @@ import ClosedDay from "@/components/ClosedDay";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
 import { buildClassTimetable, classesOf, ordinal, type Cell } from "@/lib/classTimetable";
+import { classDay, LINE_STATE } from "@/lib/classDay";
 import { getDayOrders, getDaySchedule, getHolidays, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { DATE_RE, formatDate, isClosedSunday, nextWorkingDay, slotEnded, todayIST, WEEKDAY_NAMES } from "@/lib/time";
@@ -12,16 +13,6 @@ export const metadata = {
   title: "Today for my class",
   description: "What's on today for a class in BMSCE's Department of Machine Learning: classes, cancelled classes and room changes.",
   alternates: { canonical: "/today" },
-};
-
-type DayCell = Omit<Cell, "weekday">;
-type Line = { slotIds: number[]; subject: string; room: string; who: string | null; state: "on" | "cancelled" | "taken" | "extra"; note?: string };
-
-const STATE: Record<Line["state"], { label: string; cls: string }> = {
-  on: { label: "On", cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" },
-  extra: { label: "Extra / moved", cls: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200" },
-  taken: { label: "Room taken", cls: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200" },
-  cancelled: { label: "Cancelled", cls: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" },
 };
 
 /** One class's day as it actually runs: its classes, those cancelled or moved, and extra classes. */
@@ -37,31 +28,7 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
     isClosedSunday(date) || holidays.has(date) ? Promise.resolve([] as ScheduleRow[]) : getDaySchedule(date),
   ]);
   const { semesters, allClasses, chosen, label } = buildClassTimetable(((allRes.data ?? []) as Cell[]).filter((c) => classesOf(c.subject).length), slots, sp.class);
-  const forMe = (subject: string | null) => !!subject && classesOf(subject).some((k) => k === chosen || k === chosen?.[0]);
-  const rowAt = new Map(schedule.map((r) => [`${r.room_id}|${r.slot_id}`, r]));
-  const order = new Map(slots.map((s, i) => [s.id, i]));
-
-  const lines: Line[] = [];
-  for (const c of ((dayRes.data ?? []) as DayCell[]).filter((c) => !c.is_department && forMe(c.subject))) {
-    const r = rowAt.get(`${c.room_id}|${c.slot_id}`);
-    if (!r) continue;
-    const state: Line["state"] = r.status === "class" ? "on" : r.status === "free" ? "cancelled" : "taken";
-    const note = state === "cancelled" ? (r.reason ?? undefined) : state === "taken" ? `${r.subject ?? "Booked"}${r.status === "cie" ? " (CIE)" : ""}` : undefined;
-    lines.push({ slotIds: [c.slot_id], subject: c.subject, room: c.room_id, who: state === "on" ? r.faculty_name : null, state, note });
-  }
-  // Class bookings for this class in another room or slot
-  for (const r of schedule.filter((r) => r.status === "booked" && forMe(r.subject))) {
-    if (lines.some((l) => l.room === r.room_id && l.slotIds.includes(r.slot_id) && l.subject === r.subject)) continue;
-    lines.push({ slotIds: [r.slot_id], subject: r.subject!, room: r.room_id, who: r.faculty_name, state: "extra" });
-  }
-  // Back-to-back slots of the same class read as one line, like a lab
-  lines.sort((a, b) => (order.get(a.slotIds[0]) ?? 0) - (order.get(b.slotIds[0]) ?? 0) || a.subject.localeCompare(b.subject));
-  const merged: Line[] = [];
-  for (const l of lines) {
-    const m = merged.find((x) => x.subject === l.subject && x.room === l.room && x.state === l.state && (order.get(x.slotIds[x.slotIds.length - 1]) ?? -9) + 1 === order.get(l.slotIds[0]));
-    if (m) m.slotIds.push(...l.slotIds);
-    else merged.push({ ...l, slotIds: [...l.slotIds] });
-  }
+  const merged = classDay(chosen, (dayRes.data ?? []) as Omit<Cell, "weekday">[], schedule, slots);
   const changes = merged.filter((l) => l.state !== "on").length;
   const slotBy = new Map(slots.map((s) => [s.id, s]));
   const time = (ids: number[]) => `${slotBy.get(ids[0])?.label.split(" – ")[0]} – ${slotBy.get(ids[ids.length - 1])?.label.split(" – ")[1]}`;
@@ -131,7 +98,7 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
                   </span>
                   {l.note && <span className="muted block text-xs">{l.state === "taken" ? `Room booked for ${l.note}` : l.note}</span>}
                 </span>
-                <span className={`self-start rounded-full px-2 py-0.5 text-xs font-semibold ${STATE[l.state].cls}`}>{done ? "Over" : STATE[l.state].label}</span>
+                <span className={`self-start rounded-full px-2 py-0.5 text-xs font-semibold ${LINE_STATE[l.state].cls}`}>{done ? "Over" : LINE_STATE[l.state].label}</span>
               </li>
             );
           })}

@@ -4,6 +4,8 @@ import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
 import { getHolidays, getRooms, getSlots } from "@/lib/data";
 import { roomSummary } from "@/lib/rooms";
+import { buildClassTimetable, ordinal, type Cell } from "@/lib/classTimetable";
+import { createClient } from "@/lib/supabase/server";
 import { bookableDates, todayIST, workingDay } from "@/lib/time";
 import { blockCieWeek } from "../../actions";
 import SlotRange from "../allot/SlotRange";
@@ -12,7 +14,10 @@ export const dynamic = "force-dynamic";
 
 /** Book the same slots in several rooms over several days at once, e.g. for a CIE week. */
 export default async function CieWeek() {
-  const [rooms, slots, holidays] = await Promise.all([getRooms(), getSlots(), getHolidays()]);
+  const supabase = await createClient();
+  const [rooms, slots, holidays, ttRes] = await Promise.all([getRooms(), getSlots(), getHolidays(), supabase.rpc("get_timetable_all", { p_date: todayIST() })]);
+  // The semesters in the timetable, with their sections, e.g. 3rd semester: 3A 3B 3C
+  const { semesters } = buildClassTimetable((ttRes.data ?? []) as Cell[], slots);
   const dates = bookableDates();
   const first = workingDay(todayIST(), holidays);
 
@@ -20,7 +25,7 @@ export default async function CieWeek() {
     <div className="space-y-6">
       <PageHeader
         title="CIE week"
-        subtitle="Take the same slots in several rooms over several days in one go. Sundays and holidays are skipped. Like a single allotment, it overrides classes and bookings and declines pending requests for those slots."
+        subtitle="Take the same slots in several rooms over several days in one go, and cancel the regular classes of the semesters writing the CIE. Sundays and holidays are skipped. Like a single allotment, it overrides classes and bookings and declines pending requests for those slots."
       />
 
       <form action={blockCieWeek} className="card space-y-5 p-6">
@@ -38,6 +43,37 @@ export default async function CieWeek() {
             <SlotRange slots={slots} />
           </div>
         </div>
+
+        {semesters.length > 0 && (
+          <fieldset className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+            <legend className="px-1 text-sm font-semibold">Semesters writing the CIE</legend>
+            <p className="muted mb-3 text-xs">
+              Every class of the semesters you tick is cancelled on each CIE day, all day, so students and faculty see it on the home page and in Class changes. Classes that have
+              already started are left alone. A cancelled slot can be brought back from Allot / free rooms.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {semesters.map(({ sem, classes }) => (
+                <label
+                  key={sem}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm has-[:checked]:border-amber-500 has-[:checked]:bg-amber-100 dark:border-brand-900 dark:bg-ink dark:has-[:checked]:border-amber-500 dark:has-[:checked]:bg-amber-950"
+                >
+                  <input type="checkbox" name="semesters" value={sem} className="h-4 w-4 accent-amber-600" />
+                  <span>
+                    <span className="font-semibold">{ordinal(sem)}</span>
+                    <span className="muted block text-xs">{classes.length === 1 && classes[0] === sem ? "All sections" : classes.join(" · ")}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <label className="mt-3 flex items-start gap-2 text-sm">
+              <input type="checkbox" name="cancel_classes" value="on" defaultChecked className="mt-0.5 h-4 w-4 accent-amber-600" />
+              <span>
+                <span className="font-medium">Cancel all regular classes of these semesters on the CIE days</span>
+                <span className="muted block text-xs">On by default. Untick to book the rooms only and leave the classes running.</span>
+              </span>
+            </label>
+          </fieldset>
+        )}
 
         <fieldset>
           <legend className="label">Rooms</legend>

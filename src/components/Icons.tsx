@@ -324,3 +324,10 @@ export const IconArchive = (p: P) => (
     <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4" />
   </Svg>
 );
+
+export const IconBook = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6.5A2.5 2.5 0 0 0 4 21.5v-2Z" />
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H19M8 7h7M8 11h5" />
+  </Svg>
+);
