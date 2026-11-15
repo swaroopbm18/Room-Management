@@ -14,16 +14,16 @@ type ReportRow = {
   faculty_name: string | null;
   reason: string;
   subject: string | null;
-  /** Missing before migration 0026. Null for a class or event an admin allotted directly. */
+  /** Null for a class or event an admin allotted directly. */
   request_id?: string | null;
-  /** Whose regular class the change replaced (migration 0026). */
+  /** Whose regular class the change replaced */
   original_faculty?: string | null;
 };
 
 /** A class handed over through a class exchange that an admin approved (admin_decide_exchange). */
 const exchanged = (r: Pick<ReportRow, "kind" | "request_id" | "reason">) => r.kind === "class_request" && !r.request_id && r.reason.startsWith("Class exchange:");
 
-/** A class an admin allotted directly, not a faculty request (needs migration 0026 to tell). */
+/** A class an admin allotted directly, not a faculty request */
 const adminClass = (r: Pick<ReportRow, "kind" | "request_id">) => r.kind === "class_request" && r.request_id === null;
 
 export type ReportEntry = { date: string; time: string; room: string; faculty: string; type: string; mode: string; description: string };

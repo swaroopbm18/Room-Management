@@ -97,7 +97,6 @@ export async function getWeekFor(initials: string): Promise<Map<string, Busy[]>>
   for (const t of (ttRes.data ?? []) as TimetableCell[]) {
     if (!t.is_department && t.faculty_initials.includes(initials)) add(t.weekday, t.slot_id, { activity: t.subject, room: t.room_id, source: "timetable" });
   }
-  // Before migration 0017 faculty can't read their duties, so only classes show
   for (const d of (dutyRes.data ?? []) as Omit<Duty, "initials">[]) add(d.weekday, d.slot_id, { activity: d.activity, source: "duty" });
   return week;
 }

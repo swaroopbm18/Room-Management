@@ -94,9 +94,9 @@ export default async function FacultyTimetables({ searchParams }: { searchParams
           <IconCalendarCheck className="h-4 w-4" /> Free time & meetings
         </Link>
       </PageHeader>
-      {!clustersReady && <Flash error="Run supabase/migrations/0014_faculty_clusters.sql in the Supabase SQL Editor to put faculty into Cluster A and Cluster B." />}
+      {!clustersReady && <Flash error="Clusters couldn't be read just now. Try again in a moment." />}
       {!dutiesReady && (
-        <Flash error="Run supabase/migrations/0013_faculty_timetables.sql in the Supabase SQL Editor to add duties other than classes. Classes from the room timetable already show." />
+        <Flash error="Duties other than classes couldn't be read just now. Classes from the room timetable still show." />
       )}
 
       <section className="grid grid-cols-3 gap-2 sm:gap-4">

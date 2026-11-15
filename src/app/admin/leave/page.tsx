@@ -85,7 +85,7 @@ export default async function LeavePage() {
         title="Leave & substitutes"
         subtitle="Mark a faculty member on leave and they show as busy everywhere, so they're never suggested as a substitute. Their classes in the next two weeks are listed here with the colleagues free to take each one, best fit first: same course or class, then the lightest day. Assign gives the class to them in one click."
       />
-      {!ready && <div className="card muted p-4 text-sm">Run supabase/migrations/0023_leave_and_activity_log.sql in the Supabase SQL Editor to record leave.</div>}
+      {!ready && <div className="card muted p-4 text-sm">Leave couldn&apos;t be read just now. Try again in a moment.</div>}
 
       {ready && (
         <form action={addLeave} className="card grid gap-3 p-4 sm:grid-cols-[minmax(0,1.4fr)_10rem_10rem_minmax(0,1fr)_auto] sm:items-end">

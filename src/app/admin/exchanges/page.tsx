@@ -89,7 +89,7 @@ export default async function AdminExchanges() {
         <KpiCard label="Approved this week" value={approvedThisWeek} tone="ink" icon={<IconUsers />} />
       </section>
 
-      {error && <div className="card p-4 text-sm">Run supabase/migrations/0029_class_exchanges.sql in the Supabase SQL Editor to turn on class exchanges.</div>}
+      {error && <div className="card p-4 text-sm">Class exchanges couldn&apos;t be read just now. Try again in a moment.</div>}
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">Accepted, waiting for your approval</h2>

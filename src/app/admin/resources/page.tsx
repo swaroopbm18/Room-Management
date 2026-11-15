@@ -27,7 +27,7 @@ export default async function Resources() {
     return (
       <div className="space-y-6">
         <PageHeader title="Resource requests" subtitle="Supplies and other resources faculty ask for." />
-        <div className="card muted p-4 text-sm">Run supabase/migrations/0028_calendar_resources.sql in the Supabase SQL Editor to take resource requests.</div>
+        <div className="card muted p-4 text-sm">Resource requests couldn&apos;t be read just now. Try again in a moment.</div>
       </div>
     );
   }

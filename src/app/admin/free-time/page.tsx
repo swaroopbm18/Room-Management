@@ -107,7 +107,7 @@ export default async function FreeTime({ searchParams }: { searchParams: Promise
       </section>
 
       {!clustersReady && (
-        <div className="card muted p-4 text-sm">Run supabase/migrations/0014_faculty_clusters.sql in the Supabase SQL Editor, then put faculty into Cluster A and Cluster B on the Faculty profiles page.</div>
+        <div className="card muted p-4 text-sm">Clusters couldn&apos;t be read just now, so everyone shows together.</div>
       )}
       {clustersReady && cluster !== "all" && total === 0 && (
         <div className="card p-4 text-sm">

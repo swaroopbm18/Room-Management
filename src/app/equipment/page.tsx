@@ -55,7 +55,7 @@ export default async function Equipment({ searchParams }: { searchParams: Promis
   return (
     <div className="space-y-6">
       <PageHeader title="Equipment" subtitle="Book a portable projector, mic, speaker or kit for your class or event, first come first served. For supplies, a lab or anything that needs an admin's OK, send a request at the bottom of the page." />
-      {!ready && <div className="card muted p-4 text-sm">Equipment booking isn&apos;t set up yet. An admin needs to run supabase/migrations/0024_equipment_and_rollover.sql.</div>}
+      {!ready && <div className="card muted p-4 text-sm">Equipment couldn&apos;t be read just now. Try again in a moment.</div>}
 
       {ready && (
         <>

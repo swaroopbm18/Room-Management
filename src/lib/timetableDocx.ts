@@ -1,7 +1,7 @@
 import { unzipSync, strFromU8 } from "fflate";
 
-// Reads the department's Room Allocation Time Table (.docx), the same layout as
-// scripts/parse_timetable.py: for every room, a one-row table "Room Name: …" followed by a
+// Reads the department's Room Allocation Time Table (.docx).
+// The Word file has, for every room, a one-row table "Room Name: …" followed by a
 // grid whose first two rows hold the times and whose next rows are MON..SAT.
 
 export type ParsedEntry = {

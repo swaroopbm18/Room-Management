@@ -42,7 +42,7 @@ export default function MyRequests({
           </Link>
         </div>
         {!exchangesReady ? (
-          <div className="card p-4 text-sm">Run supabase/migrations/0029_class_exchanges.sql in the Supabase SQL Editor to turn on class exchanges.</div>
+          <div className="card p-4 text-sm">Class exchanges couldn&apos;t be read just now. Try again in a moment.</div>
         ) : sent.length === 0 ? (
           <EmptyState icon={<IconSwap />} title="No class exchanges yet">
             Can&apos;t take a class? Press Exchange next to it under My upcoming classes and ask a free colleague, those who teach the same class first.

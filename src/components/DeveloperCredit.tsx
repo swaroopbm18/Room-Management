@@ -66,12 +66,11 @@ function CreditCard({ c }: { c: Credit }) {
 
 /**
  * The credits at the bottom of every page: the developers and the mentor as KPI cards in one row,
- * and a Privacy button. Pinned to the bottom of the screen on a laptop or wider; on a phone or
- * tablet the cards stack at the end of the page instead, so they never cover it.
+ * and a Privacy button, at the end of every page so it never covers the content.
  */
 export default function DeveloperCredit() {
   return (
-    <footer className="z-30 border-t border-brand-100 bg-brand-50/90 backdrop-blur print:hidden lg:sticky lg:bottom-0 dark:border-brand-900 dark:bg-black/85">
+    <footer className="z-30 border-t border-brand-100 bg-brand-50/90 backdrop-blur print:hidden dark:border-brand-900 dark:bg-black/85">
       <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-2 sm:px-6 lg:flex-row lg:items-center lg:gap-3">
         <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-3 lg:gap-3">
           {CREDITS.map((c) => (

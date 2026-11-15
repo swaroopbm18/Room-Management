@@ -134,15 +134,6 @@ Supabase pauses free projects after 7 days with no visits. In GitHub, open **Set
 
 The easiest way: sign in as an admin, open **Admin → Timetables → Room timetable**, and upload the revised Word file under "Upload the timetable as a Word file". The site lists every cell that would change, and nothing is saved until you click **Apply**. Changes take effect from tomorrow; only the rooms in the file are touched, and earlier days keep the old timetable. Single cells can be edited on the same page.
 
-Or, from the command line, generate the revision as the next version, starting today or later:
-
-```bash
-pip install python-docx
-python3 scripts/parse_timetable.py "Revised Timetable.docx" --version 2 --from 2026-11-02 > revision.sql
-```
-
-Run `revision.sql` in the Supabase SQL Editor. From that date on the new timetable applies; past days keep the old one, and the database refuses a revision that starts in the past.
-
 ## Subjects
 
 A class request names one of the faculty member's subjects (e.g. `DBMS-3B`). Admins allot them under **Admin → Subjects**, either by hand or with **Add subjects from the timetable**, which gives everyone the subjects next to their initials in the current timetable (including a newly uploaded Word file). Faculty with no subjects can still request rooms for events. Removing a subject never changes past requests, and an approved class shows its subject in the timetable.
