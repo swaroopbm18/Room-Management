@@ -3,12 +3,12 @@ import ExchangeStatus from "@/components/ExchangeStatus";
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
-import { IconCheck, IconClock, IconSwap, IconUsers, IconX } from "@/components/Icons";
+import { IconCheck, IconClock, IconRestore, IconSwap, IconUsers, IconX } from "@/components/Icons";
 import { getSlots } from "@/lib/data";
-import { stageOf, type ExchangeRow } from "@/lib/exchanges";
+import { stageOf, type ExchangeRow, exchangeTime } from "@/lib/exchanges";
 import { createClient } from "@/lib/supabase/server";
-import { addDays, formatDate, formatDateTime, todayIST } from "@/lib/time";
-import { approveExchange, rejectExchange } from "../../actions";
+import { addDays, formatDate, formatDateTime, slotStarted, todayIST } from "@/lib/time";
+import { approveExchange, rejectExchange, undoExchange } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +39,7 @@ export default async function AdminExchanges() {
             {x.new_subject && x.new_subject !== x.subject && <span className="muted text-sm font-normal"> → {x.new_subject}</span>}
           </div>
           <div className="muted text-sm">
-            {formatDate(x.date)} · {slotById.get(x.slot_id)?.label} · Room {x.room_id}
+            {formatDate(x.date)} · {exchangeTime(x, slotById)} · Room {x.room_id}
           </div>
         </div>
         <div className="text-right text-sm">
@@ -51,11 +51,23 @@ export default async function AdminExchanges() {
       </div>
       {x.note && <p className="rounded-lg bg-brand-50 px-3 py-2 text-sm dark:bg-brand-950">“{x.note}”</p>}
       <ExchangeStatus x={x} stage={stage} />
+      {x.status === "accepted" && (
+        <p className="text-xs">
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">Faculty mutually agreed</span>{" "}
+          <span className="muted">Approve to change the timetable; deny and the original class stays as it is.</span>
+        </p>
+      )}
       <form className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="id" value={x.id} />
-        <input name="note" maxLength={300} placeholder={approve ? "Note (optional)" : "Reason for rejecting (optional)"} aria-label="Note" className="input min-w-48 flex-1 py-1.5" />
-        <SubmitButton formAction={rejectExchange} className="btn-secondary py-1.5" pendingText="Rejecting…" message="Rejecting the exchange…" confirm={`Reject ${x.requester_name}'s request? ${x.requester_name.split(" ")[0]} keeps the class.`}>
-          <IconX className="h-4 w-4" /> Reject
+        <input name="note" maxLength={300} placeholder={approve ? "Note (optional)" : "Reason for denying (optional)"} aria-label="Note" className="input min-w-48 flex-1 py-1.5" />
+        <SubmitButton
+          formAction={rejectExchange}
+          className="btn-secondary py-1.5"
+          pendingText="Denying…"
+          message="Denying the exchange…"
+          confirm={`Deny ${x.requester_name}'s request? Nothing on the timetable changes: ${x.requester_name} keeps the class${x.status === "accepted" ? `, even though ${x.target_name} agreed` : ""}.`}
+        >
+          <IconX className="h-4 w-4" /> Deny
         </SubmitButton>
         {approve && (
           <SubmitButton formAction={approveExchange} className="btn-primary py-1.5" pendingText="Approving…" message="Approving the exchange…">
@@ -69,7 +81,7 @@ export default async function AdminExchanges() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Class exchanges" subtitle="Faculty asking a free colleague to take a class. You see each one as soon as it is sent; approve it once the colleague accepts, and the timetable changes for everyone." />
+      <PageHeader title="Class exchanges" subtitle="Faculty asking a free colleague to take a class. You see each one as soon as it is sent; approve it once the colleague accepts, and the timetable changes for everyone. Deny it and the original classes stay exactly as they are." />
 
       <section className="grid grid-cols-3 gap-2 sm:gap-4">
         <KpiCard label="Waiting for your approval" value={toApprove.length} tone="navy" icon={<IconSwap />} />
@@ -116,10 +128,24 @@ export default async function AdminExchanges() {
                   <span className="font-semibold">{x.subject ?? "Class"}</span>
                   <span className="muted">
                     {" "}
-                    · {formatDate(x.date)} · {slotById.get(x.slot_id)?.label} · {x.requester_name} → {x.target_name}
+                    · {formatDate(x.date)} · {exchangeTime(x, slotById)} · {x.requester_name} → {x.target_name}
                   </span>
                 </div>
                 <ExchangeStatus x={x} stage={stage} />
+                {x.status === "approved" && slotById.get(x.slot_id) && !slotStarted(x.date, slotById.get(x.slot_id)!) && (
+                  <form action={undoExchange} className="flex flex-wrap items-center gap-2 pt-1">
+                    <input type="hidden" name="id" value={x.id} />
+                    <input name="note" maxLength={300} placeholder="Reason (optional)" aria-label="Reason" className="input min-w-48 flex-1 py-1" />
+                    <SubmitButton
+                      className="btn-secondary py-1 text-xs"
+                      pendingText="Taking back…"
+                      message="Taking back the approval…"
+                      confirm={`Take back this approval? ${x.requester_name} gets the class back in every slot and ${x.target_name} is freed.`}
+                    >
+                      <IconRestore className="h-3.5 w-3.5" /> Deny after all
+                    </SubmitButton>
+                  </form>
+                )}
               </li>
             ))}
           </ul>

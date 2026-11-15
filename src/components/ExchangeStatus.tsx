@@ -21,7 +21,7 @@ export default function ExchangeStatus({ x, stage }: { x: ExchangeRow; stage: Ex
     x.status === "approved"
       ? { label: "Admin approved", state: "done", at: x.decided_at }
       : x.status === "rejected"
-        ? { label: "Admin rejected", state: "stop", at: x.decided_at }
+        ? { label: "Admin denied · original class stays", state: "stop", at: x.decided_at }
         : { label: "Admin approval", state: stage === "accepted" ? "now" : "todo" },
   ];
   const dot = {

@@ -2,7 +2,7 @@ import EmptyState from "@/components/EmptyState";
 import ExchangeStatus from "@/components/ExchangeStatus";
 import SubmitButton from "@/components/SubmitButton";
 import { IconCheck, IconSwap, IconX } from "@/components/Icons";
-import { stageOf, type ExchangeRow } from "@/lib/exchanges";
+import { stageOf, type ExchangeRow, exchangeTime } from "@/lib/exchanges";
 import type { Slot } from "@/lib/types";
 import { formatDate } from "@/lib/time";
 import { acceptExchange, declineExchange } from "../actions";
@@ -31,7 +31,7 @@ export default function ExchangeInbox({ received, slots, ready }: { received: Ex
                     <div className="text-xs font-medium text-brand-700 dark:text-brand-300">{x.requester_name} asks you to take</div>
                     <div className="text-lg font-semibold">{x.new_subject ?? x.subject ?? "A class"}</div>
                     <div className="muted text-sm">
-                      {formatDate(x.date)} · {slotById.get(x.slot_id)?.label} · Room {x.room_id}
+                      {formatDate(x.date)} · {exchangeTime(x, slotById)} · Room {x.room_id}
                     </div>
                     {x.new_subject && x.subject && x.new_subject !== x.subject && <div className="muted text-xs">in place of their {x.subject}</div>}
                   </div>
@@ -67,7 +67,7 @@ export default function ExchangeInbox({ received, slots, ready }: { received: Ex
                   <span className="font-semibold">{x.new_subject ?? x.subject ?? "Class"}</span>
                   <span className="muted">
                     {" "}
-                    · {formatDate(x.date)} · {slotById.get(x.slot_id)?.label} · Room {x.room_id} · from {x.requester_name}
+                    · {formatDate(x.date)} · {exchangeTime(x, slotById)} · Room {x.room_id} · from {x.requester_name}
                   </span>
                 </div>
                 <ExchangeStatus x={x} stage={stageOf(x, slotById)} />

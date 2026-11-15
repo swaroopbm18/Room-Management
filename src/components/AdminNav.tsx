@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { IconActivity, IconAlert, IconDashboard, IconArchive, IconPlug, IconCalendar, IconChart, IconLeave, IconCalendarCheck, IconClock, IconDoor, IconFile, IconFlag, IconHistory, IconInbox, IconMegaphone, IconTag, IconSwap, IconUser, IconUsers } from "./Icons";
+import { IconActivity, IconAlert, IconDashboard, IconArchive, IconPlug, IconCalendar, IconChart, IconLeave, IconCalendarCheck, IconClock, IconDoor, IconFile, IconFlag, IconHistory, IconInbox, IconMegaphone, IconTag, IconSwap, IconUser, IconUsers, IconBook } from "./Icons";
 import PendingLink from "./PendingLink";
 
 type Tab = { href: string; label: string; icon: React.ReactNode };
@@ -63,6 +63,14 @@ const GROUPS: Group[] = [
       { href: "/admin/workload", label: "Workload", icon: <IconClock className={i} /> },
       { href: "/admin/history", label: "History", icon: <IconHistory className={i} /> },
       { href: "/admin/activity", label: "Activity log", icon: <IconActivity className={i} /> },
+    ],
+  },
+  {
+    label: "Help",
+    icon: <IconBook className={i} />,
+    tabs: [
+      { href: "/admin/manual", label: "Admin manual", icon: <IconBook className={i} /> },
+      { href: "/faculty/manual", label: "Faculty manual", icon: <IconUser className={i} /> },
     ],
   },
 ];

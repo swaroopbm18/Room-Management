@@ -5,7 +5,7 @@ import InlineEdit, { Field } from "@/components/InlineEdit";
 import RequestStatus from "@/components/RequestStatus";
 import SubmitButton from "@/components/SubmitButton";
 import { IconInbox, IconSwap, IconX } from "@/components/Icons";
-import { isOpenStage, stageOf, type ExchangeRow } from "@/lib/exchanges";
+import { isOpenStage, stageOf, type ExchangeRow, exchangeTime } from "@/lib/exchanges";
 import { slotCount } from "@/lib/requests";
 import type { RequestGroup, Slot } from "@/lib/types";
 import { formatDate, formatDateTime } from "@/lib/time";
@@ -56,7 +56,7 @@ export default function MyRequests({
                   <div className="min-w-0 flex-1 space-y-1.5">
                     <div className="text-sm">
                       <span className="font-semibold">{x.subject ?? "Class"}</span>
-                      <span className="muted"> · {formatDate(x.date)} · {slotById.get(x.slot_id)?.label} · Room {x.room_id}</span>
+                      <span className="muted"> · {formatDate(x.date)} · {exchangeTime(x, slotById)} · Room {x.room_id}</span>
                     </div>
                     <div className="text-sm">
                       Asked <span className="font-medium">{x.target_name}</span>

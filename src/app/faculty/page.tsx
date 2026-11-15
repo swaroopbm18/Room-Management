@@ -1,7 +1,7 @@
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
-import { IconClock, IconDashboard, IconInbox, IconPlus, IconSwap } from "@/components/Icons";
+import { IconBook, IconClock, IconDashboard, IconInbox, IconPlus, IconSwap } from "@/components/Icons";
 import { displayName, requireStaff } from "@/lib/auth";
 import { getHolidays, getSlots } from "@/lib/data";
 import { getMyExchanges, stageOf, isOpenStage } from "@/lib/exchanges";
@@ -51,6 +51,9 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
   return (
     <div className="space-y-6">
       <PageHeader title={`Welcome, ${displayName(person)}`} subtitle={person.email}>
+        <Link href="/faculty/manual" className="btn-secondary">
+          <IconBook className="h-4 w-4" /> User manual
+        </Link>
         <Link href="/free" className="btn-primary">
           <IconPlus className="h-4 w-4" /> Request a free room
         </Link>
