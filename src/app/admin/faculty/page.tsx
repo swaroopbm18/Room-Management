@@ -91,7 +91,7 @@ export default async function FacultyTimetables({ searchParams }: { searchParams
         subtitle="Click anyone to open their profile: name and initials, sign-in, cluster, subjects, other duties and their weekly timetable, all in one place."
       >
         <Link href="/admin/free-time" className="btn-secondary">
-          <IconCalendarCheck className="h-4 w-4" /> Free time & meetings
+          <IconCalendarCheck className="h-4 w-4" /> Faculty availability
         </Link>
       </PageHeader>
       {!clustersReady && <Flash error="Clusters couldn't be read just now. Try again in a moment." />}

@@ -5,6 +5,7 @@ import { buildClassTimetable, classesOf, ordinal, type Cell } from "@/lib/classT
 import { getDayOrders, getDaySchedule, getHolidays, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDate, isClosedSunday, slotEnded, todayIST, WEEKDAY_NAMES } from "@/lib/time";
+import ClassTabs from "@/components/ClassTabs";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -57,11 +58,8 @@ export default async function ClassChanges({ searchParams }: { searchParams: Pro
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Class changes" subtitle={`Classes cancelled, moved, taken by another faculty member or replaced by an event or CIE over the next ${DAYS_AHEAD} days. Pick your class to see only its changes.`}>
-        <PendingLink href={chosen === ALL_CLASSES ? "/classes" : `/classes?class=${encodeURIComponent(chosen)}`} className="btn-secondary">
-          Weekly timetable
-        </PendingLink>
-      </PageHeader>
+      <ClassTabs view="changes" cls={chosen} />
+      <PageHeader title="Class timetables" subtitle={`Classes cancelled, moved, taken by another faculty member or replaced by an event or CIE over the next ${DAYS_AHEAD} days. Pick your class to see only its changes.`} />
 
       {allClasses.length > 0 && (
         <nav aria-label="Classes" className="card space-y-2 p-4">

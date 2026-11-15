@@ -38,7 +38,7 @@ const SECTIONS: ManualSection[] = [
     steps: [
       "On the home page, find Class timetables and press your class (for example 3A), or All class changes for every class.",
       "Each day lists only what changed. Classes that run as usual are left out, so an empty day reads Classes as usual.",
-      "Press Weekly timetable to see the class's regular week.",
+      "The Class timetables page has three tabs for the class you picked: Week (its regular week), Today (today as it actually runs) and Changes (the next seven days).",
     ],
   },
   {
@@ -100,9 +100,9 @@ const SECTIONS: ManualSection[] = [
   {
     id: "meetings",
     title: "Finding a meeting time",
-    where: "My dashboard → Meetings",
-    href: "/faculty?tab=meetings",
-    intro: "Tick the colleagues who should attend and the site lists every time in the week when all of them are free.",
+    where: "Faculty availability → Find a meeting time",
+    href: "/faculty-status/meetings",
+    intro: "Tick the colleagues who should attend and the site lists every time in the next six working days when all of them are free. Find a meeting time is also a button on your dashboard.",
   },
   {
     id: "equipment",

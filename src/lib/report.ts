@@ -26,6 +26,9 @@ const exchanged = (r: Pick<ReportRow, "kind" | "request_id" | "reason">) => r.ki
 /** A class an admin allotted directly, not a faculty request */
 const adminClass = (r: Pick<ReportRow, "kind" | "request_id">) => r.kind === "class_request" && r.request_id === null;
 
+/** A class an admin gave to a substitute because its faculty member is on leave */
+const substitute = (r: Pick<ReportRow, "kind" | "request_id" | "reason">) => adminClass(r) && r.reason.startsWith("Substitute for ");
+
 export type ReportEntry = { date: string; time: string; room: string; faculty: string; type: string; mode: string; description: string };
 
 const TYPE: Partial<Record<AllotmentRow["kind"], string>> = {
@@ -43,6 +46,7 @@ const TYPE: Partial<Record<AllotmentRow["kind"], string>> = {
 function modeOf(r: Pick<ReportRow, "kind" | "reason" | "request_id">): string {
   // A class exchange (0029): the two faculty agreed between themselves, then an admin approved it
   if (exchanged(r)) return "Faculty mutually agreed, admin approved";
+  if (substitute(r)) return "Substitute for leave, admin assigned";
   if (adminClass(r)) return "Admin allotment";
   switch (r.kind) {
     case "class_request":
@@ -110,7 +114,7 @@ export async function getReport(start: string, end: string, fromSlot: number, to
         time: `${clock(m.starts)} – ${clock(m.last.ends)}`,
         room: m.room_id,
         faculty: m.faculty_name ?? (adminClass(m) ? "No faculty assigned" : ""),
-        type: exchanged(m) ? "Class exchange" : m.kind === "drop" && m.reason.startsWith("Cancelled for CIE") ? "Class cancelled" : adminClass(m) ? "Class" : TYPE[m.kind]!,
+        type: exchanged(m) ? "Class exchange" : substitute(m) ? "Substitute class" : m.kind === "drop" && m.reason.startsWith("Cancelled for CIE") ? "Class cancelled" : adminClass(m) ? "Class" : TYPE[m.kind]!,
         mode: modeOf(m),
         description: what,
       };

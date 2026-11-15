@@ -1,7 +1,7 @@
 import { createClient } from "./supabase/server";
 import { displayName } from "./auth";
 import { addDays, todayIST } from "./time";
-import type { Person, Slot } from "./types";
+import type { Person } from "./types";
 
 export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -103,46 +103,4 @@ export async function getWeekFor(initials: string): Promise<Map<string, Busy[]>>
 
 export function isFree(weeks: Weeks, initials: string, weekday: number, slotId: number): boolean {
   return isOpen(weekday, slotId) && !weeks.get(initials)?.get(cellKey(weekday, slotId))?.length;
-}
-
-export type Suggestion = { weekday: number; slotIds: number[]; free: FacultyMember[]; busy: FacultyMember[] };
-
-/**
- * Every meeting time of `length` back-to-back slots in the week, Monday to Saturday in time
- * order, with who is free for all of it.
- */
-export function allMeetings(weeks: Weeks, people: FacultyMember[], slots: Slot[], slotIds: number[], length: number): Suggestion[] {
-  const usable = slots.filter((s) => slotIds.includes(s.id)).sort((a, b) => a.starts.localeCompare(b.starts));
-  const runs: number[][] = [];
-  for (let i = 0; i + length <= usable.length; i++) {
-    const run = usable.slice(i, i + length);
-    if (run.every((s, j) => j === 0 || run[j - 1].ends === s.starts)) runs.push(run.map((s) => s.id));
-  }
-  const out: Suggestion[] = [];
-  for (let wd = 1; wd <= 6; wd++) {
-    for (const run of runs) {
-      if (!run.every((id) => isOpen(wd, id))) continue;
-      const free = people.filter((p) => run.every((id) => isFree(weeks, p.initials, wd, id)));
-      out.push({ weekday: wd, slotIds: run, free, busy: people.filter((p) => !free.includes(p)) });
-    }
-  }
-  return out;
-}
-
-/**
- * Meeting times of `length` slots in a row, best first: the most faculty free for the whole
- * meeting, then a day not already suggested, then earlier in the week and day. Runs of slots
- * must be back to back (no tea break in between, e.g. 9:50 to 10:20).
- */
-export function suggestMeetings(weeks: Weeks, people: FacultyMember[], slots: Slot[], slotIds: number[], length: number, limit = 3): Suggestion[] {
-  const out = allMeetings(weeks, people, slots, slotIds, length);
-  const left = out.sort((a, b) => b.free.length - a.free.length);
-  // Among equally good times, spread the picks over different days
-  const picked: Suggestion[] = [];
-  while (picked.length < limit && left.length) {
-    const top = left[0].free.length;
-    const i = left.findIndex((m) => m.free.length === top && !picked.some((p) => p.weekday === m.weekday));
-    picked.push(left.splice(i === -1 ? 0 : i, 1)[0]);
-  }
-  return picked;
 }

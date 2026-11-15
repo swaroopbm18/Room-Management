@@ -3,24 +3,29 @@ import ExchangeStatus from "@/components/ExchangeStatus";
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
-import { IconCheck, IconClock, IconRestore, IconSwap, IconUsers, IconX } from "@/components/Icons";
+import { IconCheck, IconClock, IconLeave, IconRestore, IconSwap, IconUsers, IconX } from "@/components/Icons";
+import PendingLink from "@/components/PendingLink";
+import { mergeRuns } from "@/lib/bookings";
 import { getSlots } from "@/lib/data";
 import { stageOf, type ExchangeRow, exchangeTime } from "@/lib/exchanges";
 import { createClient } from "@/lib/supabase/server";
+import type { AllotmentRow } from "@/lib/types";
 import { addDays, formatDate, formatDateTime, slotStarted, todayIST } from "@/lib/time";
 import { approveExchange, rejectExchange, undoExchange } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Class exchanges between faculty, from the moment one is asked: approve once the colleague has
- * accepted (the class becomes theirs everywhere), or reject at any point.
+ * Every class handed to someone else, in one place: class exchanges between faculty, from the
+ * moment one is asked (approve once the colleague has accepted, or reject at any point), and the
+ * classes an admin gave to a substitute or another faculty member.
  */
 export default async function AdminExchanges() {
   const supabase = await createClient();
-  const [slots, { data, error }] = await Promise.all([
+  const [slots, { data, error }, { data: allotData }] = await Promise.all([
     getSlots(),
     supabase.from("class_exchanges").select("*").gte("date", addDays(todayIST(), -14)).order("date").order("slot_id").limit(300),
+    supabase.from("allotments").select("*").gte("date", todayIST()).order("id").limit(3000),
   ]);
   const slotById = new Map(slots.map((s) => [s.id, s]));
   const rows = (data ?? []) as ExchangeRow[];
@@ -28,6 +33,15 @@ export default async function AdminExchanges() {
   const toApprove = withStage.filter((r) => r.stage === "accepted");
   const awaitingFaculty = withStage.filter((r) => r.stage === "pending");
   const decided = withStage.filter((r) => !["accepted", "pending"].includes(r.stage)).sort((a, b) => (b.x.decided_at ?? b.x.responded_at ?? b.x.created_at).localeCompare(a.x.decided_at ?? a.x.responded_at ?? a.x.created_at)).slice(0, 30);
+  // Classes an admin gave to a named faculty member (a substitute for leave, or Allot with a
+  // faculty member), still standing: no later change to the same slot
+  const latest = new Map<string, AllotmentRow>();
+  for (const a of (allotData ?? []) as AllotmentRow[]) latest.set(`${a.room_id}|${a.date}|${a.slot_id}`, a);
+  const covered = mergeRuns(
+    [...latest.values()].filter((a) => a.kind === "class_request" && !a.request_id && a.faculty_name && !a.reason.startsWith("Class exchange:")),
+    slots,
+    (a, b) => a.title === b.title && a.faculty_name === b.faculty_name && a.reason === b.reason,
+  );
   const approvedThisWeek = rows.filter((x) => x.status === "approved" && x.decided_at && Date.now() - new Date(x.decided_at).getTime() < 7 * 864e5).length;
 
   const Card = ({ x, stage, approve }: { x: ExchangeRow; stage: ReturnType<typeof stageOf>; approve: boolean }) => (
@@ -81,7 +95,11 @@ export default async function AdminExchanges() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Class exchanges" subtitle="Faculty asking a free colleague to take a class. You see each one as soon as it is sent; approve it once the colleague accepts, and the timetable changes for everyone. Deny it and the original classes stay exactly as they are." />
+      <PageHeader title="Class cover" subtitle="Every class handed to someone else. Faculty ask a free colleague in a class exchange: you see it as soon as it is sent, approve it once the colleague accepts and the timetable changes for everyone, or deny it and the original classes stay as they are. Substitutes you assign for leave show at the end.">
+        <PendingLink href="/admin/leave" className="btn-secondary">
+          <IconLeave className="h-4 w-4" /> Assign a substitute
+        </PendingLink>
+      </PageHeader>
 
       <section className="grid grid-cols-3 gap-2 sm:gap-4">
         <KpiCard label="Waiting for your approval" value={toApprove.length} tone="navy" icon={<IconSwap />} />
@@ -151,6 +169,31 @@ export default async function AdminExchanges() {
           </ul>
         </section>
       )}
+
+      <section>
+        <h2 className="mb-1 text-lg font-semibold">Given by an admin</h2>
+        <p className="muted mb-3 text-sm">Substitutes for faculty on leave and classes allotted to a named faculty member, from today on. Undo one from Allot / free rooms.</p>
+        {covered.length === 0 ? (
+          <EmptyState icon={<IconLeave />} title="No other cover arranged">
+            Assign a substitute under Leave &amp; substitutes, or name a faculty member when you allot a room for a class.
+          </EmptyState>
+        ) : (
+          <ul className="card divide-y divide-brand-100 dark:divide-brand-900">
+            {covered.map(({ first: a, range, slotIds }) => (
+              <li key={`${a.id}-${slotIds.join()}`} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-3 text-sm">
+                <span>
+                  <span className="font-semibold">{a.title && a.title !== "Class" ? a.title : "Class"}</span>
+                  <span className="muted">
+                    {" "}
+                    · {formatDate(a.date)} · {range} · {a.room_id} · {a.faculty_name}
+                  </span>
+                </span>
+                <span className="muted text-xs">{a.reason}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { getDayOrders, getDaySchedule, getHolidays, getSlots } from "@/lib/data"
 import { createClient } from "@/lib/supabase/server";
 import { DATE_RE, formatDate, isClosedSunday, nextWorkingDay, slotEnded, todayIST, WEEKDAY_NAMES } from "@/lib/time";
 import type { ScheduleRow } from "@/lib/types";
+import ClassTabs from "@/components/ClassTabs";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -38,7 +39,8 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Today for my class" subtitle="Your class's day as it actually runs: classes on, cancelled or moved, and extra classes booked for you. Bookmark it for your class." />
+      <ClassTabs view="today" cls={chosen} />
+      <PageHeader title="Class timetables" subtitle="Your class's day as it actually runs: classes on, cancelled or moved, and extra classes booked for you. Bookmark it for your class." />
 
       {allClasses.length > 0 && (
         <nav aria-label="Classes" className="card space-y-2 p-4">

@@ -11,6 +11,7 @@ import { adminEditTimetable } from "../../actions";
 import FacultyFinder, { type FinderClass } from "@/components/FacultyFinder";
 import TimetableUpload from "./TimetableUpload";
 import SlotRange from "../allot/SlotRange";
+import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,7 @@ export default async function EditTimetable({ searchParams }: { searchParams: Pr
 
   return (
     <div className="space-y-8">
+      <AreaTabs area="timetables" current="/admin/timetable" />
       <PageHeader
         title="Edit the regular timetable"
         subtitle={`Changes take effect from tomorrow, ${formatDate(tomorrow, { weekday: "long" })}. Today and every earlier day keep the old subject and faculty.`}

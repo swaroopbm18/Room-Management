@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { KINDS, type Problem } from "@/lib/health";
 import { loadHealth } from "@/lib/healthData";
 import { formatDate } from "@/lib/time";
+import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function Health() {
 
   return (
     <div className="space-y-6">
+      <AreaTabs area="timetables" current="/admin/health" />
       <PageHeader
         title="Timetable health check"
         subtitle={`The timetable as it runs from tomorrow, ${formatDate(tomorrow, { weekday: "long" })}, checked for clashes and loose ends. Click Fix to open that class in the class timetable editor.`}

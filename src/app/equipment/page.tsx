@@ -12,6 +12,7 @@ import { bookableDates, DATE_RE, formatDate, closingDay, makeupFollows, slotEnde
 import SlotRange from "../admin/allot/SlotRange";
 import ResourceRequests from "./ResourceRequests";
 import { bookEquipment, cancelEquipment, deleteEquipment, editEquipmentBooking, saveEquipment } from "../actions";
+import AreaTabs from "../admin/AreaTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,7 @@ export default async function Equipment({ searchParams }: { searchParams: Promis
 
   return (
     <div className="space-y-6">
+      {admin && <AreaTabs area="supplies" current="/equipment" />}
       <PageHeader title="Equipment" subtitle="Book a portable projector, mic, speaker or kit for your class or event, first come first served. For supplies, a lab or anything that needs an admin's OK, send a request at the bottom of the page." />
       {!ready && <div className="card muted p-4 text-sm">Equipment couldn&apos;t be read just now. Try again in a moment.</div>}
 

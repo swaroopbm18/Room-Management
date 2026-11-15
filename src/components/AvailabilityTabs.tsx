@@ -1,14 +1,15 @@
 import PendingLink from "./PendingLink";
 
 /**
- * The one "Faculty availability" page, seen two ways: one day (everyone) and the whole week
- * with the meeting finder (admins). Shown at the top of both.
+ * The one "Faculty availability" page, seen three ways: one day (everyone), finding a meeting
+ * time (signed-in faculty) and the whole week (admins). Shown at the top of each.
  */
-export default function AvailabilityTabs({ view, cluster, showWeek }: { view: "day" | "week"; cluster?: string; showWeek: boolean }) {
+export default function AvailabilityTabs({ view, cluster, signedIn, admin }: { view: "day" | "meetings" | "week"; cluster?: string; signedIn: boolean; admin: boolean }) {
   const c = cluster === "A" || cluster === "B" ? cluster : null;
   const tabs = [
     { key: "day", label: "Day", href: `/faculty-status${c ? `?c=${c}` : ""}` },
-    ...(showWeek ? [{ key: "week", label: "Week & meetings", href: `/admin/free-time${c ? `?c=${c}` : ""}` }] : []),
+    ...(signedIn ? [{ key: "meetings", label: "Find a meeting time", href: "/faculty-status/meetings" }] : []),
+    ...(admin ? [{ key: "week", label: "Week", href: `/admin/free-time${c ? `?c=${c}` : ""}` }] : []),
   ];
   if (tabs.length < 2) return null;
   return (

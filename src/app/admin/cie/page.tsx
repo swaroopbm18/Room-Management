@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { bookableDates, todayIST, workingDay } from "@/lib/time";
 import { blockCieWeek } from "../../actions";
 import SlotRange from "../allot/SlotRange";
+import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export default async function CieWeek() {
 
   return (
     <div className="space-y-6">
+      <AreaTabs area="cie" current="/admin/cie" />
       <PageHeader
         title="CIE week"
         subtitle="Take the same slots in several rooms over several days in one go, and cancel the regular classes of the semesters writing the CIE. Sundays and holidays are skipped. Like a single allotment, it overrides classes and bookings and declines pending requests for those slots."

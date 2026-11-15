@@ -7,6 +7,7 @@ import { groupRequests } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
 import type { AllotmentRow, RequestRow } from "@/lib/types";
 import { addDays, DATE_RE, formatDate, formatDateTime, todayIST } from "@/lib/time";
+import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -99,6 +100,7 @@ export default async function History({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="space-y-6">
+      <AreaTabs area="records" current="/admin/history" />
       <PageHeader
         title="Allotment history"
         subtitle="Every change to the timetable and every rejected request, newest first. This record is permanent: entries cannot be edited or deleted by anyone."
