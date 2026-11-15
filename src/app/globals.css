@@ -39,6 +39,48 @@
 
 /* Colour themes picked from the navbar (ColorPicker). Blue is the default above.
    Same shade mapping as blue: brand-600 is the family's 700, brand-950 a darker 950. */
+html[data-color="violet"] {
+  --color-brand-50: #f5f3ff;
+  --color-brand-100: #ede9fe;
+  --color-brand-200: #ddd6fe;
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #6d28d9;
+  --color-brand-700: #5b21b6;
+  --color-brand-800: #4c1d95;
+  --color-brand-900: #2e1065;
+  --color-brand-950: color-mix(in oklab, #2e1065 70%, #000);
+  --color-ink: color-mix(in oklab, #2e1065 22%, #030406);
+}
+html[data-color="red"] {
+  --color-brand-50: #fef2f2;
+  --color-brand-100: #fee2e2;
+  --color-brand-200: #fecaca;
+  --color-brand-300: #fca5a5;
+  --color-brand-400: #f87171;
+  --color-brand-500: #ef4444;
+  --color-brand-600: #b91c1c;
+  --color-brand-700: #991b1b;
+  --color-brand-800: #7f1d1d;
+  --color-brand-900: #450a0a;
+  --color-brand-950: color-mix(in oklab, #450a0a 70%, #000);
+  --color-ink: color-mix(in oklab, #450a0a 22%, #030406);
+}
+html[data-color="amber"] {
+  --color-brand-50: #fffbeb;
+  --color-brand-100: #fef3c7;
+  --color-brand-200: #fde68a;
+  --color-brand-300: #fcd34d;
+  --color-brand-400: #fbbf24;
+  --color-brand-500: #f59e0b;
+  --color-brand-600: #b45309;
+  --color-brand-700: #92400e;
+  --color-brand-800: #78350f;
+  --color-brand-900: #451a03;
+  --color-brand-950: color-mix(in oklab, #451a03 70%, #000);
+  --color-ink: color-mix(in oklab, #451a03 22%, #030406);
+}
 html[data-color="emerald"] {
   --color-brand-50: #ecfdf5;
   --color-brand-100: #d1fae5;
@@ -68,8 +110,19 @@ html[data-color="slate"] {
   --color-ink: color-mix(in oklab, #020617 22%, #030406);
 }
 
-/* Green would blend into this theme, so their spot colour is amber */
-html[data-color="emerald"],
+/* Green would blend into this theme, so its spot colour is amber */
+html[data-color="emerald"] {
+  --color-spot-100: #fef3c7;
+  --color-spot-200: #fde68a;
+  --color-spot-300: #fcd34d;
+  --color-spot-400: #fbbf24;
+  --color-spot-500: #f59e0b;
+  --color-spot-600: #d97706;
+  --color-spot-700: #b45309;
+  --color-spot-800: #92400e;
+  --color-spot-900: #78350f;
+  --color-spot-950: #451a03;
+}
 
 html {
   color-scheme: light;
