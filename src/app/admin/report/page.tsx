@@ -5,6 +5,8 @@ import { getSlots } from "@/lib/data";
 import { getReport } from "@/lib/report";
 import { DATE_RE, formatDate, formatDateTime, mondayOf, todayIST } from "@/lib/time";
 import SlotRange from "../allot/SlotRange";
+import EditRecord from "./EditRecord";
+import { getFacultyWeeks } from "@/lib/faculty";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +20,8 @@ export default async function Report({ searchParams }: { searchParams: Promise<{
   const slots = await getSlots();
   const fromIdx = Math.max(0, slots.findIndex((s) => String(s.id) === sp.from));
   const toIdx = sp.to ? Math.max(fromIdx, slots.findIndex((s) => String(s.id) === sp.to)) : slots.length - 1;
-  const entries = await getReport(start, end, slots[fromIdx].id, slots[toIdx].id);
+  const [entries, { faculty }] = await Promise.all([getReport(start, end, slots[fromIdx].id, slots[toIdx].id), getFacultyWeeks()]);
+  const facultyList = faculty.map((f) => ({ initials: f.initials, name: f.name }));
   const query = new URLSearchParams({ start, end, from: String(slots[fromIdx].id), to: String(slots[toIdx].id) }).toString();
   const timeRange = fromIdx === 0 && toIdx === slots.length - 1 ? "All slots" : `${slots[fromIdx].label.split(" – ")[0]} – ${slots[toIdx].label.split(" – ")[1]}`;
 
@@ -92,7 +95,10 @@ export default async function Report({ searchParams }: { searchParams: Promise<{
                 <td>{e.faculty}</td>
                 <td className="whitespace-nowrap">{e.type}</td>
                 <td>{e.mode}</td>
-                <td>{e.description}</td>
+                <td>
+                  {e.description}
+                  {e.edit && <EditRecord edit={e.edit} faculty={facultyList} back={`/admin/report?${query}`} />}
+                </td>
                 <td className="h-10" />
               </tr>
             ))}

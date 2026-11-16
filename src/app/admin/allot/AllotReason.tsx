@@ -53,11 +53,11 @@ export default function AllotReason({ faculty }: { faculty: { initials: string; 
           <p className="input bg-transparent text-sm">CIE Co-ordinators</p>
         </div>
       )}
-      {kind === "class_request" && (
+      {kind !== "cie" && (
         <div>
-          <label className="label" htmlFor="faculty">Faculty for the class</label>
-          <select id="faculty" name="faculty" className="input" defaultValue="">
-            <option value="">No faculty assigned</option>
+          <label className="label" htmlFor="faculty">{kind === "event" ? <>Faculty in charge <span className="muted font-normal">(optional)</span></> : "Faculty for the class"}</label>
+          <select key={kind} id="faculty" name="faculty" className="input" defaultValue="">
+            <option value="">{kind === "event" ? "None" : "No faculty assigned"}</option>
             {faculty.map((f) => (
               <option key={f.initials} value={f.initials}>
                 {f.name === f.initials ? f.initials : `${f.name} (${f.initials})`}

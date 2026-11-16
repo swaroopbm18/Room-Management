@@ -180,8 +180,8 @@ export async function adminOverride(form: FormData) {
       p_kind: kind,
       p_title: s(form, "title"),
       p_reason: s(form, "reason"),
-      // A class names its faculty (initials) or none
-      ...(kind === "class_request" ? { p_faculty: s(form, "faculty") || null } : {}),
+      // A class names its faculty (initials) or none; an event may name a faculty member in charge
+      ...(kind === "class_request" || kind === "event" ? { p_faculty: s(form, "faculty") || null } : {}),
     },
     past
       ? `Recorded for ${formatDate(date)}${n}. It shows in History and the Report.`
@@ -1052,4 +1052,24 @@ export async function endSemester(form: FormData) {
 export async function undoSemesterEnd(form: FormData) {
   const sem = s(form, "semester");
   await run(form, "/admin/semester-end", "admin_undo_semester_end", { p_semester: sem }, `Semester ${sem} classes are back in the timetable.`);
+}
+
+/** Changes a recorded CIE, event or class (past ones too) from the report. */
+export async function adminEditRecord(form: FormData) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_edit_record", {
+    p_room: s(form, "room"),
+    p_date: s(form, "date"),
+    p_slots: s(form, "slots").split(",").map(Number).filter(Boolean),
+    p_title: s(form, "title"),
+    p_reason: s(form, "reason"),
+    p_faculty: s(form, "faculty") || null,
+  });
+  revalidatePath("/", "layout");
+  const to = back(form, "/admin/report");
+  if (error) {
+    const missing = error.code === "PGRST202" || /admin_edit_record/.test(error.message);
+    redirect(withParam(to, "error", missing ? "Editing records needs database update 0033. Run it in the Supabase SQL Editor." : error.message));
+  }
+  redirect(withParam(to, "msg", data === 1 ? "Record updated." : `Record updated for ${data} slots.`));
 }

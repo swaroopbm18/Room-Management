@@ -1,3 +1,4 @@
+import { expandInitials, getFacultyNames } from "@/lib/facultyNames";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { IconArrowRight, IconCalendar, IconCalendarCheck, IconClock, IconSearch } from "@/components/Icons";
 import FacultyCard from "@/components/FacultyCard";
@@ -111,12 +112,13 @@ export default async function Home({
 
   const UPCOMING_DAYS = 14;
   // Every class, by semester, for the Class timetables section
-  const [day, upcoming, status, notices, semesters] = await Promise.all([
+  const [day, upcoming, status, notices, semesters, names] = await Promise.all([
     getDaySchedule(date),
     getUpcomingBookings(UPCOMING_DAYS),
     getFacultyStatus(date),
     getNotices(today),
     getClassSemesters(today),
+    getFacultyNames(),
   ]);
   const inSlot = (status ?? []).filter((f) => f.slot_id === slotId);
   // Free and busy faculty in the chosen slot: the whole department (null) or one cluster
@@ -276,7 +278,7 @@ export default async function Home({
       {semesters.length > 0 && <ClassTimetables semesters={semesters} />}
       {upcoming && (
         <UpcomingBookings
-          rows={upcoming.filter((r) => !holidays.has(r.date))}
+          rows={upcoming.filter((r) => !holidays.has(r.date)).map((r) => ({ ...r, reason: expandInitials(r.reason, names) }))}
           slots={slots}
           days={UPCOMING_DAYS}
         />

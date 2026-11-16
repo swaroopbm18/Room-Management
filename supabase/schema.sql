@@ -1,6 +1,6 @@
 -- The whole database in one file, for a new install: run this, then seed.sql.
 --
--- It is the same as running every file in migrations/ in order (0001 to 0032), generated with
+-- It is the same as running every file in migrations/ in order (0001 to 0033), generated with
 -- pg_dump from a database built that way. An existing site keeps running each new migration
 -- as before; regenerate this file after adding one (see README, "Database schema").
 
@@ -588,6 +588,64 @@ end $$;
 
 
 --
+-- Name: admin_edit_record(text, date, integer[], text, text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.admin_edit_record(p_room text, p_date date, p_slots integer[], p_title text, p_reason text, p_faculty text DEFAULT NULL::text) RETURNS integer
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare
+  me public.people := public.require_admin();
+  v_title text := btrim(coalesce(p_title, ''));
+  v_reason text := btrim(coalesce(p_reason, ''));
+  v_ini text := nullif(upper(btrim(coalesce(p_faculty, ''))), '');
+  v_name text;
+  v_slot int;
+  cur public.allotments;
+  v_n int := 0;
+begin
+  if coalesce(array_length(p_slots, 1), 0) = 0 then
+    raise exception 'Pick at least one slot' using errcode = 'P0001';
+  end if;
+  if length(v_title) > 80 then
+    raise exception 'The name can be at most 80 characters' using errcode = 'P0001';
+  end if;
+  if length(v_reason) < 3 or length(v_reason) > 500 then
+    raise exception 'The description must be 3 to 500 characters' using errcode = 'P0001';
+  end if;
+  if v_ini is not null and v_ini <> '-' then
+    if not exists (select 1 from public.people where initials = v_ini and active)
+       and not exists (select 1 from public.faculty_directory where initials = v_ini)
+       and not exists (select 1 from public.timetable_entries where v_ini = any (faculty_initials)) then
+      raise exception 'No faculty member has the initials %', v_ini using errcode = 'P0001';
+    end if;
+    v_name := public.faculty_display(array[v_ini], null);
+  end if;
+  perform set_config('app.record_edit', 'on', true);
+
+  foreach v_slot in array p_slots loop
+    select * into cur from public.allotments
+     where room_id = p_room and date = p_date and slot_id = v_slot order by id desc limit 1;
+    if cur.id is null or cur.kind not in ('class_request', 'event_request', 'cie', 'event') then
+      raise exception 'Only a booked class, event or CIE can be edited' using errcode = 'P0001';
+    end if;
+    insert into public.allotments (room_id, date, slot_id, kind, title, faculty_email, faculty_name, faculty_initials,
+                                   reason, request_id, created_by)
+    values (cur.room_id, cur.date, cur.slot_id, cur.kind,
+            coalesce(nullif(v_title, ''), cur.title),
+            cur.faculty_email,
+            case when v_ini is null then cur.faculty_name when v_ini = '-' then null else v_name end,
+            case when v_ini is null then cur.faculty_initials when v_ini = '-' then null else v_ini end,
+            v_reason, cur.request_id, me.email);
+    v_n := v_n + 1;
+  end loop;
+  perform set_config('app.record_edit', '', true);
+  return v_n;
+end $$;
+
+
+--
 -- Name: admin_edit_timetable(text, integer, integer[], text, text[], boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -770,16 +828,21 @@ begin
     perform public.booking_window_check(p_date, p_slot);
   end if;
 
-  if p_kind = 'class_request' then
-    if v_ini is not null then
+  if p_kind in ('class_request', 'event') and v_ini is not null then
+      -- A class's faculty, or an event's faculty in charge (optional)
       if not exists (select 1 from public.people where initials = v_ini and active)
          and not exists (select 1 from public.faculty_directory where initials = v_ini)
          and not exists (select 1 from public.timetable_entries where v_ini = any (faculty_initials)) then
         raise exception 'No faculty member has the initials %', v_ini using errcode = 'P0001';
       end if;
-      select email into v_email from public.people where initials = v_ini and active limit 1;
       v_name := public.faculty_display(array[v_ini], null);
-    end if;
+      if p_kind = 'class_request' then
+        select email into v_email from public.people where initials = v_ini and active limit 1;
+      else
+        v_email := me.email;  -- an event stays the allotting admin's, with its faculty in charge named
+      end if;
+  elsif p_kind = 'class_request' then
+    v_ini := null;
   else
     v_ini := null;
     v_email := me.email;
@@ -1655,7 +1718,7 @@ CREATE FUNCTION public.allotments_cie_coordinators() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 begin
-  if new.kind = 'cie' then
+  if new.kind = 'cie' and new.faculty_initials is null then
     new.faculty_name := 'CIE Co-ordinators';
   end if;
   return new;
@@ -1694,7 +1757,10 @@ begin
      and not (coalesce(current_setting('app.past_record', true), '') = 'on'
               and public.is_admin()
               and new.kind in ('cie', 'event', 'class_request')
-              and new.request_id is null) then
+              and new.request_id is null)
+     and not (coalesce(current_setting('app.record_edit', true), '') = 'on'
+              and public.is_admin()
+              and new.kind in ('cie', 'event', 'class_request', 'event_request')) then
     raise exception 'This slot has already ended; past allotments cannot be changed'
       using errcode = 'P0001';
   end if;
@@ -5165,6 +5231,14 @@ GRANT ALL ON FUNCTION public.admin_delete_room(p_room text) TO authenticated;
 
 REVOKE ALL ON FUNCTION public.admin_edit_booking(p_room text, p_date date, p_slot integer, p_title text, p_reason text) FROM PUBLIC;
 GRANT ALL ON FUNCTION public.admin_edit_booking(p_room text, p_date date, p_slot integer, p_title text, p_reason text) TO authenticated;
+
+
+--
+-- Name: FUNCTION admin_edit_record(p_room text, p_date date, p_slots integer[], p_title text, p_reason text, p_faculty text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.admin_edit_record(p_room text, p_date date, p_slots integer[], p_title text, p_reason text, p_faculty text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.admin_edit_record(p_room text, p_date date, p_slots integer[], p_title text, p_reason text, p_faculty text) TO authenticated;
 
 
 --

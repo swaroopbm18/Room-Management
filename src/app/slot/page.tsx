@@ -4,6 +4,7 @@ import { IconClock, IconInbox, IconPlus } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
 import EditBooking from "@/components/EditBooking";
+import { expandInitials, getFacultyNames } from "@/lib/facultyNames";
 import OriginalClass from "@/components/OriginalClass";
 import RequestStatus from "@/components/RequestStatus";
 import StatusBadge from "@/components/StatusBadge";
@@ -26,7 +27,7 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
   const sp = await searchParams;
   if (!sp.room || !sp.date || !DATE_RE.test(sp.date) || !sp.slot) notFound();
   const date = sp.date;
-  const [person, holidays, day, all, slots] = await Promise.all([getPerson(), getHolidays(), getDaySchedule(date), getSlotRequests(sp.room, date, date), getSlots()]);
+  const [person, holidays, day, all, slots, names] = await Promise.all([getPerson(), getHolidays(), getDaySchedule(date), getSlotRequests(sp.room, date, date), getSlots(), getFacultyNames()]);
   const row = day.find((r) => r.room_id === sp.room && String(r.slot_id) === sp.slot);
   if (!row) notFound();
   const holiday = holidays.get(date);
@@ -102,7 +103,7 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
               {who && row.status !== "department" && <span className="muted text-sm">{who}</span>}
             </div>
           )}
-          {row.reason && <div className="muted mt-1 text-sm">{row.reason}</div>}
+          {row.reason && <div className="muted mt-1 text-sm">{expandInitials(row.reason, names)}</div>}
           <OriginalClass subject={row.original_subject} faculty={row.original_faculty} className="mt-1 text-sm" />
           {booking && booking.slotIds.length > 1 && (
             <div className="muted mt-1 text-sm">
