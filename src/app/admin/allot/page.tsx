@@ -7,6 +7,7 @@ import DayGrid from "@/components/DayGrid";
 import PageHeader from "@/components/PageHeader";
 import EditBooking from "@/components/EditBooking";
 import { mergeRuns } from "@/lib/bookings";
+import { expandInitials, getFacultyNames } from "@/lib/facultyNames";
 import { getDaySchedule, getHolidays, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { AllotmentRow } from "@/lib/types";
@@ -38,12 +39,13 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
   // Holidays are listed in the forms but can't be picked, so the forms start on a working day.
   const formDate = workingDay(date, holidays);
   const supabase = await createClient();
-  const [rooms, slots, day, { data: changes }, { faculty }] = await Promise.all([
+  const [rooms, slots, day, { data: changes }, { faculty }, names] = await Promise.all([
     getRooms(),
     getSlots(),
     getDaySchedule(date),
     supabase.from("allotments").select("*").gte("date", todayIST()).order("id", { ascending: false }).limit(500),
     getFacultyWeeks(),
+    getFacultyNames(),
   ]);
   const slotById = new Map(slots.map((s) => [s.id, s]));
 
@@ -183,7 +185,7 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
                     {a.faculty_name ?? (a.kind === "class_request" && !a.request_id ? "No faculty assigned" : null)}
                     <div className="muted text-xs">{formatDateTime(a.created_at)}</div>
                   </td>
-                  <td className="td max-w-xs">{a.reason}</td>
+                  <td className="td max-w-xs">{expandInitials(a.reason, names)}</td>
                   <td className="td">
                     <form action={adminRestoreSlots} className="flex justify-end gap-2">
                       <input type="hidden" name="room" value={a.room_id} />
