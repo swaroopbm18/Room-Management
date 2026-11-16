@@ -47,6 +47,12 @@ export default function AllotReason({ faculty }: { faculty: { initials: string; 
           <option value="class_request">Class</option>
         </select>
       </div>
+      {kind === "cie" && (
+        <div>
+          <span className="label">Faculty</span>
+          <p className="input bg-transparent text-sm">CIE Co-ordinators</p>
+        </div>
+      )}
       {kind === "class_request" && (
         <div>
           <label className="label" htmlFor="faculty">Faculty for the class</label>

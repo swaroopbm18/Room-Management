@@ -11,7 +11,8 @@ import { getDaySchedule, getHolidays, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { AllotmentRow } from "@/lib/types";
 import { addDays, bookableDates, DATE_RE, dateOption, formatDate, formatDateTime, isClosedSunday, slotEnded, todayIST, workingDay, makeupSundayList } from "@/lib/time";
-import { adminFree, adminOverride, adminRestoreSlots } from "../../actions";
+import { adminFree, adminRestoreSlots } from "../../actions";
+import AllotForm from "./AllotForm";
 import SlotRange from "./SlotRange";
 import AllotReason from "./AllotReason";
 import DateInput from "@/components/DateInput";
@@ -62,9 +63,9 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Allot or free a room" subtitle="Pick a start and end time between 8:00 AM and 5:40 PM, and a reason: a CIE, an event or a class. This overrides the regular classes and bookings in those slots, and pending requests for them are declined." />
+      <PageHeader title="Allot or free a room" subtitle="Pick a start and end time between 8:00 AM and 5:40 PM, and a reason: a CIE, an event or a class. This overrides the regular classes in those slots, and pending requests for them are declined. If a slot is already booked, you are asked before it is overwritten." />
 
-      <form action={adminOverride} className="card grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3">
+      <AllotForm className="card grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3">
         <input type="hidden" name="back" value={`/admin/allot?date=${date}`} />
         <div>
           <label className="label" htmlFor="date">Date</label>
@@ -87,7 +88,7 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
             <IconFlag className="h-4 w-4" /> Allot room
           </SubmitButton>
         </div>
-      </form>
+      </AllotForm>
 
       <section>
         <h2 className="mb-1 text-lg font-semibold">Free up a room</h2>
