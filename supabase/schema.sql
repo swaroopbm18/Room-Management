@@ -1,6 +1,6 @@
 -- The whole database in one file, for a new install: run this, then seed.sql.
 --
--- It is the same as running every file in migrations/ in order (0001 to 0031), generated with
+-- It is the same as running every file in migrations/ in order (0001 to 0032), generated with
 -- pg_dump from a database built that way. An existing site keeps running each new migration
 -- as before; regenerate this file after adding one (see README, "Database schema").
 
@@ -649,6 +649,43 @@ begin
           v_from, me.email);
   return v_from;
 end $$;
+
+
+--
+-- Name: admin_end_semester(text, date); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.admin_end_semester(p_semester text, p_last_day date) RETURNS date
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+declare
+  me public.people := public.require_admin();
+  v_sem text := btrim(coalesce(p_semester, ''));
+  v_from date;
+  d date;
+begin
+  if v_sem !~ '^\d$' then
+    raise exception 'Pick a semester' using errcode = 'P0001';
+  end if;
+  if p_last_day is null then
+    raise exception 'Pick the last day of classes' using errcode = 'P0001';
+  end if;
+  if exists (select 1 from public.semester_ends where semester = v_sem) then
+    raise exception 'Classes of semester % have already been ended. Undo that first to change the date.', v_sem using errcode = 'P0001';
+  end if;
+  -- Past days keep the timetable they had
+  v_from := greatest(p_last_day + 1, public.ist_today());
+  if (public.version_on(v_from)).id is null then
+    raise exception 'There is no timetable after that day' using errcode = 'P0001';
+  end if;
+
+  insert into public.semester_ends (semester, last_day, created_by) values (v_sem, p_last_day, me.email);
+  for d in select * from public.semester_change_days(v_from) loop
+    perform public.semester_version(d, 'Semester ' || v_sem || ' classes ended on ' || to_char(p_last_day, 'DD/MM/YYYY') || ', by ' || me.email);
+  end loop;
+  return v_from;
+end $_$;
 
 
 --
@@ -1464,6 +1501,36 @@ end $$;
 
 
 --
+-- Name: admin_undo_semester_end(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.admin_undo_semester_end(p_semester text) RETURNS date
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare
+  me public.people := public.require_admin();
+  r public.semester_ends;
+  v_from date;
+  v_base int;
+  d date;
+begin
+  select * into r from public.semester_ends where semester = btrim(coalesce(p_semester, ''));
+  if r.semester is null then
+    raise exception 'That semester''s classes have not been ended' using errcode = 'P0001';
+  end if;
+  v_from := greatest(r.last_day + 1, public.ist_today());
+  -- The timetable on the semester's last day still has its classes
+  v_base := (public.version_on(r.last_day)).id;
+  delete from public.semester_ends where semester = r.semester;
+  for d in select * from public.semester_change_days(v_from) loop
+    perform public.semester_version(d, 'Semester ' || r.semester || ' classes brought back, by ' || me.email, r.semester, v_base);
+  end loop;
+  return v_from;
+end $$;
+
+
+--
 -- Name: admin_update_holiday(date, date, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1577,6 +1644,21 @@ begin
   on conflict (email) do update
     set full_name = excluded.full_name, initials = excluded.initials, title = excluded.title,
         role = excluded.role, active = excluded.active;
+end $$;
+
+
+--
+-- Name: allotments_cie_coordinators(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.allotments_cie_coordinators() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+begin
+  if new.kind = 'cie' then
+    new.faculty_name := 'CIE Co-ordinators';
+  end if;
+  return new;
 end $$;
 
 
@@ -2896,6 +2978,64 @@ end $$;
 
 
 --
+-- Name: semester_change_days(date); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.semester_change_days(p_from date) RETURNS SETOF date
+    LANGUAGE sql STABLE
+    SET search_path TO 'public'
+    AS $$
+  select p_from
+  union
+  select v.valid_from from public.timetable_versions v where v.valid_from > p_from
+  order by 1
+$$;
+
+
+--
+-- Name: semester_version(date, text, text, integer); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.semester_version(p_from date, p_name text, p_add text DEFAULT NULL::text, p_base integer DEFAULT NULL::integer) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare
+  v_src public.timetable_versions := public.version_on(p_from);
+  v_ended text[];
+  v_new int;
+begin
+  if v_src.id is null then
+    return;
+  end if;
+  select coalesce(array_agg(semester), '{}') into v_ended from public.semester_ends where last_day < p_from;
+
+  insert into public.timetable_versions (name, valid_from, valid_to)
+  values (p_name, p_from, v_src.valid_to)
+  returning id into v_new;
+
+  insert into public.timetable_entries (version_id, room_id, weekday, slot_id, subject, faculty_initials, faculty_label, is_department)
+  select v_new, t.room_id, t.weekday, t.slot_id, t.subject, t.faculty_initials, t.faculty_label, t.is_department
+    from public.timetable_entries t
+   where t.version_id = v_src.id
+     and not (cardinality(public.subject_semesters(t.subject)) > 0
+              and public.subject_semesters(t.subject) <@ v_ended);
+
+  if p_add is not null and p_base is not null then
+    insert into public.timetable_entries (version_id, room_id, weekday, slot_id, subject, faculty_initials, faculty_label, is_department)
+    select v_new, b.room_id, b.weekday, b.slot_id, b.subject, b.faculty_initials, b.faculty_label, b.is_department
+      from public.timetable_entries b
+     where b.version_id = p_base
+       and p_add = any (public.subject_semesters(b.subject))
+       and not (public.subject_semesters(b.subject) <@ v_ended)
+       and not exists (select 1 from public.timetable_entries t
+                        where t.version_id = v_new and t.room_id = b.room_id
+                          and t.weekday = b.weekday and t.slot_id = b.slot_id);
+  end if;
+end $$;
+
+
+--
 -- Name: signed_up_initials(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -3112,6 +3252,34 @@ CREATE FUNCTION public.upcoming_bookings(p_days integer DEFAULT 14) RETURNS TABL
   where l.kind in ('class_request', 'event_request', 'cie', 'event')
     and not public.slot_has_ended(l.date, l.slot_id)
   order by l.date, l.slot_id, l.room_id
+$$;
+
+
+--
+-- Name: timetable_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.timetable_versions (
+    id integer NOT NULL,
+    name text NOT NULL,
+    valid_from date NOT NULL,
+    valid_to date NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT timetable_versions_check CHECK ((valid_to >= valid_from))
+);
+
+
+--
+-- Name: version_on(date); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.version_on(p_date date) RETURNS public.timetable_versions
+    LANGUAGE sql STABLE
+    SET search_path TO 'public'
+    AS $$
+  select v.* from public.timetable_versions v
+   where p_date between v.valid_from and v.valid_to
+   order by v.valid_from desc, v.id desc limit 1
 $$;
 
 
@@ -3581,6 +3749,19 @@ CREATE TABLE public.rooms (
 
 
 --
+-- Name: semester_ends; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.semester_ends (
+    semester text NOT NULL,
+    last_day date NOT NULL,
+    created_by text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT semester_ends_semester_check CHECK ((semester ~ '^\d$'::text))
+);
+
+
+--
 -- Name: slots; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3703,20 +3884,6 @@ CREATE SEQUENCE public.timetable_entries_id_seq
 --
 
 ALTER SEQUENCE public.timetable_entries_id_seq OWNED BY public.timetable_entries.id;
-
-
---
--- Name: timetable_versions; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.timetable_versions (
-    id integer NOT NULL,
-    name text NOT NULL,
-    valid_from date NOT NULL,
-    valid_to date NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT timetable_versions_check CHECK ((valid_to >= valid_from))
-);
 
 
 --
@@ -3992,6 +4159,14 @@ ALTER TABLE ONLY public.rooms
 
 
 --
+-- Name: semester_ends semester_ends_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.semester_ends
+    ADD CONSTRAINT semester_ends_pkey PRIMARY KEY (semester);
+
+
+--
 -- Name: slots slots_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4174,6 +4349,13 @@ CREATE INDEX timetable_entries_day ON public.timetable_entries USING btree (vers
 
 
 --
+-- Name: allotments allotments_cie_coordinators; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER allotments_cie_coordinators BEFORE INSERT ON public.allotments FOR EACH ROW EXECUTE FUNCTION public.allotments_cie_coordinators();
+
+
+--
 -- Name: allotments allotments_fill_initials; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -4304,6 +4486,13 @@ CREATE TRIGGER log_activity AFTER INSERT OR DELETE OR UPDATE ON public.resource_
 --
 
 CREATE TRIGGER log_activity AFTER INSERT OR DELETE OR UPDATE ON public.rooms FOR EACH ROW EXECUTE FUNCTION public.log_activity();
+
+
+--
+-- Name: semester_ends log_activity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER log_activity AFTER INSERT OR DELETE OR UPDATE ON public.semester_ends FOR EACH ROW EXECUTE FUNCTION public.log_activity();
 
 
 --
@@ -4627,6 +4816,13 @@ CREATE POLICY "anyone reads rooms" ON public.rooms FOR SELECT USING (true);
 
 
 --
+-- Name: semester_ends anyone reads semester ends; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "anyone reads semester ends" ON public.semester_ends FOR SELECT USING (true);
+
+
+--
 -- Name: slots anyone reads slots; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -4772,6 +4968,12 @@ ALTER TABLE public.resource_requests ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.rooms ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: semester_ends; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.semester_ends ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: slots; Type: ROW SECURITY; Schema: public; Owner: -
@@ -4974,6 +5176,14 @@ GRANT ALL ON FUNCTION public.admin_edit_timetable(p_room text, p_weekday integer
 
 
 --
+-- Name: FUNCTION admin_end_semester(p_semester text, p_last_day date); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.admin_end_semester(p_semester text, p_last_day date) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.admin_end_semester(p_semester text, p_last_day date) TO authenticated;
+
+
+--
 -- Name: FUNCTION admin_free_slots(p_room text, p_date date, p_slots integer[], p_reason text); Type: ACL; Schema: public; Owner: -
 --
 
@@ -5168,6 +5378,14 @@ GRANT ALL ON FUNCTION public.admin_undo_decision(p_id uuid) TO authenticated;
 
 REVOKE ALL ON FUNCTION public.admin_undo_exchange(p_id bigint, p_note text) FROM PUBLIC;
 GRANT ALL ON FUNCTION public.admin_undo_exchange(p_id bigint, p_note text) TO authenticated;
+
+
+--
+-- Name: FUNCTION admin_undo_semester_end(p_semester text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.admin_undo_semester_end(p_semester text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.admin_undo_semester_end(p_semester text) TO authenticated;
 
 
 --
@@ -5583,6 +5801,13 @@ GRANT ALL ON FUNCTION public.respond_exchange(p_id bigint, p_accept boolean, p_n
 
 
 --
+-- Name: FUNCTION semester_version(p_from date, p_name text, p_add text, p_base integer); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.semester_version(p_from date, p_name text, p_add text, p_base integer) FROM PUBLIC;
+
+
+--
 -- Name: FUNCTION signed_up_initials(); Type: ACL; Schema: public; Owner: -
 --
 
@@ -5681,6 +5906,22 @@ GRANT ALL ON FUNCTION public.undo_drop(p_room text, p_date date, p_slot integer)
 
 GRANT ALL ON FUNCTION public.upcoming_bookings(p_days integer) TO anon;
 GRANT ALL ON FUNCTION public.upcoming_bookings(p_days integer) TO authenticated;
+
+
+--
+-- Name: TABLE timetable_versions; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT ON TABLE public.timetable_versions TO anon;
+GRANT SELECT ON TABLE public.timetable_versions TO authenticated;
+
+
+--
+-- Name: FUNCTION version_on(p_date date); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.version_on(p_date date) TO anon;
+GRANT ALL ON FUNCTION public.version_on(p_date date) TO authenticated;
 
 
 --
@@ -5813,6 +6054,14 @@ GRANT SELECT ON TABLE public.rooms TO authenticated;
 
 
 --
+-- Name: TABLE semester_ends; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT ON TABLE public.semester_ends TO anon;
+GRANT SELECT ON TABLE public.semester_ends TO authenticated;
+
+
+--
 -- Name: TABLE slots; Type: ACL; Schema: public; Owner: -
 --
 
@@ -5840,14 +6089,6 @@ GRANT SELECT ON TABLE public.timetable_changes TO authenticated;
 
 GRANT SELECT ON TABLE public.timetable_entries TO anon;
 GRANT SELECT ON TABLE public.timetable_entries TO authenticated;
-
-
---
--- Name: TABLE timetable_versions; Type: ACL; Schema: public; Owner: -
---
-
-GRANT SELECT ON TABLE public.timetable_versions TO anon;
-GRANT SELECT ON TABLE public.timetable_versions TO authenticated;
 
 
 --

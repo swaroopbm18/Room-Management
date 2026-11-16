@@ -7,6 +7,8 @@ import { addDays, DATE_RE, formatDate, isClosedSunday, todayIST, weekdayOf } fro
 import { createClient } from "@/lib/supabase/server";
 import { fixFor } from "@/lib/fixLinks";
 import type { ParsedEntry } from "@/lib/timetableDocx";
+import { mergeRuns } from "@/lib/bookings";
+import type { AllotmentRow } from "@/lib/types";
 
 function back(form: FormData, fallback: string) {
   const to = String(form.get("back") ?? fallback);
@@ -121,9 +123,47 @@ export async function moveRequest(form: FormData) {
   await run(form, "/admin", "move_request", { p_id: s(form, "id"), p_dir: Number(s(form, "dir")) }, "Priority updated.");
 }
 
+const BOOKED_KINDS = ["class_request", "event_request", "cie", "event"];
+
+/**
+ * Bookings (events, CIEs, approved requests, admin classes) already in the slots an allotment
+ * would take, one line each, e.g. "1:05 PM – 4:45 PM: Agentic AI workshop, booked by Dr. Monika P".
+ * Back-to-back slots of one booking are one line. Empty when nothing is booked there.
+ */
+export async function allotClashes(form: FormData): Promise<string[]> {
+  const slots = await getSlots();
+  const from = slots.findIndex((x) => String(x.id) === s(form, "from"));
+  const to = slots.findIndex((x) => String(x.id) === s(form, "to"));
+  const date = s(form, "date");
+  if (from < 0 || to < from || !DATE_RE.test(date)) return [];
+  const picked = slots.slice(from, to + 1).map((x) => x.id);
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("allotments")
+    .select("*")
+    .eq("room_id", s(form, "room"))
+    .eq("date", date)
+    .in("slot_id", picked)
+    .order("id", { ascending: false });
+  // The latest change in each slot is what is there now
+  const latest = new Map<number, AllotmentRow>();
+  for (const a of (data ?? []) as AllotmentRow[]) if (!latest.has(a.slot_id)) latest.set(a.slot_id, a);
+  const booked = [...latest.values()].filter((a) => BOOKED_KINDS.includes(a.kind));
+  return mergeRuns(booked, slots, (x, y) => x.kind === y.kind && x.title === y.title && x.reason === y.reason && x.faculty_name === y.faculty_name).map(
+    ({ first: a, range }) => `${range}: ${a.title || (a.kind === "cie" ? "CIE" : "Event")}${a.faculty_name ? `, booked by ${a.faculty_name}` : ""}`,
+  );
+}
+
 export async function adminOverride(form: FormData) {
   // Every slot from the start slot to the end slot, in the day's order.
   const picked = await slotRange(form);
+  // A booking already there is only replaced once the admin has said so (the form asks first)
+  if (s(form, "overwrite") !== "yes") {
+    const clashes = await allotClashes(form);
+    if (clashes.length) {
+      redirect(withParam(back(form, "/admin/allot"), "error", `Already booked: ${clashes.join("; ")}. Allot again and confirm to overwrite.`));
+    }
+  }
   const kind = s(form, "kind");
   const date = s(form, "date");
   // Only admins reach this (the database checks too), and only they may record a past date.
@@ -993,4 +1033,23 @@ export async function rejectExchange(form: FormData) {
 /** Take back an approved exchange before the class starts: the original faculty gets every slot back. */
 export async function undoExchange(form: FormData) {
   await run29(form, "/admin/exchanges", "admin_undo_exchange", { p_id: Number(s(form, "id")), p_note: s(form, "note") }, "Approval taken back. The original classes are back on the timetable.");
+}
+
+/** Ends a semester's classes after its last day: its rooms are free from the next day on. */
+export async function endSemester(form: FormData) {
+  const sem = s(form, "semester");
+  const last = s(form, "last_day");
+  await run(
+    form,
+    "/admin/semester-end",
+    "admin_end_semester",
+    { p_semester: sem, p_last_day: last },
+    `Semester ${sem} classes end after ${DATE_RE.test(last) ? formatDate(last) : last}. Their rooms are free from then on, and can be requested.`,
+  );
+}
+
+/** Brings an ended semester's classes back into the timetable. */
+export async function undoSemesterEnd(form: FormData) {
+  const sem = s(form, "semester");
+  await run(form, "/admin/semester-end", "admin_undo_semester_end", { p_semester: sem }, `Semester ${sem} classes are back in the timetable.`);
 }
