@@ -2,7 +2,8 @@ import { getSlots } from "./data";
 import { createClient } from "./supabase/server";
 import type { AllotmentRow } from "./types";
 import { formatDate } from "./time";
-import { expandInitials, getFacultyNames } from "./facultyNames";
+import { displayName } from "./auth";
+import { expandInitials, getFacultyNames, namedFaculty } from "./facultyNames";
 
 type ReportRow = {
   date: string;
@@ -76,7 +77,14 @@ const clock = (t: string) => {
  */
 export async function getReport(start: string, end: string, fromSlot: number, toSlot: number): Promise<ReportEntry[]> {
   const supabase = await createClient();
-  const [slots, { data, error }, names] = await Promise.all([getSlots(), supabase.rpc("get_change_report", { p_from: start, p_to: end }), getFacultyNames()]);
+  const [slots, { data, error }, names, adminsRes] = await Promise.all([
+    getSlots(),
+    supabase.rpc("get_change_report", { p_from: start, p_to: end }),
+    getFacultyNames(),
+    supabase.from("people").select("title, full_name").eq("role", "admin"),
+  ]);
+  // An event or CIE an admin allotted carries the admin's name until a faculty member is named
+  const admins = new Set(((adminsRes.data ?? []) as { title: string | null; full_name: string }[]).map((p) => displayName(p)));
   if (error) throw new Error(error.message);
   const order = new Map(slots.map((s, i) => [s.id, i]));
   const lo = order.get(fromSlot) ?? 0;
@@ -103,6 +111,15 @@ export async function getReport(start: string, end: string, fromSlot: number, to
     } else merged.push({ ...r, last: r, replaced: replacedOf(r), slots: [r.slot_id] });
   }
 
+  // The Faculty name column: the faculty a CIE's or event's description names ("Dr. MP"), when
+  // the record itself only carries the allotting admin or the CIE Co-ordinators; initials in full.
+  const facultyOf = (m: ReportRow) => {
+    const own = m.faculty_name ?? (adminClass(m) ? "No faculty assigned" : "");
+    const generic = !m.faculty_name || m.faculty_name === "CIE Co-ordinators" || admins.has(m.faculty_name);
+    const named = (m.kind === "cie" || m.kind === "event") && generic ? namedFaculty(`${m.title} ${m.reason}`, names) : [];
+    return named.length ? named.join(", ") : expandInitials(own, names);
+  };
+
   return merged
     .sort((a, b) => a.date.localeCompare(b.date) || a.starts.localeCompare(b.starts) || a.room_id.localeCompare(b.room_id))
     .map((m) => {
@@ -118,7 +135,7 @@ export async function getReport(start: string, end: string, fromSlot: number, to
         date: m.date,
         time: `${clock(m.starts)} – ${clock(m.last.ends)}`,
         room: m.room_id,
-        faculty: m.faculty_name ?? (adminClass(m) ? "No faculty assigned" : ""),
+        faculty: facultyOf(m),
         type: exchanged(m) ? "Class exchange" : substitute(m) ? "Substitute class" : m.kind === "drop" && m.reason.startsWith("Cancelled for CIE") ? "Class cancelled" : adminClass(m) ? "Class" : TYPE[m.kind]!,
         mode: modeOf(m),
         // "Dr. MP" in a description reads "Dr. Monika P"

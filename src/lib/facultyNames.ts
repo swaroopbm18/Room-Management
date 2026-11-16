@@ -30,3 +30,13 @@ export function expandInitials(text: string | null, names: Map<string, string>):
   if (!text) return text;
   return text.replace(TITLED_INITIALS, (whole, _title: string, ini: string) => names.get(ini) ?? whole);
 }
+
+/** The faculty a text names with a title and initials ("Dr. MP" → "Dr. Monika P"), in order, once each. */
+export function namedFaculty(text: string | null, names: Map<string, string>): string[] {
+  const out: string[] = [];
+  for (const m of (text ?? "").matchAll(TITLED_INITIALS)) {
+    const name = names.get(m[2]);
+    if (name && !out.includes(name)) out.push(name);
+  }
+  return out;
+}
