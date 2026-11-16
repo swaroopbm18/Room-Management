@@ -211,6 +211,18 @@ body {
   @page {
     size: A4 landscape;
     margin: 12mm;
+    /* Our own footer on every sheet. Defining a margin box also stops the browser printing
+       its own header and footer (the page URL, date and title) in Chrome and Edge. */
+    @bottom-left {
+      content: "Room Management · Dept. of Machine Learning, BMSCE · Developed by Prof. Swaroop BM and Sinchana B M · Mentored by Dr. Sandeep Varma N, HoD";
+      font: 8pt system-ui, sans-serif;
+      color: #444;
+    }
+    @bottom-right {
+      content: "Page " counter(page) " of " counter(pages);
+      font: 8pt system-ui, sans-serif;
+      color: #444;
+    }
   }
   html,
   body {
