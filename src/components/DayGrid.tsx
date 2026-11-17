@@ -1,6 +1,6 @@
 import Link from "next/link";
 import OriginalClass, { originalClassText } from "./OriginalClass";
-import { STATUS_CELL, STATUS_LABEL } from "@/lib/status";
+import { STATUS_CELL, STATUS_LABEL, statusLabel } from "@/lib/status";
 import type { PublicRequest, Room, ScheduleRow, Slot, SlotStatus } from "@/lib/types";
 
 const LEGEND: SlotStatus[] = ["class", "booked", "cie", "event", "department", "free", "closed"];
@@ -69,7 +69,7 @@ export function ScheduleGrid({ corner, slots, rows, hint }: { corner: string; sl
         {LEGEND.map((s) => (
           <span key={s} className="inline-flex items-center gap-1.5">
             <span className={`h-3.5 w-5 rounded ${STATUS_CELL[s]}`} />
-            {s === "closed" ? "Saturday after 2 PM" : STATUS_LABEL[s]}
+            {s === "closed" ? "Saturday after 2 PM" : s === "cie" ? "CIE / SEE" : STATUS_LABEL[s]}
           </span>
         ))}
         <span className="muted ml-auto hidden sm:inline">
@@ -131,7 +131,7 @@ export function ScheduleGrid({ corner, slots, rows, hint }: { corner: string; sl
                         <div className="flex items-start justify-between gap-2">
                           <span className="truncate font-semibold">{c.subject}</span>
                           {c.status !== "class" && c.status !== "department" && (
-                            <span className="shrink-0 rounded bg-black/15 px-1 text-[10px] font-semibold uppercase dark:bg-white/20">{STATUS_LABEL[c.status]}</span>
+                            <span className="shrink-0 rounded bg-black/15 px-1 text-[10px] font-semibold uppercase dark:bg-white/20">{statusLabel(c.status, c.subject)}</span>
                           )}
                         </div>
                         {who && <div className="mt-0.5 line-clamp-2 text-xs leading-snug opacity-85">{who}</div>}

@@ -31,3 +31,9 @@ export const STATUS_CELL: Record<SlotStatus, string> = {
   // Saturday after 2 PM: no classes are held, so the slot is neither free nor taken
   closed: "bg-[repeating-linear-gradient(135deg,transparent_0_6px,rgba(115,115,115,0.08)_6px_12px)] bg-neutral-50 text-neutral-400 dark:bg-neutral-950 dark:text-neutral-600",
 };
+
+/** A CIE allotment whose title starts with "SEE" is an SEE (semester end exam). */
+export const isSee = (title: string | null | undefined) => /^SEE\b/i.test((title ?? "").trim());
+
+/** The label for a slot: "SEE" for an SEE exam (stored as a CIE), otherwise the status label. */
+export const statusLabel = (status: SlotStatus, title?: string | null) => (status === "cie" && isSee(title) ? "SEE" : STATUS_LABEL[status]);

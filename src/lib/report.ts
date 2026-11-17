@@ -1,3 +1,4 @@
+import { isSee } from "./status";
 import { getSlots } from "./data";
 import { createClient } from "./supabase/server";
 import type { AllotmentRow } from "./types";
@@ -34,7 +35,10 @@ const substitute = (r: Pick<ReportRow, "kind" | "request_id" | "reason">) => adm
 /** What an admin can change on a row (a CIE, event or class; not a dropped class). */
 export type ReportEdit = { room: string; date: string; slots: number[]; title: string; reason: string };
 
-export type ReportEntry = { date: string; time: string; room: string; faculty: string; type: string; mode: string; description: string; edit?: ReportEdit };
+/** The slots an admin can delete a row from (put back to the timetable). */
+export type ReportDelete = { room: string; date: string; slots: number[] };
+
+export type ReportEntry = { date: string; time: string; room: string; faculty: string; type: string; mode: string; description: string; edit?: ReportEdit; del: ReportDelete };
 
 const TYPE: Partial<Record<AllotmentRow["kind"], string>> = {
   cie: "CIE",
@@ -136,10 +140,11 @@ export async function getReport(start: string, end: string, fromSlot: number, to
         time: `${clock(m.starts)} – ${clock(m.last.ends)}`,
         room: m.room_id,
         faculty: facultyOf(m),
-        type: exchanged(m) ? "Class exchange" : substitute(m) ? "Substitute class" : m.kind === "drop" && m.reason.startsWith("Cancelled for CIE") ? "Class cancelled" : adminClass(m) ? "Class" : TYPE[m.kind]!,
+        type: exchanged(m) ? "Class exchange" : substitute(m) ? "Substitute class" : m.kind === "drop" && m.reason.startsWith("Cancelled for CIE") ? "Class cancelled" : adminClass(m) ? "Class" : m.kind === "cie" && isSee(m.title) ? "SEE" : TYPE[m.kind]!,
         mode: modeOf(m),
         // "Dr. MP" in a description reads "Dr. Monika P"
         description: expandInitials(what, names),
+        del: { room: m.room_id, date: m.date, slots: m.slots },
         edit: m.kind === "drop" ? undefined : { room: m.room_id, date: m.date, slots: m.slots, title: m.title, reason: m.reason },
       };
     });
