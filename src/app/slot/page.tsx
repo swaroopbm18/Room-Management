@@ -93,7 +93,7 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
 
       <section className="card flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5">
         <div className="min-w-0">
-          <div className="muted text-xs uppercase">In this slot</div>
+          <div className="muted text-xs">In this slot</div>
           {holiday ? (
             <div className="mt-1 font-medium">Holiday: {holiday}</div>
           ) : (

@@ -89,7 +89,7 @@ export default async function RequestPage({
           ["Date", formatDate(date)],
         ].map(([k, v]) => (
           <div key={k} className="p-4">
-            <div className="muted text-xs uppercase">{k}</div>
+            <div className="muted text-xs">{k}</div>
             <div className="mt-0.5 font-medium">{v}</div>
           </div>
         ))}

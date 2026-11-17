@@ -156,7 +156,10 @@ async function allotPlaces(form: FormData): Promise<Place[] | null> {
  */
 export async function allotClashes(form: FormData): Promise<string[]> {
   const places = await allotPlaces(form);
-  if (!places) return [];
+  return places ? clashesFor(places) : [];
+}
+
+async function clashesFor(places: Place[]): Promise<string[]> {
   const slots = await getSlots();
   const supabase = await createClient();
   const lines: string[] = [];
@@ -200,8 +203,8 @@ export async function adminOverride(form: FormData) {
     p_kind: kind,
     p_title: see ? (/^SEE\b/i.test(title) ? title : title ? `SEE ${title}` : "SEE") : title,
     p_reason: s(form, "reason"),
-    // A class names its faculty (initials) or none; an event may name a faculty member in charge
-    p_faculty: kind === "class_request" || kind === "event" ? s(form, "faculty") || null : null,
+    // A class names its faculty (initials) or none; an event, CIE or SEE may name several, "@A", "@B" or "@ALL"
+    p_faculty: s(form, "faculty") || null,
   };
   const supabase = await createClient();
   let error: { message: string; code?: string } | null = null;
@@ -670,6 +673,98 @@ export async function blockCieWeek(form: FormData) {
     (cancel ? ` Cancelled ${cancelled} class ${cancelled === 1 ? "slot" : "slots"} of semester ${semesters.join(", ")}.` : "")
   ).trim();
   redirect(withParam(to, failed.length ? "error" : "msg", failed.length ? `${done ? ok + " " : ""}Not booked: ${failed.slice(0, 6).join("; ")}${failed.length > 6 ? ` and ${failed.length - 6} more` : ""}.` : ok));
+}
+
+/**
+ * Bulk allot: every working day from a start date to an end date (Sundays and holidays skipped,
+ * optionally only some weekdays), and on each, every row's rooms at that row's times.
+ */
+async function bulkPlaces(form: FormData): Promise<{ places: Place[]; days: string[] } | { error: string }> {
+  const from = s(form, "from_date");
+  const until = s(form, "to_date") || from;
+  if (!DATE_RE.test(from) || !DATE_RE.test(until) || until < from) return { error: "The end date must be on or after the start date." };
+  if (until > addDays(todayIST(), 120)) return { error: "Bulk allot can go up to 120 days ahead." };
+  const weekdays = form.getAll("weekdays").map(Number).filter((n) => n >= 1 && n <= 7);
+  const [slots, holidays] = await Promise.all([getSlots(), getHolidays()]);
+  const days: string[] = [];
+  for (let d = from; d <= until && days.length < 62; d = addDays(d, 1)) {
+    if (!isClosedSunday(d) && !holidays.has(d) && (!weekdays.length || weekdays.includes(weekdayOf(d)))) days.push(d);
+  }
+  if (!days.length) return { error: "No working day in those dates. Sundays, holidays and unticked weekdays are skipped." };
+  const keys = s(form, "rowkeys").split(",").filter(Boolean);
+  const froms = form.getAll("from").map(String);
+  const tos = form.getAll("to").map(String);
+  const rows: { rooms: string[]; slots: number[] }[] = [];
+  for (let i = 0; i < keys.length; i++) {
+    const rooms = form.getAll(`rooms-${keys[i]}`).map(String).filter(Boolean);
+    const a = slots.findIndex((x) => String(x.id) === froms[i]);
+    const b = slots.findIndex((x) => String(x.id) === tos[i]);
+    if (!rooms.length) return { error: `Pick at least one room in row ${i + 1}.` };
+    if (a < 0 || b < a) return { error: `Check the times in row ${i + 1}: the end must be after the start.` };
+    rows.push({ rooms, slots: slots.slice(a, b + 1).map((x) => x.id) });
+  }
+  if (!rows.length) return { error: "Add at least one row of rooms and times." };
+  // The same room in two rows on one day is one place with both rows' slots
+  const byKey = new Map<string, Place>();
+  for (const d of days) {
+    for (const r of rows) {
+      for (const room of r.rooms) {
+        const k = `${d}|${room}`;
+        const p = byKey.get(k) ?? { date: d, room, slots: [] };
+        for (const id of r.slots) if (!p.slots.includes(id)) p.slots.push(id);
+        byKey.set(k, p);
+      }
+    }
+  }
+  return { places: [...byKey.values()], days };
+}
+
+export type BulkPreview = { error?: string; days?: string[]; rooms?: number; slots?: number; clashes?: string[] };
+
+/** What a bulk allotment would take, and what is already booked there, without saving anything. */
+export async function bulkAllotPreview(form: FormData): Promise<BulkPreview> {
+  const plan = await bulkPlaces(form);
+  if ("error" in plan) return { error: plan.error };
+  return {
+    days: plan.days,
+    rooms: new Set(plan.places.map((p) => p.room)).size,
+    slots: plan.places.reduce((n, p) => n + p.slots.length, 0),
+    clashes: await clashesFor(plan.places),
+  };
+}
+
+export async function adminBulkAllot(form: FormData) {
+  const to = back(form, "/admin/cie");
+  const plan = await bulkPlaces(form);
+  if ("error" in plan) redirect(withParam(to, "error", plan.error));
+  const see = s(form, "kind") === "see";
+  const kind = see ? "cie" : ["cie", "event", "class_request"].includes(s(form, "kind")) ? s(form, "kind") : "event";
+  const title = s(form, "title");
+  const semesters = kind === "cie" ? form.getAll("semesters").map(String).filter((x) => /^\d$/.test(x)) : [];
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_bulk_allot", {
+    p_places: plan.places,
+    p_kind: kind,
+    p_title: see ? (/^SEE\b/i.test(title) ? title : title ? `SEE ${title}` : "SEE") : title,
+    p_reason: s(form, "reason"),
+    p_faculty: s(form, "faculty") || null,
+    p_semesters: semesters.length ? semesters : null,
+  });
+  revalidatePath("/", "layout");
+  if (error) {
+    const missing = error.code === "PGRST202" || /admin_bulk_allot/.test(error.message);
+    redirect(withParam(to, "error", missing ? "Bulk allot needs database update 0035. Run it in the Supabase SQL Editor." : `Nothing was allotted: ${error.message}`));
+  }
+  const r = (data ?? {}) as { slots?: number; cancelled?: number };
+  const rooms = new Set(plan.places.map((p) => p.room)).size;
+  redirect(
+    withParam(
+      to,
+      "msg",
+      `Allotted ${r.slots ?? 0} slots in ${rooms} ${rooms === 1 ? "room" : "rooms"} over ${plan.days.length} ${plan.days.length === 1 ? "day" : "days"}.` +
+        (semesters.length ? ` Cancelled ${r.cancelled ?? 0} class slots of semester ${semesters.join(", ")}.` : ""),
+    ),
+  );
 }
 
 export type UploadChange = { room: string; weekday: number; slot: number; before: string; after: string };

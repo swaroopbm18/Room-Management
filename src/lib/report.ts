@@ -94,7 +94,9 @@ export async function getReport(start: string, end: string, fromSlot: number, to
   const lo = order.get(fromSlot) ?? 0;
   const hi = order.get(toSlot) ?? slots.length - 1;
 
-  const rows = ((data ?? []) as ReportRow[]).filter((r) => TYPE[r.kind] && order.get(r.slot_id)! >= lo && order.get(r.slot_id)! <= hi);
+  // Classes cancelled for a CIE or SEE are not listed one by one: the CIE or SEE itself is
+  const examCancel = (r: ReportRow) => r.kind === "drop" && /^Cancelled for (CIE|SEE)\b/.test(r.reason);
+  const rows = ((data ?? []) as ReportRow[]).filter((r) => TYPE[r.kind] && !examCancel(r) && order.get(r.slot_id)! >= lo && order.get(r.slot_id)! <= hi);
   const merged: (ReportRow & { last: ReportRow; replaced: string[]; slots: number[] })[] = [];
   // The regular class a booking, CIE or event replaced, e.g. "DBMS-3B (Dr. Ashok Kumar N)"
   const replacedOf = (r: ReportRow) =>
@@ -140,7 +142,7 @@ export async function getReport(start: string, end: string, fromSlot: number, to
         time: `${clock(m.starts)} – ${clock(m.last.ends)}`,
         room: m.room_id,
         faculty: facultyOf(m),
-        type: exchanged(m) ? "Class exchange" : substitute(m) ? "Substitute class" : m.kind === "drop" && m.reason.startsWith("Cancelled for CIE") ? "Class cancelled" : adminClass(m) ? "Class" : m.kind === "cie" && isSee(m.title) ? "SEE" : TYPE[m.kind]!,
+        type: exchanged(m) ? "Class exchange" : substitute(m) ? "Substitute class" : adminClass(m) ? "Class" : m.kind === "cie" && isSee(m.title) ? "SEE" : TYPE[m.kind]!,
         mode: modeOf(m),
         // "Dr. MP" in a description reads "Dr. Monika P"
         description: expandInitials(what, names),

@@ -33,7 +33,7 @@ export default function ClassWeek({ slots, days, names }: { slots: Slot[]; days:
                       No classes
                     </td>
                   ) : span.entries.length === 0 ? (
-                    <td key={span.slotIds[0]} className="h-16 min-w-36 print:min-w-0 rounded-lg border border-dashed border-brand-200 text-center text-xs tracking-wide text-brand-400 uppercase dark:border-brand-900 dark:text-brand-700">
+                    <td key={span.slotIds[0]} className="h-16 min-w-36 print:min-w-0 rounded-lg border border-dashed border-brand-200 text-center text-xs text-brand-400 dark:border-brand-900 dark:text-brand-700">
                       Free
                     </td>
                   ) : (
@@ -43,7 +43,7 @@ export default function ClassWeek({ slots, days, names }: { slots: Slot[]; days:
                           <div key={e.room + e.subject} className="py-1">
                             <div className="flex flex-wrap items-center gap-1">
                               <span className="font-semibold">{e.subject}</span>
-                              {e.wholeSemester && <span className="rounded bg-black/10 px-1 text-[10px] font-semibold uppercase dark:bg-white/15">All sections</span>}
+                              {e.wholeSemester && <span className="rounded bg-black/10 px-1 text-[10px] font-semibold dark:bg-white/15">All sections</span>}
                             </div>
                             <div className="mt-0.5 text-xs">{e.initials.map((x) => names[x] ?? x).join(", ") || "No faculty"}</div>
                             <div className="mt-0.5 text-[11px] opacity-70">Room {e.room}</div>

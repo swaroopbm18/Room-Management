@@ -36,7 +36,7 @@ export default function Manual({ title, subtitle, sections, other }: { title: st
 
       <div className="grid gap-6 lg:grid-cols-[16rem_minmax(0,1fr)]">
         <nav aria-label="Contents" className="card h-max p-4 text-sm lg:sticky lg:top-20 print:hidden">
-          <div className="muted mb-2 text-xs font-semibold tracking-wide uppercase">Contents</div>
+          <div className="muted mb-2 text-xs font-semibold">Contents</div>
           <ol className="space-y-1">
             {sections.map((s, i) => (
               <li key={s.id}>

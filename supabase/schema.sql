@@ -1,6 +1,6 @@
 -- The whole database in one file, for a new install: run this, then seed.sql.
 --
--- It is the same as running every file in migrations/ in order (0001 to 0034), generated with
+-- It is the same as running every file in migrations/ in order (0001 to 0035), generated with
 -- pg_dump from a database built that way. An existing site keeps running each new migration
 -- as before; regenerate this file after adding one (see README, "Database schema").
 
@@ -249,6 +249,31 @@ end $$;
 
 
 --
+-- Name: admin_bulk_allot(jsonb, public.allotment_kind, text, text, text, text[]); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.admin_bulk_allot(p_places jsonb, p_kind public.allotment_kind, p_title text, p_reason text, p_faculty text DEFAULT NULL::text, p_semesters text[] DEFAULT NULL::text[]) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare
+  v_slots int;
+  v_cancelled int := 0;
+  d date;
+begin
+  perform public.require_admin();
+  v_slots := public.admin_override_many(p_places, p_kind, p_title, p_reason, p_faculty);
+  if coalesce(array_length(p_semesters, 1), 0) > 0 then
+    for d in select distinct (p ->> 'date')::date from jsonb_array_elements(p_places) p order by 1 loop
+      v_cancelled := v_cancelled + public.admin_cancel_semester_classes(d, p_semesters,
+        coalesce(nullif(btrim(p_title), ''), upper(p_kind::text)) || ', semester ' || array_to_string(p_semesters, ', '));
+    end loop;
+  end if;
+  return jsonb_build_object('slots', v_slots, 'cancelled', v_cancelled);
+end $$;
+
+
+--
 -- Name: admin_cancel_semester_classes(date, text[], text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -260,7 +285,8 @@ declare
   me public.people := public.require_admin();
   d record;
   v_n int := 0;
-  v_reason text := 'Cancelled for CIE: ' || coalesce(nullif(btrim(coalesce(p_reason, '')), ''), 'semester ' || array_to_string(p_semesters, ', '));
+  v_why text := coalesce(nullif(btrim(coalesce(p_reason, '')), ''), 'semester ' || array_to_string(p_semesters, ', '));
+  v_reason text := case when v_why ~* '^SEE\M' then 'Cancelled for SEE: ' else 'Cancelled for CIE: ' end || v_why;
 begin
   if coalesce(array_length(p_semesters, 1), 0) = 0 then
     raise exception 'Pick at least one semester' using errcode = 'P0001';
@@ -652,12 +678,7 @@ begin
     raise exception 'The description must be 3 to 500 characters' using errcode = 'P0001';
   end if;
   if v_ini is not null and v_ini <> '-' then
-    if not exists (select 1 from public.people where initials = v_ini and active)
-       and not exists (select 1 from public.faculty_directory where initials = v_ini)
-       and not exists (select 1 from public.timetable_entries where v_ini = any (faculty_initials)) then
-      raise exception 'No faculty member has the initials %', v_ini using errcode = 'P0001';
-    end if;
-    v_name := public.faculty_display(array[v_ini], null);
+    select r.initials, r.name into v_ini, v_name from public.resolve_faculty(v_ini) r;
   end if;
   perform set_config('app.record_edit', 'on', true);
 
@@ -836,6 +857,7 @@ declare
   me public.people := public.require_admin();
   v_past boolean := public.slot_has_ended(p_date, p_slot);
   v_ini text := nullif(upper(btrim(coalesce(p_faculty, ''))), '');
+  f record;
   v_email text;
   v_name text;
 begin
@@ -865,21 +887,23 @@ begin
     perform public.booking_window_check(p_date, p_slot);
   end if;
 
-  if p_kind in ('class_request', 'event') and v_ini is not null then
-      -- A class's faculty, or an event's faculty in charge (optional)
-      if not exists (select 1 from public.people where initials = v_ini and active)
-         and not exists (select 1 from public.faculty_directory where initials = v_ini)
-         and not exists (select 1 from public.timetable_entries where v_ini = any (faculty_initials)) then
-        raise exception 'No faculty member has the initials %', v_ini using errcode = 'P0001';
-      end if;
-      v_name := public.faculty_display(array[v_ini], null);
-      if p_kind = 'class_request' then
-        select email into v_email from public.people where initials = v_ini and active limit 1;
-      else
-        v_email := me.email;  -- an event stays the allotting admin's, with its faculty in charge named
-      end if;
+  if p_kind = 'class_request' and v_ini is not null then
+    -- A class has one faculty member
+    if v_ini ~ '[,@]' then
+      raise exception 'A class can have one faculty member' using errcode = 'P0001';
+    end if;
+    select * into f from public.resolve_faculty(v_ini);
+    v_ini := f.initials;
+    v_name := f.name;
+    select email into v_email from public.people where initials = v_ini and active limit 1;
   elsif p_kind = 'class_request' then
     v_ini := null;
+  elsif v_ini is not null then
+    -- An event's, CIE's or SEE's faculty in charge (optional): one or more, a cluster or the whole department
+    select * into f from public.resolve_faculty(v_ini);
+    v_ini := f.initials;
+    v_name := f.name;
+    v_email := me.email;  -- stays the allotting admin's, with its faculty named
   else
     v_ini := null;
     v_email := me.email;
@@ -2387,9 +2411,12 @@ CREATE FUNCTION public.faculty_status(p_date date) RETURNS TABLE(initials text, 
       and (l.kind is null or l.kind = 'restore')
   ),
   booked as (
-    select coalesce(l.faculty_initials, p.initials) as ini, l.slot_id, l.title as activity, l.room_id
+    -- A booking's faculty, and every faculty member named for an event, CIE or SEE
+    select ini, l.slot_id, l.title as activity, l.room_id
     from latest l left join public.people p on p.email = l.faculty_email
-    where l.kind in ('class_request', 'event_request') and coalesce(l.faculty_initials, p.initials) is not null
+    cross join lateral unnest(string_to_array(
+      case when l.kind in ('class_request', 'event_request') then coalesce(l.faculty_initials, p.initials) else l.faculty_initials end, ',')) as ini
+    where l.kind in ('class_request', 'event_request', 'event', 'cie')
   ),
   duties as (
     select d.initials as ini, d.slot_id, 'Other duty'::text as activity, null::text as room_id
@@ -3065,6 +3092,58 @@ begin
   end if;
   delete from public.calendar_feeds where email = me.email;
   return public.my_calendar_token();
+end $$;
+
+
+--
+-- Name: resolve_faculty(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.resolve_faculty(p_faculty text, OUT initials text, OUT name text) RETURNS record
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare
+  v text := upper(regexp_replace(coalesce(p_faculty, ''), '\s', '', 'g'));
+  v_list text[];
+  v_bad text;
+begin
+  if v = '' then
+    return;
+  end if;
+  if v in ('@A', '@B') then
+    select array_agg(c.initials order by c.initials) into v_list from public.faculty_clusters c where c.cluster = substr(v, 2);
+    if v_list is null then
+      raise exception 'No faculty are in cluster %', substr(v, 2) using errcode = 'P0001';
+    end if;
+    initials := array_to_string(v_list, ',');
+    name := 'Cluster ' || substr(v, 2) || ' faculty';
+    return;
+  end if;
+  if v = '@ALL' then
+    select array_agg(x order by x) into v_list from (
+      select d.initials as x from public.faculty_directory d
+      union select p.initials from public.people p where p.initials is not null and p.active and p.role <> 'admin'
+    ) t;
+    initials := array_to_string(v_list, ',');
+    name := 'All department faculty';
+    return;
+  end if;
+  select array_agg(distinct x) into v_list from unnest(string_to_array(v, ',')) x where x <> '';
+  select x into v_bad from unnest(v_list) x
+   where not exists (select 1 from public.people where people.initials = x and active)
+     and not exists (select 1 from public.faculty_directory d where d.initials = x)
+     and not exists (select 1 from public.timetable_entries t where x = any (t.faculty_initials))
+   limit 1;
+  if v_bad is not null then
+    raise exception 'No faculty member has the initials %', v_bad using errcode = 'P0001';
+  end if;
+  -- In the order given
+  select array_agg(x order by o) into v_list from (
+    select x, min(o) as o from unnest(string_to_array(v, ',')) with ordinality as u(x, o) where x <> '' group by x
+  ) t;
+  initials := array_to_string(v_list, ',');
+  name := public.faculty_display(v_list, null);
 end $$;
 
 
@@ -5225,6 +5304,14 @@ GRANT ALL ON FUNCTION public.admin_archive_room(p_room text, p_archived boolean)
 
 
 --
+-- Name: FUNCTION admin_bulk_allot(p_places jsonb, p_kind public.allotment_kind, p_title text, p_reason text, p_faculty text, p_semesters text[]); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.admin_bulk_allot(p_places jsonb, p_kind public.allotment_kind, p_title text, p_reason text, p_faculty text, p_semesters text[]) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.admin_bulk_allot(p_places jsonb, p_kind public.allotment_kind, p_title text, p_reason text, p_faculty text, p_semesters text[]) TO authenticated;
+
+
+--
 -- Name: FUNCTION admin_cancel_semester_classes(p_date date, p_semesters text[], p_reason text); Type: ACL; Schema: public; Owner: -
 --
 
@@ -5943,6 +6030,14 @@ REVOKE ALL ON FUNCTION public.require_admin() FROM PUBLIC;
 
 REVOKE ALL ON FUNCTION public.reset_calendar_token() FROM PUBLIC;
 GRANT ALL ON FUNCTION public.reset_calendar_token() TO authenticated;
+
+
+--
+-- Name: FUNCTION resolve_faculty(p_faculty text, OUT initials text, OUT name text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.resolve_faculty(p_faculty text, OUT initials text, OUT name text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.resolve_faculty(p_faculty text, OUT initials text, OUT name text) TO authenticated;
 
 
 --

@@ -88,13 +88,13 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
           <nav aria-label="Classes" className="card space-y-2 p-4 print:hidden">
             {semesters.map(({ sem, classes }) => (
               <div key={sem} className="flex flex-wrap items-center gap-1.5">
-                <span className="muted w-full shrink-0 text-xs font-medium tracking-wide uppercase sm:w-28">{ordinal(sem)}</span>
+                <span className="muted w-full shrink-0 text-xs font-medium sm:w-28">{ordinal(sem)}</span>
                 {classes.map((k) => chip(k, k.length === 1 ? "All sections" : k))}
               </div>
             ))}
             {hasOther && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="muted w-full shrink-0 text-xs font-medium tracking-wide uppercase sm:w-28">No section</span>
+                <span className="muted w-full shrink-0 text-xs font-medium sm:w-28">No section</span>
                 {chip(OTHER, "Other classes")}
               </div>
             )}

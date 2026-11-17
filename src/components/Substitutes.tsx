@@ -42,7 +42,7 @@ export default function Substitutes({ people, assign }: { people: Substitute[]; 
                   <span className="font-medium">{p.name}</span>
                   <span className="opacity-80"> · {[p.why, busyText(p.load)].filter(Boolean).join(", ")}</span>
                 </span>
-                <span className="rounded bg-black/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase dark:bg-white/15">Assign</span>
+                <span className="rounded bg-black/10 px-1.5 py-0.5 text-[10px] font-semibold dark:bg-white/15">Assign</span>
               </SubmitButton>
             </form>
           ))}

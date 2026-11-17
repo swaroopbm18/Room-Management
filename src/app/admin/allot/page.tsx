@@ -79,7 +79,7 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
           workingSundays={makeupSundayList()}
         />
         <RememberFields scope="allot" fields={["room", "kind"]} />
-        <AllotReason faculty={faculty.map((f) => ({ initials: f.initials, name: f.name }))} />
+        <AllotReason faculty={faculty.map((f) => ({ initials: f.initials, name: f.name, cluster: f.cluster }))} />
         <div className="flex justify-end sm:col-span-2 lg:col-span-3">
           <SubmitButton pendingText="Allotting…" message="Allotting the room…">
             <IconFlag className="h-4 w-4" /> Allot room

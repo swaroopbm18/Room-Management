@@ -12,7 +12,7 @@ export type ClassLine = {
   subject: string;
   room: string;
   who: string | null;
-  state: "on" | "cancelled" | "taken" | "changed" | "extra";
+  state: "on" | "cancelled" | "taken" | "changed" | "extra" | "exam";
   note?: string;
 };
 
@@ -22,7 +22,17 @@ export const LINE_STATE: Record<ClassLine["state"], { label: string; cls: string
   changed: { label: "Faculty changed", cls: "bg-violet-100 text-violet-900 dark:bg-violet-950 dark:text-violet-200" },
   taken: { label: "Room taken", cls: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200" },
   cancelled: { label: "Cancelled", cls: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" },
+  exam: { label: "CIE / SEE", cls: "bg-ink text-white dark:bg-white dark:text-black" },
 };
+
+/** "CIE" or "SEE" when a class line is cancelled for an exam or its room is taken by one, else null. */
+function examOf(l: ClassLine, status: string | undefined, title: string | null | undefined): "CIE" | "SEE" | null {
+  // A CIE day's drop reads "Class dropped: Cancelled for CIE: SEE Maths, semester 5"
+  const m = l.state === "cancelled" ? /^(?:Class dropped: )?Cancelled for (CIE|SEE)\b:?\s*(.*)$/.exec(l.note ?? "") : null;
+  if (m) return m[1] === "SEE" || /^SEE\b/i.test(m[2]) ? "SEE" : "CIE";
+  if (l.state === "taken" && status === "cie") return /^SEE\b/i.test((title ?? "").trim()) ? "SEE" : "CIE";
+  return null;
+}
 
 /** Every class at once, for the list of all changes. */
 export const ALL_CLASSES = "*";
@@ -55,7 +65,18 @@ export function classDay(chosen: string | undefined, dayCells: DayCell[], schedu
             ? `${r.subject !== c.subject ? `In place of ${c.subject}${r.original_faculty ? ` (${r.original_faculty})` : ""}` : `Taken by another faculty member${r.original_faculty ? ` in place of ${r.original_faculty}` : ""}`}${r.reason?.startsWith("Class exchange:") ? " · class exchange" : ""}`
             : undefined;
     // An exchange to a colleague's own subject shows the class as it now runs (COA-3E by them), with what it replaced
-    lines.push({ slotIds: [c.slot_id], subject: state === "changed" && r.subject ? r.subject : c.subject, room: c.room_id, who: state === "on" || state === "changed" ? r.faculty_name : null, state, note });
+    const line: ClassLine = { slotIds: [c.slot_id], subject: state === "changed" && r.subject ? r.subject : c.subject, room: c.room_id, who: state === "on" || state === "changed" ? r.faculty_name : null, state, note };
+    // A class cancelled for a CIE or SEE (or whose room the exam takes) is not listed on its own:
+    // the class reads as one line, "CIE: classes cancelled"
+    const exam = examOf(line, r.status, r.subject);
+    if (exam) {
+      const who = chosen && chosen !== ALL_CLASSES ? (chosen.length === 1 ? `Semester ${chosen}` : chosen) : `Semester ${[...new Set(classesOf(c.subject).map((k) => k[0]))].join(", ")}`;
+      line.subject = who;
+      line.room = "";
+      line.state = "exam";
+      line.note = `${exam}: classes cancelled`;
+    }
+    lines.push(line);
   }
   // Class bookings for this class in another room or slot
   for (const r of schedule.filter((r) => r.status === "booked" && forClass(r.subject, chosen))) {
@@ -69,6 +90,12 @@ export function classDay(chosen: string | undefined, dayCells: DayCell[], schedu
       (x) => x.subject === l.subject && x.room === l.room && x.state === l.state && x.note === l.note && (order.get(x.slotIds[x.slotIds.length - 1]) ?? -9) + 1 === order.get(l.slotIds[0]),
     );
     if (m) m.slotIds.push(...l.slotIds);
+    else if (l.state === "exam") {
+      // One exam line per class a day, from its first slot to its last
+      const e = merged.find((x) => x.state === "exam" && x.subject === l.subject && x.note === l.note);
+      if (e) e.slotIds = [...new Set([...e.slotIds, ...l.slotIds])].sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0));
+      else merged.push({ ...l, slotIds: [...l.slotIds] });
+    }
     else merged.push({ ...l, slotIds: [...l.slotIds] });
   }
   return merged;

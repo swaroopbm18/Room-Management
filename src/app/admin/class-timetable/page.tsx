@@ -77,7 +77,7 @@ export default async function ClassTimetable({ searchParams }: { searchParams: P
           <nav aria-label="Classes" className="card space-y-2 p-4">
             {semesters.map(({ sem, classes }) => (
               <div key={sem} className="flex flex-wrap items-center gap-1.5">
-                <span className="muted w-full shrink-0 text-xs sm:w-28 font-medium tracking-wide uppercase">{ordinal(sem)}</span>
+                <span className="muted w-full shrink-0 text-xs sm:w-28 font-medium">{ordinal(sem)}</span>
                 {classes.map((k) => (
                   <ClassChip key={k} k={k} active={k === chosen} text={k.length === 1 ? "All sections" : k} />
                 ))}
@@ -85,7 +85,7 @@ export default async function ClassTimetable({ searchParams }: { searchParams: P
             ))}
             {hasOther && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="muted w-full shrink-0 text-xs sm:w-28 font-medium tracking-wide uppercase">No section</span>
+                <span className="muted w-full shrink-0 text-xs sm:w-28 font-medium">No section</span>
                 <ClassChip k={OTHER} active={chosen === OTHER} text="Other classes" />
               </div>
             )}

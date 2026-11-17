@@ -87,12 +87,12 @@ export default function UpcomingBookings({ rows, slots, days }: { rows: Upcoming
           {g.reason && <div className={`mt-1.5 line-clamp-2 text-xs ${dark ? "text-brand-100/90" : "text-neutral-600 dark:text-neutral-300"}`}>{g.reason}</div>}
         </PendingLink>
         {/* The regular classes this replaced, behind a button that opens them in a pop-up */}
-        {g.replaced.length > 0 && (
+        {g.replaced.length > 0 && g.kind !== "cie" && (
           <div className="px-3 pb-3 sm:px-4 sm:pb-4">
             <AffectedClasses
               classes={g.replaced}
               dark={dark}
-              title={`${g.title || (g.kind === "cie" ? "CIE" : "Event")} in ${g.room_id}`}
+              title={`${g.title || "Event"} in ${g.room_id}`}
               when={`${g.date === today ? "Today" : formatDate(g.date, { weekday: "short", year: undefined })}, ${g.first.label.split(" – ")[0]} – ${g.last.label.split(" – ")[1]}`}
             />
           </div>
