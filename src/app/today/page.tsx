@@ -46,7 +46,7 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
         <nav aria-label="Classes" className="card space-y-2 p-4">
           {semesters.map(({ sem, classes }) => (
             <div key={sem} className="flex flex-wrap items-center gap-1.5">
-              <span className="muted w-full shrink-0 text-xs font-medium tracking-wide uppercase sm:w-28">{ordinal(sem)}</span>
+              <span className="muted w-full shrink-0 text-xs font-medium sm:w-28">{ordinal(sem)}</span>
               {classes.map((k) => (
                 <PendingLink
                   key={k}
@@ -94,13 +94,12 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
                 <span className="min-w-0">
                   <span className={`font-semibold ${l.state === "cancelled" ? "line-through" : ""}`}>{l.subject}</span>
                   <span className="muted text-sm">
-                    {" "}
-                    · {l.room}
+                    {l.room && ` · ${l.room}`}
                     {l.who && ` · ${l.who}`}
                   </span>
                   {l.note && <span className="muted block text-xs">{l.state === "taken" ? `Room booked for ${l.note}` : l.note}</span>}
                 </span>
-                <span className={`self-start rounded-full px-2 py-0.5 text-xs font-semibold ${LINE_STATE[l.state].cls}`}>{done ? "Over" : LINE_STATE[l.state].label}</span>
+                <span className={`self-start rounded-full px-2 py-0.5 text-xs font-semibold ${LINE_STATE[l.state].cls}`}>{done ? "Over" : l.state === "exam" ? l.note!.slice(0, 3) : LINE_STATE[l.state].label}</span>
               </li>
             );
           })}

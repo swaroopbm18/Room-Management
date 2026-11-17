@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import FacultyPicker, { type PickFaculty } from "@/components/FacultyPicker";
 
 type Kind = "cie" | "see" | "event" | "class_request";
 
@@ -19,10 +20,10 @@ const DESCRIPTION_HINT: Record<Kind, string> = {
 };
 
 /**
- * The reason for an allotment (CIE, event or class), its title and description. A class names
- * the faculty member who takes it, or says no faculty is assigned.
+ * The reason for an allotment (CIE, SEE, event or class), its title and description. A class names
+ * the faculty member who takes it; an event, CIE or SEE can name several, a cluster or the whole department.
  */
-export default function AllotReason({ faculty }: { faculty: { initials: string; name: string }[] }) {
+export default function AllotReason({ faculty }: { faculty: PickFaculty[] }) {
   const [kind, setKind] = useState<Kind>("cie");
   const ref = useRef<HTMLSelectElement>(null);
 
@@ -50,17 +51,15 @@ export default function AllotReason({ faculty }: { faculty: { initials: string; 
           <option value="class_request">Class</option>
         </select>
       </div>
-      {(kind === "cie" || kind === "see") && (
-        <div>
-          <span className="label">Faculty</span>
-          <p className="input bg-transparent text-sm">{kind === "see" ? "SEE Co-ordinators" : "CIE Co-ordinators"}</p>
-        </div>
+      {kind !== "class_request" && (
+        // Several faculty, a cluster or the whole department; a CIE or SEE with none shows its co-ordinators
+        <FacultyPicker key={kind} faculty={faculty} emptyText={kind === "see" ? "SEE Co-ordinators" : kind === "cie" ? "CIE Co-ordinators" : "None"} />
       )}
-      {(kind === "event" || kind === "class_request") && (
+      {kind === "class_request" && (
         <div>
-          <label className="label" htmlFor="faculty">{kind === "event" ? <>Faculty in charge <span className="muted font-normal">(optional)</span></> : "Faculty for the class"}</label>
-          <select key={kind} id="faculty" name="faculty" className="input" defaultValue="">
-            <option value="">{kind === "event" ? "None" : "No faculty assigned"}</option>
+          <label className="label" htmlFor="faculty">Faculty for the class</label>
+          <select id="faculty" name="faculty" className="input" defaultValue="">
+            <option value="">No faculty assigned</option>
             {faculty.map((f) => (
               <option key={f.initials} value={f.initials}>
                 {f.name === f.initials ? f.initials : `${f.name} (${f.initials})`}

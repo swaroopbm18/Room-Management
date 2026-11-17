@@ -554,7 +554,7 @@ function ClassTimetables({ semesters }: { semesters: { sem: string; classes: str
       <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
         {semesters.map(({ sem, classes }) => (
           <div key={sem} className="rounded-xl bg-brand-50/70 p-3 dark:bg-brand-950/40">
-            <div className="mb-2 text-xs font-semibold tracking-wide text-brand-700 uppercase dark:text-brand-300">{ordinal(sem)}</div>
+            <div className="mb-2 text-xs font-semibold text-brand-700 dark:text-brand-300">{ordinal(sem)}</div>
             <div className="flex flex-wrap gap-1.5">
               {classes.map((k) => (
                 <PendingLink

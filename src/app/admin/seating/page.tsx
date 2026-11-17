@@ -123,7 +123,7 @@ export default async function Seating({
             {noSeats.length > 0 && <p className="muted text-xs">Skipped {noSeats.map((r) => r.name).join(", ")}: no seat count yet. Add it under Room details.</p>}
             <div className="card overflow-x-auto">
               <table className="w-full min-w-[560px] text-sm">
-                <thead className="bg-brand-50 text-left text-xs text-brand-800 uppercase dark:bg-brand-950 dark:text-brand-200">
+                <thead className="bg-brand-50 text-left text-xs text-brand-800 dark:bg-brand-950 dark:text-brand-200">
                   <tr>
                     <th className="px-4 py-2.5 font-semibold">Room</th>
                     <th className="px-3 py-2.5 font-semibold">Seats used</th>

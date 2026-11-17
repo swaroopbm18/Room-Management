@@ -60,7 +60,7 @@ export default async function ExchangePage({ searchParams }: { searchParams: Pro
       </PageHeader>
 
       <section className="rounded-2xl bg-gradient-to-br from-brand-700 via-brand-800 to-brand-950 p-5 text-white shadow-lg shadow-brand-900/20">
-        <div className="text-xs font-medium tracking-wide text-brand-200 uppercase">Class to hand over</div>
+        <div className="text-xs font-medium text-brand-200">Class to hand over</div>
         <div className="mt-1 text-2xl font-semibold">{cls.subject ?? "Class"}</div>
         <div className="mt-1 text-sm text-brand-100">
           {formatDate(date)} · {slotRange(slotIds, slotById)} · Room {cls.room_name}

@@ -56,7 +56,7 @@ export default function ColorPicker() {
       </button>
       {open && (
         <div className="card absolute right-0 z-40 mt-2 w-64 p-3 text-neutral-900 dark:text-neutral-100">
-          <div className="mb-2 text-xs font-semibold tracking-wide text-brand-700 uppercase dark:text-brand-300">Colour theme</div>
+          <div className="mb-2 text-xs font-semibold text-brand-700 dark:text-brand-300">Colour theme</div>
           <div className="grid grid-cols-2 gap-1">
             {COLOR_THEMES.map((c) => {
               const on = c.id === current;

@@ -74,7 +74,7 @@ export default async function Workload({ searchParams }: { searchParams: Promise
 
       <div className="card overflow-x-auto">
         <table className="w-full min-w-[820px] text-sm">
-          <thead className="bg-brand-50 text-left text-xs text-brand-800 uppercase dark:bg-brand-950 dark:text-brand-200">
+          <thead className="bg-brand-50 text-left text-xs text-brand-800 dark:bg-brand-950 dark:text-brand-200">
             <tr>
               <th className="px-4 py-2.5 font-semibold">Faculty</th>
               <th className="px-3 py-2.5 font-semibold">Load</th>

@@ -279,7 +279,7 @@ export default async function FacultyStatus({
                   <div className="divide-y divide-brand-100 dark:divide-brand-900">
                     {groupsOf(free).map((g) => (
                       <div key={g.label} className="px-4 py-3">
-                        <div className="mb-2 text-xs font-semibold tracking-wide text-brand-700 uppercase dark:text-brand-300">
+                        <div className="mb-2 text-xs font-semibold text-brand-700 dark:text-brand-300">
                           {g.label} · {g.rows.length}
                         </div>
                         {g.rows.length === 0 ? (
@@ -316,7 +316,7 @@ export default async function FacultyStatus({
                   <div className="divide-y divide-brand-100 dark:divide-brand-900">
                     {groupsOf(busy).map((g) => (
                       <div key={g.label} className="px-4 py-3">
-                        <div className="mb-2 text-xs font-semibold tracking-wide text-brand-700 uppercase dark:text-brand-300">
+                        <div className="mb-2 text-xs font-semibold text-brand-700 dark:text-brand-300">
                           {g.label} · {g.rows.length}
                         </div>
                         {g.rows.length === 0 ? (

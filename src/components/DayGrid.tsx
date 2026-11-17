@@ -109,14 +109,14 @@ export function ScheduleGrid({ corner, slots, rows, hint }: { corner: string; sl
                   const who = c.status === "department" ? `${c.subject} department` : c.faculty_name;
                   if (c.status === "closed")
                     return (
-                      <td key={s.id} title="Saturday classes end at 2 PM" className={`h-20 print:h-auto max-w-48 min-w-44 print:min-w-0 rounded-lg px-3 py-2 text-center align-middle text-xs font-medium tracking-wide uppercase ${STATUS_CELL.closed}`}>
+                      <td key={s.id} title="Saturday classes end at 2 PM" className={`h-20 print:h-auto max-w-48 min-w-44 print:min-w-0 rounded-lg px-3 py-2 text-center align-middle text-xs font-medium ${STATUS_CELL.closed}`}>
                         No classes
                       </td>
                     );
                   const n = r.pending?.get(s.id) ?? 0;
                   const body =
                     c.status === "free" ? (
-                      <div className="flex h-full min-h-16 flex-col items-center justify-center gap-1 text-xs font-medium tracking-wide uppercase">
+                      <div className="flex h-full min-h-16 flex-col items-center justify-center gap-1 text-xs font-medium">
                         {r.date && r.requestDate && !c.ended ? (
                           <>
                             <span className="group-hover:hidden">Free</span>
@@ -131,7 +131,7 @@ export function ScheduleGrid({ corner, slots, rows, hint }: { corner: string; sl
                         <div className="flex items-start justify-between gap-2">
                           <span className="truncate font-semibold">{c.subject}</span>
                           {c.status !== "class" && c.status !== "department" && (
-                            <span className="shrink-0 rounded bg-black/15 px-1 text-[10px] font-semibold uppercase dark:bg-white/20">{statusLabel(c.status, c.subject)}</span>
+                            <span className="shrink-0 rounded bg-black/15 px-1 text-[10px] font-semibold dark:bg-white/20">{statusLabel(c.status, c.subject)}</span>
                           )}
                         </div>
                         {who && <div className="mt-0.5 line-clamp-2 text-xs leading-snug opacity-85">{who}</div>}
