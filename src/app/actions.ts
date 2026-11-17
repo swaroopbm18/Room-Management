@@ -130,64 +130,106 @@ const BOOKED_KINDS = ["class_request", "event_request", "cie", "event"];
  * would take, one line each, e.g. "1:05 PM – 4:45 PM: Agentic AI workshop, booked by Dr. Monika P".
  * Back-to-back slots of one booking are one line. Empty when nothing is booked there.
  */
-export async function allotClashes(form: FormData): Promise<string[]> {
+/** The rooms and times of an allotment: each row of the form gives a date, a start, an end and a room. */
+type Place = { date: string; room: string; slots: number[] };
+
+async function allotPlaces(form: FormData): Promise<Place[] | null> {
   const slots = await getSlots();
-  const from = slots.findIndex((x) => String(x.id) === s(form, "from"));
-  const to = slots.findIndex((x) => String(x.id) === s(form, "to"));
-  const date = s(form, "date");
-  if (from < 0 || to < from || !DATE_RE.test(date)) return [];
-  const picked = slots.slice(from, to + 1).map((x) => x.id);
+  const dates = form.getAll("date").map(String);
+  const rooms = form.getAll("room").map(String);
+  const froms = form.getAll("from").map(String);
+  const tos = form.getAll("to").map(String);
+  const out: Place[] = [];
+  for (let i = 0; i < dates.length; i++) {
+    const from = slots.findIndex((x) => String(x.id) === froms[i]);
+    const to = slots.findIndex((x) => String(x.id) === tos[i]);
+    if (!DATE_RE.test(dates[i]) || !rooms[i] || from < 0 || to < from) return null;
+    out.push({ date: dates[i], room: rooms[i], slots: slots.slice(from, to + 1).map((x) => x.id) });
+  }
+  return out.length ? out : null;
+}
+
+/**
+ * Bookings (events, CIEs, approved requests, admin classes) already in the slots an allotment
+ * would take, one line each, e.g. "MEL-SH, Fri 13 Nov, 1:05 PM – 4:45 PM: Agentic AI workshop,
+ * booked by Dr. Monika P". Back-to-back slots of one booking are one line. Empty when nothing is booked there.
+ */
+export async function allotClashes(form: FormData): Promise<string[]> {
+  const places = await allotPlaces(form);
+  if (!places) return [];
+  const slots = await getSlots();
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("allotments")
-    .select("*")
-    .eq("room_id", s(form, "room"))
-    .eq("date", date)
-    .in("slot_id", picked)
-    .order("id", { ascending: false });
-  // The latest change in each slot is what is there now
-  const latest = new Map<number, AllotmentRow>();
-  for (const a of (data ?? []) as AllotmentRow[]) if (!latest.has(a.slot_id)) latest.set(a.slot_id, a);
-  const booked = [...latest.values()].filter((a) => BOOKED_KINDS.includes(a.kind));
-  return mergeRuns(booked, slots, (x, y) => x.kind === y.kind && x.title === y.title && x.reason === y.reason && x.faculty_name === y.faculty_name).map(
-    ({ first: a, range }) => `${range}: ${a.title || (a.kind === "cie" ? "CIE" : "Event")}${a.faculty_name ? `, booked by ${a.faculty_name}` : ""}`,
-  );
+  const lines: string[] = [];
+  for (const p of places) {
+    const { data } = await supabase
+      .from("allotments")
+      .select("*")
+      .eq("room_id", p.room)
+      .eq("date", p.date)
+      .in("slot_id", p.slots)
+      .order("id", { ascending: false });
+    // The latest change in each slot is what is there now
+    const latest = new Map<number, AllotmentRow>();
+    for (const a of (data ?? []) as AllotmentRow[]) if (!latest.has(a.slot_id)) latest.set(a.slot_id, a);
+    const booked = [...latest.values()].filter((a) => BOOKED_KINDS.includes(a.kind));
+    const where = places.length > 1 ? `${p.room}, ${formatDate(p.date, { year: undefined })}, ` : "";
+    for (const { first: a, range } of mergeRuns(booked, slots, (x, y) => x.kind === y.kind && x.title === y.title && x.reason === y.reason && x.faculty_name === y.faculty_name)) {
+      const line = `${where}${range}: ${a.title || (a.kind === "cie" ? "CIE" : "Event")}${a.faculty_name ? `, booked by ${a.faculty_name}` : ""}`;
+      if (!lines.includes(line)) lines.push(line);
+    }
+  }
+  return lines;
 }
 
 export async function adminOverride(form: FormData) {
-  // Every slot from the start slot to the end slot, in the day's order.
-  const picked = await slotRange(form);
+  const to = back(form, "/admin/allot");
+  const places = await allotPlaces(form);
+  if (!places) redirect(withParam(to, "error", "Check each date, room and time: the end time must be after the start time."));
   // A booking already there is only replaced once the admin has said so (the form asks first)
   if (s(form, "overwrite") !== "yes") {
     const clashes = await allotClashes(form);
     if (clashes.length) {
-      redirect(withParam(back(form, "/admin/allot"), "error", `Already booked: ${clashes.join("; ")}. Allot again and confirm to overwrite.`));
+      redirect(withParam(to, "error", `Already booked: ${clashes.join("; ")}. Allot again and confirm to overwrite.`));
     }
   }
-  const kind = s(form, "kind");
-  const date = s(form, "date");
-  // Only admins reach this (the database checks too), and only they may record a past date.
-  const past = DATE_RE.test(date) && date < todayIST();
-  const n = picked.length === 1 ? "" : ` for ${picked.length} slots`;
-  await run(
-    form,
-    "/admin/allot",
-    "admin_override_slots",
-    {
-      p_room: s(form, "room"),
-      p_date: date,
-      p_slots: picked,
-      p_kind: kind,
-      p_title: s(form, "title"),
-      p_reason: s(form, "reason"),
-      // A class names its faculty (initials) or none; an event may name a faculty member in charge
-      ...(kind === "class_request" || kind === "event" ? { p_faculty: s(form, "faculty") || null } : {}),
-    },
-    past
-      ? `Recorded for ${formatDate(date)}${n}. It shows in History and the Report.`
-      : kind === "class_request"
-        ? `Room allotted for the class${n}.`
-        : `Room allotted${n}.`,
+  // An SEE (semester end exam) is kept as an exam, like a CIE, named SEE
+  const see = s(form, "kind") === "see";
+  const kind = see ? "cie" : s(form, "kind");
+  const title = s(form, "title");
+  const args = {
+    p_kind: kind,
+    p_title: see ? (/^SEE\b/i.test(title) ? title : title ? `SEE ${title}` : "SEE") : title,
+    p_reason: s(form, "reason"),
+    // A class names its faculty (initials) or none; an event may name a faculty member in charge
+    p_faculty: kind === "class_request" || kind === "event" ? s(form, "faculty") || null : null,
+  };
+  const supabase = await createClient();
+  let error: { message: string; code?: string } | null = null;
+  if (places.length === 1) {
+    ({ error } = await supabase.rpc("admin_override_slots", { p_room: places[0].room, p_date: places[0].date, p_slots: places[0].slots, ...args }));
+  } else {
+    // Several rooms or times for one event: all of them, or none if any fails
+    ({ error } = await supabase.rpc("admin_override_many", { p_places: places, ...args }));
+    if (error && (error.code === "PGRST202" || /admin_override_many/.test(error.message))) {
+      error = { message: "Allotting several rooms at once needs database update 0034. Run it in the Supabase SQL Editor." };
+    }
+  }
+  revalidatePath("/", "layout");
+  if (error) redirect(withParam(to, "error", error.message));
+  const total = places.reduce((n, p) => n + p.slots.length, 0);
+  const n = total === 1 ? "" : ` for ${total} slots`;
+  const where = places.length > 1 ? ` in ${new Set(places.map((p) => p.room)).size} rooms` : "";
+  const past = places.every((p) => p.date < todayIST());
+  redirect(
+    withParam(
+      to,
+      "msg",
+      past
+        ? `Recorded${places.length === 1 ? ` for ${formatDate(places[0].date)}` : ""}${where}${n}. It shows in History and the Report.`
+        : kind === "class_request"
+          ? `Room allotted for the class${where}${n}.`
+          : `${see ? "Allotted for the SEE" : "Room allotted"}${where}${n}.`,
+    ),
   );
 }
 
@@ -1055,6 +1097,24 @@ export async function undoSemesterEnd(form: FormData) {
 }
 
 /** Changes a recorded CIE, event or class (past ones too) from the report. */
+/** Deletes a wrong record (past ones too): its slots go back to the timetable. History keeps it. */
+export async function adminDeleteRecord(form: FormData) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_delete_record", {
+    p_room: s(form, "room"),
+    p_date: s(form, "date"),
+    p_slots: s(form, "slots").split(",").map(Number).filter(Boolean),
+    p_reason: s(form, "reason") || null,
+  });
+  revalidatePath("/", "layout");
+  const to = back(form, "/admin/report");
+  if (error) {
+    const missing = error.code === "PGRST202" || /admin_delete_record/.test(error.message);
+    redirect(withParam(to, "error", missing ? "Deleting records needs database update 0034. Run it in the Supabase SQL Editor." : error.message));
+  }
+  redirect(withParam(to, "msg", data === 1 ? "Record deleted. The slot is back to the timetable." : `Record deleted. ${data} slots are back to the timetable.`));
+}
+
 export async function adminEditRecord(form: FormData) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_edit_record", {

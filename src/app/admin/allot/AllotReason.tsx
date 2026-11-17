@@ -2,16 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type Kind = "cie" | "event" | "class_request";
+type Kind = "cie" | "see" | "event" | "class_request";
 
 const TITLE_HINT: Record<Kind, string> = {
   cie: "e.g. CIE-2 DBMS, 3rd sem",
+  see: "e.g. DBMS, 3rd sem",
   event: "e.g. IEEE workshop on GenAI",
   class_request: "e.g. DBMS-3B extra class",
 };
 
 const DESCRIPTION_HINT: Record<Kind, string> = {
   cie: "Shown on the timetable",
+  see: "Shown on the timetable",
   event: "Shown on the timetable",
   class_request: "e.g. Faculty assigned for the extra class, or no faculty assigned yet",
 };
@@ -43,17 +45,18 @@ export default function AllotReason({ faculty }: { faculty: { initials: string; 
         <label className="label" htmlFor="kind">Reason</label>
         <select ref={ref} id="kind" name="kind" className="input" defaultValue="cie">
           <option value="cie">CIE (exam)</option>
+          <option value="see">SEE (exam)</option>
           <option value="event">College event</option>
           <option value="class_request">Class</option>
         </select>
       </div>
-      {kind === "cie" && (
+      {(kind === "cie" || kind === "see") && (
         <div>
           <span className="label">Faculty</span>
-          <p className="input bg-transparent text-sm">CIE Co-ordinators</p>
+          <p className="input bg-transparent text-sm">{kind === "see" ? "SEE Co-ordinators" : "CIE Co-ordinators"}</p>
         </div>
       )}
-      {kind !== "cie" && (
+      {(kind === "event" || kind === "class_request") && (
         <div>
           <label className="label" htmlFor="faculty">{kind === "event" ? <>Faculty in charge <span className="muted font-normal">(optional)</span></> : "Faculty for the class"}</label>
           <select key={kind} id="faculty" name="faculty" className="input" defaultValue="">

@@ -98,7 +98,7 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
             <div className="mt-1 font-medium">Holiday: {holiday}</div>
           ) : (
             <div className="mt-1 flex flex-wrap items-center gap-2">
-              <StatusBadge status={row.status} />
+              <StatusBadge status={row.status} title={row.subject} />
               {row.status !== "free" && <span className="font-medium">{row.subject}</span>}
               {who && row.status !== "department" && <span className="muted text-sm">{who}</span>}
             </div>

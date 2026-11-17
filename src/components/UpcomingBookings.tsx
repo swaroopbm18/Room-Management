@@ -2,7 +2,7 @@ import AffectedClasses from "./AffectedClasses";
 import { IconCheck, IconFlag } from "./Icons";
 import PendingLink from "./PendingLink";
 import StatusBadge from "./StatusBadge";
-import { STATUS_LABEL } from "@/lib/status";
+import { statusLabel } from "@/lib/status";
 import { formatDate, mondayOf, todayIST } from "@/lib/time";
 import type { Slot, SlotStatus, UpcomingRow } from "@/lib/types";
 
@@ -50,9 +50,9 @@ export default function UpcomingBookings({ rows, slots, days }: { rows: Upcoming
           <div className="flex items-start justify-between gap-2">
             <span className={`text-xs font-medium sm:text-sm ${sub}`}>{g.date === today ? "Today" : formatDate(g.date, { year: undefined })}</span>
             {dark ? (
-              <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-medium text-white ring-1 ring-white/25 ring-inset">{STATUS_LABEL[STATUS[g.kind]]}</span>
+              <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-medium text-white ring-1 ring-white/25 ring-inset">{statusLabel(STATUS[g.kind], g.title)}</span>
             ) : (
-              <StatusBadge status={STATUS[g.kind]} />
+              <StatusBadge status={STATUS[g.kind]} title={g.title} />
             )}
           </div>
           <div className="mt-2 line-clamp-2 text-base leading-snug sm:text-lg font-semibold tracking-tight">{g.title || (g.kind === "cie" ? "CIE" : "Event")}</div>

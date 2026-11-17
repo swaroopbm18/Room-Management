@@ -5,6 +5,7 @@ import { getSlots } from "@/lib/data";
 import { getReport } from "@/lib/report";
 import { DATE_RE, formatDate, formatDateTime, mondayOf, todayIST } from "@/lib/time";
 import SlotRange from "../allot/SlotRange";
+import DeleteRecord from "./DeleteRecord";
 import EditRecord from "./EditRecord";
 import { getFacultyWeeks } from "@/lib/faculty";
 
@@ -97,7 +98,10 @@ export default async function Report({ searchParams }: { searchParams: Promise<{
                 <td>{e.mode}</td>
                 <td>
                   {e.description}
-                  {e.edit && <EditRecord edit={e.edit} faculty={facultyList} back={`/admin/report?${query}`} />}
+                  <div className="flex flex-wrap items-start gap-x-3 print:hidden">
+                    {e.edit && <EditRecord edit={e.edit} faculty={facultyList} back={`/admin/report?${query}`} />}
+                    <DeleteRecord del={e.del} type={e.type} back={`/admin/report?${query}`} />
+                  </div>
                 </td>
                 <td className="h-10" />
               </tr>

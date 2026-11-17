@@ -1,3 +1,4 @@
+import { isSee } from "@/lib/status";
 import RememberFields from "@/components/RememberFields";
 import SubmitButton from "@/components/SubmitButton";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
@@ -16,7 +17,7 @@ import { adminFree, adminRestoreSlots } from "../../actions";
 import AllotForm from "./AllotForm";
 import SlotRange from "./SlotRange";
 import AllotReason from "./AllotReason";
-import DateInput from "@/components/DateInput";
+import AllotPlaces from "./AllotPlaces";
 import { getFacultyWeeks } from "@/lib/faculty";
 
 export const dynamic = "force-dynamic";
@@ -65,24 +66,18 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Allot or free a room" subtitle="Pick a start and end time between 8:00 AM and 5:40 PM, and a reason: a CIE, an event or a class. This overrides the regular classes in those slots, and pending requests for them are declined. If a slot is already booked, you are asked before it is overwritten." />
+      <PageHeader title="Allot or free a room" subtitle="Pick a start and end time between 8:00 AM and 5:40 PM, and a reason: a CIE, an SEE, an event or a class. One event can take several rooms at different times: use Add another room or time. This overrides the regular classes in those slots, and pending requests for them are declined. If a slot is already booked, you are asked before it is overwritten." />
 
       <AllotForm className="card grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3">
         <input type="hidden" name="back" value={`/admin/allot?date=${date}`} />
-        <div>
-          <label className="label" htmlFor="date">Date</label>
-          <DateInput id="date" name="date" required defaultValue={formDate} max={addDays(todayIST(), 28)} holidays={Object.fromEntries(holidays)} workingSundays={makeupSundayList()} />
-          <p className="muted mt-1 text-xs">Pick an earlier date to record a CIE, event or class that already took place.</p>
-        </div>
-        <SlotRange slots={slots} />
-        <div>
-          <label className="label" htmlFor="room">Room</label>
-          <select id="room" name="room" className="input">
-            {rooms.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}</option>
-            ))}
-          </select>
-        </div>
+        <AllotPlaces
+          rooms={rooms}
+          slots={slots}
+          defaultDate={formDate}
+          maxDate={addDays(todayIST(), 28)}
+          holidays={Object.fromEntries(holidays)}
+          workingSundays={makeupSundayList()}
+        />
         <RememberFields scope="allot" fields={["room", "kind"]} />
         <AllotReason faculty={faculty.map((f) => ({ initials: f.initials, name: f.name }))} />
         <div className="flex justify-end sm:col-span-2 lg:col-span-3">
@@ -175,7 +170,7 @@ export default async function Allot({ searchParams }: { searchParams: Promise<{ 
                   </td>
                   <td className="td font-medium whitespace-nowrap">{a.room_id}</td>
                   <td className="td">
-                    {a.kind === "class_request" && !a.request_id ? "Class" : KIND_LABEL[a.kind]}
+                    {a.kind === "class_request" && !a.request_id ? "Class" : a.kind === "cie" && isSee(a.title) ? "SEE" : KIND_LABEL[a.kind]}
                     {a.title && <div className="muted text-xs">{a.title}</div>}
                     {a.kind !== "drop" && (
                       <EditBooking room={a.room_id} date={a.date} slot={a.slot_id} title={a.title} reason={a.reason} back={`/admin/allot?date=${date}`} />

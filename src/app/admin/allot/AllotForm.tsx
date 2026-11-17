@@ -52,7 +52,7 @@ export default function AllotForm({ className, children }: { className?: string;
       {checking && <LoadingOverlay label="Checking the slots…" />}
       <ConfirmDialog
         open={clashes.length > 0}
-        message={`Already booked in this room: ${clashes.join("; ")}. Overwrite with the new booking? Only the times you picked change; the rest of the existing booking stays.`}
+        message={`Already booked: ${clashes.join("; ")}. Overwrite with the new booking? Only the times you picked change; the rest of the existing booking stays.`}
         confirmLabel="Yes, overwrite"
         onCancel={() => setClashes([])}
         onConfirm={() => {
