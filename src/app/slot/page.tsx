@@ -104,7 +104,7 @@ export default async function SlotPage({ searchParams }: { searchParams: Promise
             </div>
           )}
           {row.reason && <div className="muted mt-1 text-sm">{expandInitials(row.reason, names)}</div>}
-          <OriginalClass subject={row.original_subject} faculty={row.original_faculty} className="mt-1 text-sm" />
+          <OriginalClass subject={row.status === "cie" ? null : row.original_subject} faculty={row.original_faculty} className="mt-1 text-sm" />
           {booking && booking.slotIds.length > 1 && (
             <div className="muted mt-1 text-sm">
               Booked {booking.range} ({booking.slotIds.length} slots in a row)

@@ -135,7 +135,7 @@ export function ScheduleGrid({ corner, slots, rows, hint }: { corner: string; sl
                           )}
                         </div>
                         {who && <div className="mt-0.5 line-clamp-2 text-xs leading-snug opacity-85">{who}</div>}
-                        <OriginalClass subject={c.original_subject} faculty={c.original_faculty} compact className="mt-0.5 truncate text-[11px] opacity-80" />
+                        <OriginalClass subject={c.status === "cie" ? null : c.original_subject} faculty={c.original_faculty} compact className="mt-0.5 truncate text-[11px] opacity-80" />
                         {c.reason && <div className="mt-0.5 truncate text-[11px] opacity-70">{c.reason}</div>}
                       </>
                     );
@@ -147,7 +147,7 @@ export function ScheduleGrid({ corner, slots, rows, hint }: { corner: string; sl
                   return (
                     <td
                       key={s.id}
-                      title={[c.subject, who, c.reason, originalClassText(c.original_subject, c.original_faculty)].filter(Boolean).join("\n") || "Free"}
+                      title={[c.subject, who, c.reason, c.status === "cie" ? null : originalClassText(c.original_subject, c.original_faculty)].filter(Boolean).join("\n") || "Free"}
                       className={`relative h-20 print:h-auto max-w-48 min-w-44 print:min-w-0 rounded-lg align-top ${STATUS_CELL[c.status]} ${c.ended ? "opacity-45" : ""} ${r.date ? "p-0" : "px-3 py-2"}`}
                     >
                       {r.date ? (
