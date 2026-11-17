@@ -138,7 +138,8 @@ export async function getReport(start: string, end: string, fromSlot: number, to
             ? [adminClass(m) && m.title && m.title !== "Class" ? m.title : null, m.reason].filter(Boolean).join(": ")
             : [m.title && !["Event", "CIE"].includes(m.title) ? m.title : null, m.reason].filter(Boolean).join(": ");
       // An exchange names both faculty in its reason, so it needs no "in place of"
-      const what = exchanged(m) ? m.reason : m.replaced.length ? `${base} (in place of ${m.replaced.join(", ")})` : base;
+      // A CIE or SEE takes whole days, so the classes it replaced are not listed
+      const what = exchanged(m) ? m.reason : m.replaced.length && m.kind !== "cie" ? `${base} (in place of ${m.replaced.join(", ")})` : base;
       return {
         date: m.date,
         time: `${clock(m.starts)} – ${clock(m.last.ends)}`,

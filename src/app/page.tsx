@@ -319,7 +319,7 @@ export default async function Home({
                       <div className="opacity-80">{r.faculty_name}</div>
                     )}
                     <OriginalClass
-                      subject={r.original_subject}
+                      subject={r.status === "cie" ? null : r.original_subject}
                       faculty={r.original_faculty}
                       className="mt-1 text-xs opacity-80"
                     />
