@@ -117,12 +117,14 @@ export async function getReport(start: string, end: string, fromSlot: number, to
     } else merged.push({ ...r, last: r, replaced: replacedOf(r), slots: [r.slot_id] });
   }
 
-  // The Faculty name column: the faculty a CIE's or event's description names ("Dr. MP"), when
-  // the record itself only carries the allotting admin or the CIE Co-ordinators; initials in full.
+  // The Faculty name column. A CIE or SEE is taken by its co-ordinators unless faculty were
+  // named for it. An event shows the faculty its description names ("Dr. MP") when the record
+  // only carries the allotting admin. Initials in full.
   const facultyOf = (m: ReportRow) => {
+    if (m.kind === "cie" && (!m.faculty_name || admins.has(m.faculty_name))) return isSee(m.title) ? "SEE Co-ordinators" : "CIE Co-ordinators";
     const own = m.faculty_name ?? (adminClass(m) ? "No faculty assigned" : "");
-    const generic = !m.faculty_name || m.faculty_name === "CIE Co-ordinators" || admins.has(m.faculty_name);
-    const named = (m.kind === "cie" || m.kind === "event") && generic ? namedFaculty(`${m.title} ${m.reason}`, names) : [];
+    const generic = !m.faculty_name || admins.has(m.faculty_name);
+    const named = m.kind === "event" && generic ? namedFaculty(`${m.title} ${m.reason}`, names) : [];
     return named.length ? named.join(", ") : expandInitials(own, names);
   };
 
