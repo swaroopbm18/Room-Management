@@ -82,7 +82,26 @@ const SECTIONS: ManualSection[] = [
       "A class keeps its time if any suitable room is free then. Practicals and skill labs only move to labs.",
       "If no room is free at its time, a class moves to another time the same day when its section is free, a room is free, and its faculty are free then and in the slot just before and just after.",
       "Another department's class in a lab only moves to a free room at the same time; tell that department.",
-      "A class that cannot be moved shows as \"Room taken\". Move it by hand from Allot / free rooms if you find a room later.",
+      "A class that cannot be moved shows as \"Room taken\". Move it later from Affected classes.",
+    ],
+  },
+  {
+    id: "affected",
+    title: "Affected classes: move classes whose room was taken, and share the changes",
+    where: "Admin → Rooms → Bulk allot / CIE → Affected classes",
+    href: "/admin/affected",
+    intro: "Every class over the next 7 or 14 days whose room was taken by a skill lab, an event or a booking, and that has not been moved yet, with free rooms and times where it could go.",
+    steps: [
+      "Pick the first day and 7 or 14 days, and press Show.",
+      "Each class lists up to four suggestions: the same time in another room first, then other times that day, then the next days. A suggestion needs the class's section free, a room of the right kind (practicals in labs), and its faculty free then and in the slot just before and just after. Press one to move the class there.",
+      "Or open Pick a room and time and choose the day, start time and room yourself. A clash with the section or faculty is shown and stops the move unless you tick Move anyway; a room in use is always refused.",
+      "To move many at once, use Move in bulk: each ticked class goes to the place shown as its Bulk plan, chosen so that no two classes share a room and no section or faculty member is in two places. Untick any you want to move yourself.",
+      "Under Sections at events and skill labs, tick the sections that attend an event or skill lab and press Add sections. Their classes whose room it took are no longer affected, and their own classes in its times are released, which frees rooms for the others.",
+      "Press Class changes to share (print / PDF) for a sheet of every class released, moved, taken or cancelled, and every extra class, between two dates, for all classes or one. Print it or save it as a PDF and send it to faculty and students.",
+    ],
+    tips: [
+      "Students and faculty see a moved class as \"Moved from <room>\" on their timetable.",
+      "A class shared by two sections is only released when both attend the event.",
     ],
   },
   {

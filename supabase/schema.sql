@@ -1,6 +1,6 @@
 -- The whole database in one file, for a new install: run this, then seed.sql.
 --
--- It is the same as running every file in migrations/ in order (0001 to 0037), generated with
+-- It is the same as running every file in migrations/ in order (0001 to 0038), generated with
 -- pg_dump from a database built that way. An existing site keeps running each new migration
 -- as before; regenerate this file after adding one (see README, "Database schema").
 
@@ -188,6 +188,57 @@ begin
   values (v_id, v_id, coalesce((select max(sort_order) + 1 from public.rooms), 0),
           p_capacity, coalesce(nullif(p_kind, ''), 'classroom'), coalesce(p_projector, false), btrim(coalesce(p_notes, '')));
   return v_id;
+end $_$;
+
+
+--
+-- Name: admin_add_sections(date, integer[], text, text, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.admin_add_sections(p_date date, p_slots integer[], p_title text, p_new_title text, p_releases jsonb) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+declare
+  me public.people := public.require_admin();
+  v_label text := regexp_replace(btrim(coalesce(p_new_title, '')), '\s*-\s*[0-9][A-Za-z0-9/,& ]*$', '');
+  v_slot int;
+  v_status text;
+  v_renamed int := 0;
+  v_released int := 0;
+  p jsonb;
+  r record;
+begin
+  if nullif(btrim(coalesce(p_title, '')), '') is null or nullif(btrim(coalesce(p_new_title, '')), '') is null then
+    raise exception 'Which event, and which sections?' using errcode = 'P0001';
+  end if;
+  foreach v_slot in array coalesce(p_slots, '{}') loop
+    for r in select s.room_id from public.get_day_schedule(p_date) s
+              where s.slot_id = v_slot and s.status in ('booked', 'event', 'cie') and s.subject = p_title loop
+      perform public.booking_window_check(p_date, v_slot);
+      insert into public.allotments (room_id, date, slot_id, kind, title, faculty_email, faculty_name, faculty_initials, reason, request_id, created_by)
+      select a.room_id, a.date, a.slot_id, a.kind, btrim(p_new_title), a.faculty_email, a.faculty_name, a.faculty_initials, a.reason, a.request_id, me.email
+        from public.allotments a where a.room_id = r.room_id and a.date = p_date and a.slot_id = v_slot
+       order by a.id desc limit 1;
+      v_renamed := v_renamed + 1;
+    end loop;
+  end loop;
+  if v_renamed = 0 then
+    raise exception '"%" was not found on that day; refresh the page', p_title using errcode = 'P0001';
+  end if;
+
+  for p in select * from jsonb_array_elements(coalesce(p_releases, '[]'::jsonb)) loop
+    v_slot := (p ->> 'slot')::int;
+    continue when public.slot_has_started(p_date, v_slot);
+    select s.status into v_status from public.get_day_schedule(p_date) s where s.room_id = p ->> 'room' and s.slot_id = v_slot;
+    continue when v_status is distinct from 'class';
+    insert into public.allotments (room_id, date, slot_id, kind, title, faculty_name, reason, created_by)
+    select s.room_id, p_date, v_slot, 'drop', coalesce(s.subject, 'Class'), s.faculty_name,
+           coalesce(nullif(p ->> 'section', ''), 'Class') || ' at ' || v_label, me.email
+      from public.get_day_schedule(p_date) s where s.room_id = p ->> 'room' and s.slot_id = v_slot;
+    v_released := v_released + 1;
+  end loop;
+  return jsonb_build_object('renamed', v_renamed, 'released', v_released);
 end $_$;
 
 
@@ -842,6 +893,51 @@ begin
     raise exception 'Those slots are already free' using errcode = 'P0001';
   end if;
   return v_freed;
+end $$;
+
+
+--
+-- Name: admin_move_class(text, date, integer[], text, text, text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.admin_move_class(p_room text, p_date date, p_slots integer[], p_subject text, p_faculty text, p_from text, p_why text) RETURNS integer
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare
+  me public.people := public.require_admin();
+  v_slot int;
+  v_status text;
+  v_mini text[];
+  v_n int := 0;
+begin
+  if coalesce(array_length(p_slots, 1), 0) = 0 then
+    raise exception 'Pick at least one slot' using errcode = 'P0001';
+  end if;
+  if nullif(btrim(coalesce(p_subject, '')), '') is null or nullif(btrim(coalesce(p_from, '')), '') is null then
+    raise exception 'Which class, and from where?' using errcode = 'P0001';
+  end if;
+  if not exists (select 1 from public.rooms where id = p_room) then
+    raise exception 'Room not found' using errcode = 'P0001';
+  end if;
+  select array_agg(x) into v_mini
+    from unnest(string_to_array(upper(regexp_replace(coalesce(p_faculty, ''), '\s', '', 'g')), ',')) x where x <> '';
+  foreach v_slot in array p_slots loop
+    perform public.booking_window_check(p_date, v_slot);
+    select s.status into v_status from public.get_day_schedule(p_date) s where s.room_id = p_room and s.slot_id = v_slot;
+    if v_status is distinct from 'free' then
+      raise exception '% is no longer free at %; refresh the page for new suggestions', p_room, (select label from public.slots where id = v_slot)
+        using errcode = 'P0001';
+    end if;
+    insert into public.allotments (room_id, date, slot_id, kind, title, faculty_email, faculty_name, faculty_initials, reason, created_by)
+    values (p_room, p_date, v_slot, 'class_request', btrim(p_subject), me.email,
+            case when v_mini is null then null else public.faculty_display(v_mini, null) end,
+            array_to_string(v_mini, ','),
+            'Moved from ' || btrim(p_from) || ' for ' || coalesce(nullif(btrim(coalesce(p_why, '')), ''), 'a booking'), me.email);
+    perform public.reject_others(p_room, p_date, v_slot, null, 'Slot taken for a moved class', me.email);
+    v_n := v_n + 1;
+  end loop;
+  return v_n;
 end $$;
 
 
@@ -5391,6 +5487,14 @@ GRANT ALL ON FUNCTION public.admin_add_room(p_room text, p_capacity integer, p_k
 
 
 --
+-- Name: FUNCTION admin_add_sections(p_date date, p_slots integer[], p_title text, p_new_title text, p_releases jsonb); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.admin_add_sections(p_date date, p_slots integer[], p_title text, p_new_title text, p_releases jsonb) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.admin_add_sections(p_date date, p_slots integer[], p_title text, p_new_title text, p_releases jsonb) TO authenticated;
+
+
+--
 -- Name: FUNCTION admin_add_subject(p_email text, p_subject text); Type: ACL; Schema: public; Owner: -
 --
 
@@ -5524,6 +5628,14 @@ GRANT ALL ON FUNCTION public.admin_end_semester(p_semester text, p_last_day date
 
 REVOKE ALL ON FUNCTION public.admin_free_slots(p_room text, p_date date, p_slots integer[], p_reason text) FROM PUBLIC;
 GRANT ALL ON FUNCTION public.admin_free_slots(p_room text, p_date date, p_slots integer[], p_reason text) TO authenticated;
+
+
+--
+-- Name: FUNCTION admin_move_class(p_room text, p_date date, p_slots integer[], p_subject text, p_faculty text, p_from text, p_why text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.admin_move_class(p_room text, p_date date, p_slots integer[], p_subject text, p_faculty text, p_from text, p_why text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.admin_move_class(p_room text, p_date date, p_slots integer[], p_subject text, p_faculty text, p_from text, p_why text) TO authenticated;
 
 
 --
