@@ -67,6 +67,25 @@ const SECTIONS: ManualSection[] = [
     ],
   },
   {
+    id: "skill-lab",
+    title: "Skill lab: book labs for some sections and move the classes it displaces",
+    where: "Admin → Rooms → Bulk allot / CIE → Skill lab",
+    href: "/admin/skill-lab",
+    intro: "Book labs for a skill lab for the sections that attend it. Their own classes at that time are released, and the classes of other sections that lose their lab are moved to a free room, the released rooms first.",
+    steps: [
+      "Tick the sections at the skill lab (e.g. 3B, 3D, 3F and 3G).",
+      "Pick the labs, the start and end time, and the days (tick weekdays only if it runs on some days of the week).",
+      "Add a description and, optionally, the faculty.",
+      "Press Preview. For each day it lists the classes released, every class moved and where to, and any class that could not be moved. Then press Book skill lab and move classes. Everything is saved together, or nothing is.",
+    ],
+    tips: [
+      "A class keeps its time if any suitable room is free then. Practicals and skill labs only move to labs.",
+      "If no room is free at its time, a class moves to another time the same day when its section is free, a room is free, and its faculty are free then and in the slot just before and just after.",
+      "Another department's class in a lab only moves to a free room at the same time; tell that department.",
+      "A class that cannot be moved shows as \"Room taken\". Move it by hand from Allot / free rooms if you find a room later.",
+    ],
+  },
+  {
     id: "seating",
     title: "CIE seating",
     where: "Admin → Rooms → CIE → 2. Seating plan",

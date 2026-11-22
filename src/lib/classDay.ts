@@ -34,6 +34,24 @@ function examOf(l: ClassLine, status: string | undefined, title: string | null |
   return null;
 }
 
+/** The room a class was moved from for a skill lab ("Moved from MEL-LAB-02, 8:00 AM – 9:50 AM for Skill Lab"), else null. */
+export function movedFromRoom(reason: string | null | undefined): string | null {
+  return /^Moved from ([^,\s]+)/.exec(reason ?? "")?.[1] ?? null;
+}
+
+/**
+ * Where the class a booking took the place of was moved to for a skill lab, from the day's
+ * schedule: "MEL-CR-03" (same time) or "MEL-CR-03 at 2:00 PM"; null if it was not moved.
+ */
+export function movedTo(day: ScheduleRow[], row: Pick<ScheduleRow, "room_id" | "slot_id" | "original_subject">): string | null {
+  if (!row.original_subject) return null;
+  const moved = day.filter((x) => x.status === "booked" && x.subject === row.original_subject && movedFromRoom(x.reason) === row.room_id);
+  const same = moved.find((x) => x.slot_id === row.slot_id);
+  if (same) return same.room_id;
+  const first = moved.sort((a, b) => a.starts.localeCompare(b.starts))[0];
+  return first ? `${first.room_id} at ${first.slot_label.split(" – ")[0]}` : null;
+}
+
 /** Every class at once, for the list of all changes. */
 export const ALL_CLASSES = "*";
 
@@ -54,10 +72,18 @@ export function classDay(chosen: string | undefined, dayCells: DayCell[], schedu
     const r = rowAt.get(`${c.room_id}|${c.slot_id}`);
     if (!r) continue;
     // A class booking for the same class in its own slot is the class taken by someone else
+    const sameClass = (subject: string | null) => forClass(subject, chosen) && classesOf(subject ?? "").some((k) => classesOf(c.subject).some((x) => x === k || x[0] === k || k[0] === x));
+    // A class moved here for a skill lab took a room this class had released: its students are at the skill lab
+    // …or this class's own room went to a booking for several sections, this one included (a skill lab)
+    const groupBooking = r.status === "booked" && sameClass(r.subject) && classesOf(r.subject ?? "").length > 1 && r.subject !== c.subject;
+    const gaveWay = (r.status === "booked" && !sameClass(r.subject) && !!movedFromRoom(r.reason)) || groupBooking;
     const state: ClassLine["state"] =
-      r.status === "class" ? "on" : r.status === "free" ? "cancelled" : r.status === "booked" && forClass(r.subject, chosen) ? "changed" : "taken";
+      r.status === "class" ? "on" : r.status === "free" || gaveWay ? "cancelled" : r.status === "booked" && sameClass(r.subject) ? "changed" : "taken";
+    const lab = groupBooking ? r : gaveWay ? schedule.find((x) => x.slot_id === c.slot_id && x.status === "booked" && x !== r && sameClass(x.subject)) : undefined;
     const note =
-      state === "cancelled"
+      gaveWay
+        ? lab ? `At ${lab.subject} (${lab.room_id})` : "Released"
+        : state === "cancelled"
         ? (r.reason ?? undefined)
         : state === "taken"
           ? `${r.subject ?? "Booked"}${r.status === "cie" ? " (CIE)" : ""}`
@@ -66,6 +92,18 @@ export function classDay(chosen: string | undefined, dayCells: DayCell[], schedu
             : undefined;
     // An exchange to a colleague's own subject shows the class as it now runs (COA-3E by them), with what it replaced
     const line: ClassLine = { slotIds: [c.slot_id], subject: state === "changed" && r.subject ? r.subject : c.subject, room: c.room_id, who: state === "on" || state === "changed" ? r.faculty_name : null, state, note };
+    // Its lab taken for a skill lab and the class moved: to another room at the same time (one
+    // line, in the new room), or to another time (said here, and listed at that time)
+    if (state === "taken") {
+      const moved = schedule.filter((x) => x.status === "booked" && x.subject === c.subject && movedFromRoom(x.reason) === c.room_id);
+      const same = moved.find((x) => x.slot_id === c.slot_id);
+      if (same) {
+        Object.assign(line, { room: same.room_id, who: same.faculty_name, state: "extra", note: `Moved from ${c.room_id}` });
+      } else if (moved.length) {
+        const first = [...moved].sort((a, b) => (order.get(a.slot_id) ?? 0) - (order.get(b.slot_id) ?? 0))[0];
+        line.note = `Moved to ${first.room_id} at ${first.slot_label.split(" – ")[0]}`;
+      }
+    }
     // A class cancelled for a CIE or SEE (or whose room the exam takes) is not listed on its own:
     // the class reads as one line, "CIE: classes cancelled"
     const exam = examOf(line, r.status, r.subject);
@@ -81,7 +119,7 @@ export function classDay(chosen: string | undefined, dayCells: DayCell[], schedu
   // Class bookings for this class in another room or slot
   for (const r of schedule.filter((r) => r.status === "booked" && forClass(r.subject, chosen))) {
     if (lines.some((l) => l.room === r.room_id && l.slotIds.includes(r.slot_id))) continue;
-    lines.push({ slotIds: [r.slot_id], subject: r.subject!, room: r.room_id, who: r.faculty_name, state: "extra" });
+    lines.push({ slotIds: [r.slot_id], subject: r.subject!, room: r.room_id, who: r.faculty_name, state: "extra", note: movedFromRoom(r.reason) ? r.reason!.replace(/ for .*$/, "") : undefined });
   }
   lines.sort((a, b) => (order.get(a.slotIds[0]) ?? 0) - (order.get(b.slotIds[0]) ?? 0) || a.subject.localeCompare(b.subject));
   const merged: ClassLine[] = [];
@@ -98,5 +136,16 @@ export function classDay(chosen: string | undefined, dayCells: DayCell[], schedu
     }
     else merged.push({ ...l, slotIds: [...l.slotIds] });
   }
-  return merged;
+  // A booking for several sections in several rooms (a skill lab) reads as one line, from its first slot to its last
+  const out: ClassLine[] = [];
+  for (const l of merged) {
+    const g = l.state === "extra" && classesOf(l.subject).length > 1 ? out.find((x) => x.state === "extra" && x.subject === l.subject) : undefined;
+    if (!g) {
+      out.push(l);
+      continue;
+    }
+    g.slotIds = [...new Set([...g.slotIds, ...l.slotIds])].sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0));
+    g.room = [...new Set([...g.room.split(", "), l.room])].sort().join(", ");
+  }
+  return out;
 }
