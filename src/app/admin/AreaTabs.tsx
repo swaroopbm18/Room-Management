@@ -8,6 +8,7 @@ const AREAS = {
       { label: "1. Bulk allot", href: "/admin/cie" },
       { label: "2. Seating plan", href: "/admin/seating" },
       { label: "Skill lab", href: "/admin/skill-lab" },
+      { label: "Affected classes", href: "/admin/affected" },
     ],
   },
   records: {
