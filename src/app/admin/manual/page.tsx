@@ -97,7 +97,7 @@ const SECTIONS: ManualSection[] = [
       "Or open Pick a room and time and choose the day, start time and room yourself. A clash with the section or faculty is shown and stops the move unless you tick Move anyway; a room in use is always refused.",
       "To move many at once, use Move in bulk: each ticked class goes to the place shown as its Bulk plan, chosen so that no two classes share a room and no section or faculty member is in two places. Untick any you want to move yourself.",
       "Under Sections at events and skill labs, tick the sections that attend an event or skill lab and press Add sections. Their classes whose room it took are no longer affected, and their own classes in its times are released, which frees rooms for the others.",
-      "Press Class changes to share (print / PDF) for a sheet of every class released, moved, taken or cancelled, and every extra class, between two dates, for all classes or one. Print it or save it as a PDF and send it to faculty and students.",
+      "Press Class changes to share (print / PDF) for a sheet of every class moved between two dates (day, time, class, actual class location, moved to location and faculty), for all classes or one. Print it or save it as a PDF and send it to faculty and students.",
     ],
     tips: [
       "Students and faculty see a moved class as \"Moved from <room>\" on their timetable.",

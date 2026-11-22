@@ -2,7 +2,7 @@ import GetForm from "@/components/GetForm";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
 import PrintButton from "@/components/PrintButton";
-import { ALL_CLASSES, classDay, LINE_STATE, type ClassLine } from "@/lib/classDay";
+import { ALL_CLASSES, classDay, type ClassLine } from "@/lib/classDay";
 import type { Cell } from "@/lib/classTimetable";
 import { getClassSemesters, getHolidays, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
@@ -13,8 +13,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Class changes to share", robots: { index: false } };
 
 /**
- * Every class change between two dates (released, moved, taken, cancelled, extra classes), for all
- * classes or one, laid out to print or save as a PDF and share with faculty and students.
+ * Every class moved to another room or time between two dates: where it was, where it is now and
+ * its faculty, for all classes or one, laid out to print or save as a PDF and share with faculty and students.
  */
 export default async function ClassChangesPrint({ searchParams }: { searchParams: Promise<{ start?: string; end?: string; class?: string }> }) {
   const sp = await searchParams;
@@ -34,15 +34,12 @@ export default async function ClassChangesPrint({ searchParams }: { searchParams
   const requested = String(sp.class ?? "").toUpperCase();
   const chosen = allClasses.includes(requested) ? requested : ALL_CLASSES;
   const byDay = new Map(((data ?? []) as { day: string; timetable: Omit<Cell, "weekday">[]; schedule: ScheduleRow[] }[]).map((d) => [d.day, d]));
-  const days: { date: string; holiday?: string; lines: ClassLine[] }[] = [];
+  const days: { date: string; lines: ClassLine[] }[] = [];
   for (let d = start; d <= end; d = addDays(d, 1)) {
     if (isClosedSunday(d)) continue;
-    if (holidays.has(d)) {
-      days.push({ date: d, holiday: holidays.get(d), lines: [] });
-      continue;
-    }
+    if (holidays.has(d)) continue;
     const day = byDay.get(d);
-    days.push({ date: d, lines: day ? classDay(chosen, day.timetable, day.schedule, slots).filter((l) => l.state !== "on") : [] });
+    days.push({ date: d, lines: day ? classDay(chosen, day.timetable, day.schedule, slots).filter(isMoved) : [] });
   }
   const slotBy = new Map(slots.map((s) => [s.id, s]));
   const time = (ids: number[]) => `${slotBy.get(ids[0])?.label.split(" – ")[0]} – ${slotBy.get(ids[ids.length - 1])?.label.split(" – ")[1]}`;
@@ -54,7 +51,7 @@ export default async function ClassChangesPrint({ searchParams }: { searchParams
       <div className="space-y-4 print:hidden">
         <PageHeader
           title="Class changes to share"
-          subtitle="Every class released, moved, taken or cancelled, and every extra class, between two dates. Print it or save it as a PDF to share with faculty and students; pick a class for a sheet for one section."
+          subtitle="Every class moved to another room or time between two dates: where it was, where it is now, and its faculty. Print it or save it as a PDF to share with faculty and students; pick a class for a sheet for one section."
         >
           <PendingLink href="/admin/affected" className="btn-secondary py-2">‹ Affected classes</PendingLink>
         </PageHeader>
@@ -85,9 +82,9 @@ export default async function ClassChangesPrint({ searchParams }: { searchParams
         <header className="mb-4 text-center">
           <div className="text-lg font-semibold">B.M.S. College of Engineering, Bengaluru</div>
           <div className="text-sm">Department of Machine Learning</div>
-          <div className="mt-2 text-base font-semibold">Class and room changes: {who}</div>
+          <div className="mt-2 text-base font-semibold">Classes moved: {who}</div>
           <div className="muted mt-1 text-xs print:text-black">
-            {formatDate(start)} to {formatDate(end)} · {total} {total === 1 ? "change" : "changes"} · Generated {formatDateTime(new Date().toISOString())}
+            {formatDate(start)} to {formatDate(end)} · {total} {total === 1 ? "class moved" : "classes moved"} · Generated {formatDateTime(new Date().toISOString())}
           </div>
         </header>
 
@@ -97,48 +94,45 @@ export default async function ClassChangesPrint({ searchParams }: { searchParams
               <th>Day</th>
               <th>Time</th>
               <th>Class</th>
-              <th>Room</th>
+              <th>Actual class location</th>
+              <th>Moved to location</th>
               <th>Faculty</th>
-              <th>Change</th>
             </tr>
           </thead>
           <tbody>
-            {total === 0 && !days.some((d) => d.holiday) && (
+            {total === 0 && (
               <tr>
-                <td colSpan={6} className="text-center">Classes as usual: no changes in this period.</td>
+                <td colSpan={6} className="text-center">No classes moved in this period.</td>
               </tr>
             )}
             {days.map((d) =>
-              d.holiday ? (
-                <tr key={d.date}>
-                  <td className="whitespace-nowrap">{formatDate(d.date, { weekday: "short", year: undefined })}</td>
-                  <td colSpan={5}>Holiday: {d.holiday}</td>
+              d.lines.map((l, i) => (
+                <tr key={`${d.date}-${i}`} className={i === 0 ? "border-t-2" : ""}>
+                  <td className="whitespace-nowrap">{i === 0 ? formatDate(d.date, { weekday: "short", year: undefined }) : ""}</td>
+                  <td className="whitespace-nowrap">{time(l.slotIds)}</td>
+                  <td>{l.subject}</td>
+                  <td>{movedFromText(l)}</td>
+                  <td className="font-medium">{l.room}</td>
+                  <td>{l.who ?? ""}</td>
                 </tr>
-              ) : (
-                d.lines.map((l, i) => (
-                  <tr key={`${d.date}-${i}`} className={i === 0 ? "border-t-2" : ""}>
-                    <td className="whitespace-nowrap">{i === 0 ? formatDate(d.date, { weekday: "short", year: undefined }) : ""}</td>
-                    <td className="whitespace-nowrap">{time(l.slotIds)}</td>
-                    <td className={l.state === "cancelled" || l.state === "taken" ? "line-through decoration-1" : ""}>{l.subject}</td>
-                    <td>{l.room || "–"}</td>
-                    <td>{l.who ?? ""}</td>
-                    <td>
-                      <span className="font-medium">{released(l) ? "Released" : LINE_STATE[l.state].label}</span>
-                      {l.note ? `: ${l.note.replace(/^Class dropped: /, "")}` : ""}
-                    </td>
-                  </tr>
-                ))
-              ),
+              )),
             )}
           </tbody>
         </table>
         <p className="muted mt-4 text-xs print:text-black">
-          &quot;Released&quot;: the section is at a skill lab or event then, so its class is not held. &quot;Room taken&quot;: the room is in use and the class has not been given another room yet. &quot;Extra / moved&quot;: an extra class, or a class moved to the room and time shown.
+          Day and time: when the class is held now. Actual class location: its room in the timetable, with its day and time there when it moved to
+          another time.
         </p>
       </article>
     </div>
   );
 }
 
-/** A class not held because its section is at a skill lab or event ("3D at Skill Lab"). */
-const released = (l: ClassLine) => l.state === "cancelled" && /^(?:Class dropped: )?(?:\d[A-Z]?(?:\/\d[A-Z]?)* at |At )/.test(l.note ?? "");
+/** A class moved to another room or time: "Moved from MEL-LAB-02[, Tue, 24 Nov][, 12:10 PM – 2:00 PM]". */
+const isMoved = (l: ClassLine) => l.state === "extra" && /^Moved from /.test(l.note ?? "");
+
+/** Where a moved class was: its room, and its day and time there when it moved to another time. */
+const movedFromText = (l: ClassLine) => {
+  const [room, ...rest] = (l.note ?? "").replace(/^Moved from /, "").split(", ");
+  return rest.length ? `${room} (${rest.join(", ")})` : room;
+};
