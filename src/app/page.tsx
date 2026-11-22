@@ -12,6 +12,7 @@ import DayNotes from "@/components/DayNotes";
 import SaturdayClosed from "@/components/SaturdayClosed";
 import UpcomingBookings from "@/components/UpcomingBookings";
 import OriginalClass from "@/components/OriginalClass";
+import { movedTo } from "@/lib/classDay";
 import {
   getDayOrders,
   getClassSemesters,
@@ -321,6 +322,7 @@ export default async function Home({
                     <OriginalClass
                       subject={r.status === "cie" ? null : r.original_subject}
                       faculty={r.original_faculty}
+                      movedTo={movedTo(day, r)}
                       className="mt-1 text-xs opacity-80"
                     />
                     {r.reason && (

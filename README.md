@@ -53,7 +53,7 @@ Classroom allotment for the Department of Machine Learning, BMSCE. Students see 
 
 ### For admins
 
-The admin pages are in six groups: **Requests** (room requests, class cover), **Rooms** (allot or free, CIE, room details, equipment and supplies, calendar), **Timetables** (room and class timetables with the health check, new semester), **Faculty** (profiles, leave and substitutes, subjects, sign-in list), **Records** (report, room usage, workload, activity log) and **Help** (the admin and faculty manuals). A page with several views, such as CIE (book rooms, then plan seating), shows them as tabs at the top.
+The admin pages are in six groups: **Requests** (room requests, class cover), **Rooms** (allot or free, CIE, skill lab, room details, equipment and supplies, calendar), **Timetables** (room and class timetables with the health check, new semester), **Faculty** (profiles, leave and substitutes, subjects, sign-in list), **Records** (report, room usage, workload, activity log) and **Help** (the admin and faculty manuals). A page with several views, such as CIE (book rooms, then plan seating), shows them as tabs at the top.
 
 
 - **Requests:** approve or reject in priority order, with a warning when the faculty member or the section already has a class in that slot. Approving a request declines the others for the same slots. Event requests sent without a permission letter are marked so you can reject them.
@@ -67,6 +67,7 @@ The admin pages are in six groups: **Requests** (room requests, class cover), **
 - **Faculty & admins:** admins first, then faculty, each with an add form. Initials are picked from the timetable so they always match.
 - **Activity log:** every change, who made it and when, with a Bookings and decisions tab listing every allotment and rejected request, which nobody can edit.
 - **Class cover:** every class handed to someone else in one list: class exchanges between faculty (approve or deny once the colleague accepts) and substitutes the admin assigned for leave.
+- **Skill lab:** book labs for a skill lab and tick the sections that attend (e.g. 3B, 3D, 3F, 3G), over one or more days. Their own classes at that time are released, so their rooms are free. Every class of another section that loses its lab is moved to a free room at the same time, the released rooms first (practicals only to labs), or else to a free time the same day when its section, a room and its faculty are free, with the faculty also free in the slot just before and just after. The preview lists every release, every move and any class that could not be moved before anything is saved. Students see "Moved from MEL-LAB-02" on their class, and the lab's card says where its class went.
 
 | Requests | Allot or free a room |
 | --- | --- |

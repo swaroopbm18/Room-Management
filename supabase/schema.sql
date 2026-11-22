@@ -1,6 +1,6 @@
 -- The whole database in one file, for a new install: run this, then seed.sql.
 --
--- It is the same as running every file in migrations/ in order (0001 to 0036), generated with
+-- It is the same as running every file in migrations/ in order (0001 to 0037), generated with
 -- pg_dump from a database built that way. An existing site keeps running each new migration
 -- as before; regenerate this file after adding one (see README, "Database schema").
 
@@ -1520,6 +1520,97 @@ end $$;
 
 
 --
+-- Name: admin_skill_lab(text, text, text, jsonb, jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.admin_skill_lab(p_title text, p_reason text, p_faculty text, p_places jsonb, p_releases jsonb, p_moves jsonb) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+declare
+  me public.people := public.require_admin();
+  v_title text := coalesce(nullif(btrim(coalesce(p_title, '')), ''), 'Skill Lab');
+  v_reason text := btrim(coalesce(p_reason, ''));
+  v_ini text;
+  v_name text;
+  p jsonb;
+  v_slot int;
+  v_date date;
+  v_status text;
+  v_booked int := 0;
+  v_released int := 0;
+  v_moved int := 0;
+  v_mini text[];
+  v_label text := regexp_replace(coalesce(nullif(btrim(coalesce(p_title, '')), ''), 'Skill Lab'), '\s*-\s*[0-9][A-Za-z0-9/,& ]*$', '');
+begin
+  if length(v_reason) < 5 then
+    raise exception 'Please add a description' using errcode = 'P0001';
+  end if;
+  if jsonb_typeof(p_places) <> 'array' or jsonb_array_length(p_places) = 0 then
+    raise exception 'Pick at least one lab and time' using errcode = 'P0001';
+  end if;
+  if nullif(btrim(coalesce(p_faculty, '')), '') is not null then
+    select r.initials, r.name into v_ini, v_name from public.resolve_faculty(p_faculty) r;
+  else
+    v_name := public.display_name(me);
+  end if;
+
+  -- 1. Release the sections' own classes
+  for p in select * from jsonb_array_elements(coalesce(p_releases, '[]'::jsonb)) loop
+    v_date := (p ->> 'date')::date;
+    v_slot := (p ->> 'slot')::int;
+    perform public.booking_window_check(v_date, v_slot);
+    if public.slot_has_started(v_date, v_slot) then
+      raise exception 'The class in % at % has already started', p ->> 'room', (select label from public.slots where id = v_slot) using errcode = 'P0001';
+    end if;
+    select s.status into v_status from public.get_day_schedule(v_date) s where s.room_id = p ->> 'room' and s.slot_id = v_slot;
+    continue when v_status is distinct from 'class' and v_status is distinct from 'booked';
+    insert into public.allotments (room_id, date, slot_id, kind, title, faculty_name, reason, created_by)
+    select s.room_id, v_date, v_slot, 'drop', coalesce(s.subject, 'Class'), s.faculty_name,
+           coalesce(nullif(p ->> 'section', ''), 'Class') || ' at ' || v_label, me.email
+      from public.get_day_schedule(v_date) s where s.room_id = p ->> 'room' and s.slot_id = v_slot;
+    v_released := v_released + 1;
+  end loop;
+
+  -- 2. Book the labs
+  for p in select * from jsonb_array_elements(p_places) loop
+    v_date := (p ->> 'date')::date;
+    if not exists (select 1 from public.rooms where id = p ->> 'room') then
+      raise exception 'Room % not found', p ->> 'room' using errcode = 'P0001';
+    end if;
+    for v_slot in select x::int from jsonb_array_elements_text(p -> 'slots') x loop
+      perform public.booking_window_check(v_date, v_slot);
+      insert into public.allotments (room_id, date, slot_id, kind, title, faculty_email, faculty_name, faculty_initials, reason, created_by)
+      values (p ->> 'room', v_date, v_slot, 'class_request', v_title, me.email, v_name, v_ini, v_reason, me.email);
+      perform public.reject_others(p ->> 'room', v_date, v_slot, null, 'Slot taken for ' || v_label, me.email);
+      v_booked := v_booked + 1;
+    end loop;
+  end loop;
+
+  -- 3. Move the classes that lost their lab, each only into a room that is free now
+  for p in select * from jsonb_array_elements(coalesce(p_moves, '[]'::jsonb)) loop
+    v_date := (p ->> 'date')::date;
+    v_slot := (p ->> 'slot')::int;
+    perform public.booking_window_check(v_date, v_slot);
+    select s.status into v_status from public.get_day_schedule(v_date) s where s.room_id = p ->> 'room' and s.slot_id = v_slot;
+    if v_status is distinct from 'free' then
+      raise exception '% is no longer free at %; preview again', p ->> 'room', (select label from public.slots where id = v_slot) using errcode = 'P0001';
+    end if;
+    select array_agg(x) into v_mini from unnest(string_to_array(upper(regexp_replace(coalesce(p ->> 'faculty', ''), '\s', '', 'g')), ',')) x where x <> '';
+    insert into public.allotments (room_id, date, slot_id, kind, title, faculty_email, faculty_name, faculty_initials, reason, created_by)
+    values (p ->> 'room', v_date, v_slot, 'class_request', coalesce(nullif(btrim(p ->> 'subject'), ''), 'Class'), me.email,
+            case when v_mini is null then null else public.faculty_display(v_mini, null) end,
+            array_to_string(v_mini, ','),
+            'Moved from ' || coalesce(nullif(btrim(p ->> 'from'), ''), 'its lab') || ' for ' || v_label, me.email);
+    perform public.reject_others(p ->> 'room', v_date, v_slot, null, 'Slot taken for a class moved for ' || v_label, me.email);
+    v_moved := v_moved + 1;
+  end loop;
+
+  return jsonb_build_object('booked', v_booked, 'released', v_released, 'moved', v_moved);
+end $_$;
+
+
+--
 -- Name: admin_subjects_from_timetable(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2496,7 +2587,7 @@ CREATE FUNCTION public.get_change_report(p_from date, p_to date) RETURNS TABLE(d
          o.subject, l.request_id, o.faculty
   from latest l
   join public.slots s on s.id = l.slot_id
-  left join lateral public.regular_class(l.room_id, l.date, l.slot_id) o on true
+  left join lateral public.regular_class(l.room_id, l.date, l.slot_id) o on not public.is_moved_class(l.kind, l.reason)
   where l.kind <> 'restore' and public.is_admin()
   order by l.date, s.starts, l.room_id
 $$;
@@ -2577,10 +2668,11 @@ CREATE FUNCTION public.get_day_schedule(p_date date) RETURNS TABLE(room_id text,
       else false
     end,
     public.slot_has_ended(p_date, s.id),
-    case when l.kind in ('class_request', 'event_request', 'cie', 'event') and t.id is not null then
+    -- A class moved here for a skill lab took a room that was free (or freed): it replaced nothing
+    case when l.kind in ('class_request', 'event_request', 'cie', 'event') and t.id is not null and not public.is_moved_class(l.kind, l.reason) then
       case when t.is_department then t.subject || ' department' else t.subject end
     end,
-    case when l.kind in ('class_request', 'event_request', 'cie', 'event') and t.id is not null and not t.is_department then
+    case when l.kind in ('class_request', 'event_request', 'cie', 'event') and t.id is not null and not t.is_department and not public.is_moved_class(l.kind, l.reason) then
       public.faculty_display(t.faculty_initials, t.faculty_label)
     end
   from public.rooms r
@@ -2664,6 +2756,17 @@ CREATE FUNCTION public.is_admin() RETURNS boolean
     AS $$
   select exists (select 1 from public.people
                  where email = public.current_email() and active and role = 'admin')
+$$;
+
+
+--
+-- Name: is_moved_class(public.allotment_kind, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.is_moved_class(p_kind public.allotment_kind, p_reason text) RETURNS boolean
+    LANGUAGE sql IMMUTABLE
+    AS $$
+  select p_kind = 'class_request' and coalesce(p_reason, '') like 'Moved from %'
 $$;
 
 
@@ -3456,7 +3559,7 @@ CREATE FUNCTION public.upcoming_bookings(p_days integer DEFAULT 14) RETURNS TABL
     order by a.date, a.room_id, a.slot_id, a.id desc
   ) l
   left join public.people p on p.email = l.approver
-  left join lateral public.regular_class(l.room_id, l.date, l.slot_id) o on true
+  left join lateral public.regular_class(l.room_id, l.date, l.slot_id) o on not public.is_moved_class(l.kind, l.reason)
   where l.kind in ('class_request', 'event_request', 'cie', 'event')
     and not public.slot_has_ended(l.date, l.slot_id)
   order by l.date, l.slot_id, l.room_id
@@ -5594,6 +5697,14 @@ GRANT ALL ON FUNCTION public.admin_set_faculty_clusters(p_entries jsonb) TO auth
 --
 
 GRANT ALL ON FUNCTION public.admin_set_faculty_duty(p_initials text, p_weekday integer, p_slots integer[], p_activity text) TO authenticated;
+
+
+--
+-- Name: FUNCTION admin_skill_lab(p_title text, p_reason text, p_faculty text, p_places jsonb, p_releases jsonb, p_moves jsonb); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.admin_skill_lab(p_title text, p_reason text, p_faculty text, p_places jsonb, p_releases jsonb, p_moves jsonb) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.admin_skill_lab(p_title text, p_reason text, p_faculty text, p_places jsonb, p_releases jsonb, p_moves jsonb) TO authenticated;
 
 
 --

@@ -8,12 +8,15 @@ export default function OriginalClass({
   faculty,
   className = "",
   compact = false,
+  movedTo,
 }: {
   subject?: string | null;
   faculty?: string | null;
   className?: string;
   /** One short line for grid cells: "Was DBMS-3B". */
   compact?: boolean;
+  /** Where the class went, when it was moved for a skill lab */
+  movedTo?: string | null;
 }) {
   if (!subject) return null;
   const label = `Class affected: ${subject}${faculty ? `, ${faculty}` : ""}`;
@@ -22,6 +25,7 @@ export default function OriginalClass({
       {compact ? "Was " : "Class affected: "}
       <span className="rounded bg-amber-200/80 px-1 font-semibold text-amber-950 ring-1 ring-amber-300 ring-inset dark:bg-amber-500/25 dark:text-amber-100 dark:ring-amber-500/50">{subject}</span>
       {!compact && faculty && <> · {faculty}</>}
+      {!compact && movedTo && <> · moved to <span className="font-semibold">{movedTo}</span></>}
     </div>
   );
 }
