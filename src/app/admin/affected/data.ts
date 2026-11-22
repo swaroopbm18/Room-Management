@@ -1,7 +1,7 @@
 import { affectedOn, DayState, makeSectionsOf, planBulk, shortDay, suggest, takersOn, type Affected, type Day, type Suggestion } from "@/lib/affected";
 import { semestersOf } from "@/lib/classTimetable";
 import { getHolidays, getRooms, getSlots, type FacultySlotStatus } from "@/lib/data";
-import type { DayCell } from "@/lib/skillLab";
+import { needsLab, type DayCell } from "@/lib/skillLab";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, isClosedSunday, slotStarted } from "@/lib/time";
 import type { ScheduleRow } from "@/lib/types";
@@ -55,7 +55,7 @@ export async function getAffected(dates: string[]) {
       const st = states[i];
       const snapshot = { s: new Set(st.sectionBusy), f: new Set(st.facultyBusy) };
       st.vacate(a);
-      rows.push({ ...a, suggestions: suggest(a, states, rooms, slots, sectionsOf, started) });
+      rows.push({ ...a, suggestions: suggest(a, states, rooms, slots, sectionsOf, started, needsLab(a.subject) ? 6 : 4) });
       st.sectionBusy.clear();
       snapshot.s.forEach((x) => st.sectionBusy.add(x));
       st.facultyBusy.clear();
