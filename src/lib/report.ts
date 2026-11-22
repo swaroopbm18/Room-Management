@@ -1,5 +1,6 @@
 import { isSee } from "./status";
-import { getSlots } from "./data";
+import { getRooms, getSlots } from "./data";
+import { isLabRoom } from "./skillLab";
 import { createClient } from "./supabase/server";
 import type { AllotmentRow } from "./types";
 import { formatDate } from "./time";
@@ -32,6 +33,13 @@ const adminClass = (r: Pick<ReportRow, "kind" | "request_id">) => r.kind === "cl
 /** A class an admin gave to a substitute because its faculty member is on leave */
 const substitute = (r: Pick<ReportRow, "kind" | "request_id" | "reason">) => adminClass(r) && r.reason.startsWith("Substitute for ");
 
+/** A class released because its section is at a skill lab or event (0037, 0038): "3D at Skill Lab" */
+const releasedFor = (r: Pick<ReportRow, "kind" | "reason">) =>
+  r.kind === "drop" ? (/^\d[A-Z]?(?:\/\d[A-Z]?)* at (.+)$/.exec(r.reason)?.[1] ?? null) : null;
+
+/** A class moved to another room or time (0037, 0038): "Moved from MEL-LAB-02[, …] for Skill Lab" */
+const movedClass = (r: Pick<ReportRow, "kind" | "reason">) => r.kind === "class_request" && /^Moved from \S/.test(r.reason);
+
 /** What an admin can change on a row (a CIE, event or class; not a dropped class). */
 export type ReportEdit = { room: string; date: string; slots: number[]; title: string; reason: string };
 
@@ -55,6 +63,7 @@ const TYPE: Partial<Record<AllotmentRow["kind"], string>> = {
 function modeOf(r: Pick<ReportRow, "kind" | "reason" | "request_id">): string {
   // A class exchange (0029): the two faculty agreed between themselves, then an admin approved it
   if (exchanged(r)) return "Faculty mutually agreed, admin approved";
+  if (releasedFor(r) || movedClass(r)) return "Reallocated by admin";
   if (substitute(r)) return "Substitute for leave, admin assigned";
   if (adminClass(r)) return "Admin allotment";
   switch (r.kind) {
@@ -81,8 +90,9 @@ const clock = (t: string) => {
  */
 export async function getReport(start: string, end: string, fromSlot: number, toSlot: number): Promise<ReportEntry[]> {
   const supabase = await createClient();
-  const [slots, { data, error }, names, adminsRes] = await Promise.all([
+  const [slots, rooms, { data, error }, names, adminsRes] = await Promise.all([
     getSlots(),
+    getRooms(),
     supabase.rpc("get_change_report", { p_from: start, p_to: end }),
     getFacultyNames(),
     supabase.from("people").select("title, full_name").eq("role", "admin"),
@@ -97,6 +107,15 @@ export async function getReport(start: string, end: string, fromSlot: number, to
   // Classes cancelled for a CIE or SEE are not listed one by one: the CIE or SEE itself is
   const examCancel = (r: ReportRow) => r.kind === "drop" && /^Cancelled for (CIE|SEE)\b/.test(r.reason);
   const rows = ((data ?? []) as ReportRow[]).filter((r) => TYPE[r.kind] && !examCancel(r) && order.get(r.slot_id)! >= lo && order.get(r.slot_id)! <= hi);
+  // Where a released class's section went: the rooms of the skill lab or event it is at, then
+  const all = (data ?? []) as ReportRow[];
+  const roomById = new Map(rooms.map((r) => [r.id, r]));
+  const where = (id: string) => `${id} (${isLabRoom(roomById.get(id)) || /\bLAB\b/i.test(id) ? "lab" : "classroom"})`;
+  const reallocatedTo = (m: ReportRow & { slots: number[] }, label: string) => {
+    const at = all.filter((x) => x.date === m.date && x.kind !== "drop" && m.slots.includes(x.slot_id) && x.title.trim().toLowerCase().startsWith(label.trim().toLowerCase()));
+    const ids = [...new Set(at.map((x) => x.room_id))].sort();
+    return ids.length ? `${label} in ${ids.map(where).join(", ")}` : label;
+  };
   const merged: (ReportRow & { last: ReportRow; replaced: string[]; slots: number[] })[] = [];
   // The regular class a booking, CIE or event replaced, e.g. "DBMS-3B (Dr. Ashok Kumar N)"
   const replacedOf = (r: ReportRow) =>
@@ -131,8 +150,13 @@ export async function getReport(start: string, end: string, fromSlot: number, to
   return merged
     .sort((a, b) => a.date.localeCompare(b.date) || a.starts.localeCompare(b.starts) || a.room_id.localeCompare(b.room_id))
     .map((m) => {
-      const base =
-        m.kind === "drop"
+      const released = releasedFor(m);
+      const from = movedClass(m) ? /^Moved from (.+?) for (.+)$/.exec(m.reason) : null;
+      const base = released
+        ? `${m.subject ?? "Class"}: Reallocated to ${reallocatedTo(m, released)}`
+        : movedClass(m)
+          ? `${m.title}: Reallocated to ${where(m.room_id)} from ${from?.[1] ?? m.reason.replace(/^Moved from /, "")}${from ? ` for ${from[2]}` : ""}`
+          : m.kind === "drop"
           ? [m.subject, m.reason].filter(Boolean).join(": ")
           : m.kind === "class_request"
             ? [adminClass(m) && m.title && m.title !== "Class" ? m.title : null, m.reason].filter(Boolean).join(": ")
@@ -145,7 +169,7 @@ export async function getReport(start: string, end: string, fromSlot: number, to
         time: `${clock(m.starts)} – ${clock(m.last.ends)}`,
         room: m.room_id,
         faculty: facultyOf(m),
-        type: exchanged(m) ? "Class exchange" : substitute(m) ? "Substitute class" : adminClass(m) ? "Class" : m.kind === "cie" && isSee(m.title) ? "SEE" : TYPE[m.kind]!,
+        type: releasedFor(m) || movedClass(m) ? "Class reallocated" : exchanged(m) ? "Class exchange" : substitute(m) ? "Substitute class" : adminClass(m) ? "Class" : m.kind === "cie" && isSee(m.title) ? "SEE" : TYPE[m.kind]!,
         mode: modeOf(m),
         // "Dr. MP" in a description reads "Dr. Monika P"
         description: expandInitials(what, names),
