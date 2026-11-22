@@ -39,7 +39,7 @@ export default async function AffectedClasses({ searchParams }: { searchParams: 
       <AreaTabs area="cie" current="/admin/affected" />
       <PageHeader
         title="Affected classes"
-        subtitle="Classes whose room was taken by a skill lab, an event or a booking, and that have not been moved yet. Each lists free rooms and times where it could go: the class's section is free, the room suits it (practicals in labs), and its faculty are free then and in the slot just before and after. Move it with one press, or pick a room and time yourself."
+        subtitle="Classes whose room was taken by a skill lab, an event or a booking, and that have not been moved yet. Each lists free rooms and times where it could go: the class's section is free, the room suits it (practicals in a lab, or in a classroom when no lab is free), and its faculty are free then and in the slot just before and after. Move it with one press, or pick a room and time yourself."
       />
       <GetForm className="card flex flex-wrap items-end gap-3 p-4" message="Finding affected classes…">
         <div>
@@ -192,8 +192,8 @@ function Hidden({ r, back }: { r: AffectedRow; back: string }) {
 }
 
 function suggestionLabel(sg: Suggestion, slots: Slot[]) {
-  if (sg.sameTime) return "same time";
-  return `${sg.sameDay ? "" : `${shortDay(sg.date)}, `}${slotRange(slots, sg.slots)}`;
+  const when = sg.sameTime ? "same time" : `${sg.sameDay ? "" : `${shortDay(sg.date)}, `}${slotRange(slots, sg.slots)}`;
+  return sg.classroom ? `${when} (classroom)` : when;
 }
 
 function AffectedCard({

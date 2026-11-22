@@ -179,14 +179,15 @@ export function planSkillLabDay(inp: DayInput): DayPlan {
     }
   }
 
-  // 4. Move each: labs need a lab; the released rooms first, then the same kind of room
+  // 4. Move each: practicals to a lab where one is free, else a classroom; the released rooms first, then the same kind of room
   const roomFree = (room: string, ids: number[]) => ids.every((s) => !roomBusy.has(key(room, s)) && !started(s) && cellAt.get(key(room, s))?.status !== "closed");
-  const candidates = (d: Displaced, ids: number[]) => {
+  // A practical can go to a classroom too when no lab is free (`classroom`), after the theory classes
+  const candidates = (d: Displaced, ids: number[], classroom = false) => {
     const from = roomById.get(d.room);
     const lab = needsLab(d.subject) && !d.department;
     return rooms
       .filter((r) => !labSet.has(r.id) || !ids.some((s) => inLab.has(s)))
-      .filter((r) => (lab ? isLabRoom(r) : true) && roomFree(r.id, ids))
+      .filter((r) => (lab ? isLabRoom(r) || classroom : true) && roomFree(r.id, ids))
       .map((r) => ({
         r,
         score:
@@ -239,10 +240,17 @@ export function planSkillLabDay(inp: DayInput): DayPlan {
     }
   }
   // a) Same time, another room, for every class first: keeping the time matters most
-  const later: Displaced[] = [];
+  const waiting: Displaced[] = [];
   for (const d of displaced) {
     const same = candidates(d, d.slots)[0];
     if (same) take(d, same, d.slots);
+    else waiting.push(d);
+  }
+  // A practical with no lab free then keeps its time in a classroom, once the theory classes have rooms
+  const later: Displaced[] = [];
+  for (const d of waiting) {
+    const room = needsLab(d.subject) && !d.department ? candidates(d, d.slots, true)[0] : undefined;
+    if (room) take(d, room, d.slots);
     else later.push(d);
   }
   // b) Another time the same day, nearest first (not another department's class)
@@ -258,14 +266,18 @@ export function planSkillLabDay(inp: DayInput): DayPlan {
         runs.push(ids);
       }
       runs.sort((a, b) => Math.abs((order.get(a[0]) ?? 0) - start) - Math.abs((order.get(b[0]) ?? 0) - start) || (order.get(a[0]) ?? 0) - (order.get(b[0]) ?? 0));
-      for (const ids of runs) {
-        if (!peopleFree(d, ids)) continue;
-        const room = candidates(d, ids)[0];
-        if (room) {
-          take(d, room, ids);
-          placed = true;
-          break;
+      // A lab first; a practical goes to a classroom only when no lab is free at any of these times
+      for (const classroom of needsLab(d.subject) ? [false, true] : [false]) {
+        for (const ids of runs) {
+          if (!peopleFree(d, ids)) continue;
+          const room = candidates(d, ids, classroom)[0];
+          if (room) {
+            take(d, room, ids);
+            placed = true;
+            break;
+          }
         }
+        if (placed) break;
       }
     }
     if (!placed) plan.unplaced.push({ date, room: d.room, slots: d.slots, subject: d.subject, facultyName: d.facultyName, department: d.department });

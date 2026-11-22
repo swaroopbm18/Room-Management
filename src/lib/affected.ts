@@ -7,7 +7,7 @@ import type { Room, ScheduleRow, Slot } from "./types";
 /**
  * Affected classes: regular classes whose room was taken (by a skill lab, an event or a booking)
  * and that have not been moved, and where each could go instead. A suggestion needs a free room
- * of the right kind (practicals in labs), the class's sections free, and its faculty free then and
+ * (a practical in a lab, or else a classroom), the class's sections free, and its faculty free then and
  * in the slot just before and just after.
  */
 
@@ -25,7 +25,8 @@ export type Affected = {
   takenKind: string;
 };
 
-export type Suggestion = { date: string; room: string; slots: number[]; sameTime: boolean; sameDay: boolean };
+/** `classroom`: a practical in a classroom, offered alongside the labs */
+export type Suggestion = { date: string; room: string; slots: number[]; sameTime: boolean; sameDay: boolean; classroom?: boolean };
 
 const key = (room: string, slot: number) => `${room}|${slot}`;
 
@@ -143,7 +144,8 @@ export function affectedOn(state: DayState, day: Day, slots: Slot[], movedAway: 
 
 /**
  * Where an affected class could go, best first: the same time in another room, then another time
- * that day (nearest first), then the next days. One room per time, at most `limit`.
+ * that day (nearest first), then the next days. One room per time, at most `limit`; a practical gets
+ * a lab and a classroom per time (the lab first), so it can be taught in a classroom when labs are full.
  */
 export function suggest(
   a: Affected,
@@ -159,9 +161,9 @@ export function suggest(
   const lab = needsLab(a.subject);
   const n = a.slots.length;
   const out: Suggestion[] = [];
-  const roomsFor = (st: DayState, ids: number[]) =>
+  const roomsFor = (st: DayState, ids: number[], classroom = false) =>
     rooms
-      .filter((r) => (lab ? isLabRoom(r) : true) && ids.every((s) => !st.roomBusy.has(key(r.id, s)) && !started(st.date, s)))
+      .filter((r) => (lab ? isLabRoom(r) !== classroom : true) && ids.every((s) => !st.roomBusy.has(key(r.id, s)) && !started(st.date, s)))
       .sort((x, y) => Number(isLabRoom(y) === isLabRoom(from)) - Number(isLabRoom(x) === isLabRoom(from)) || x.sort_order - y.sort_order);
   const peopleFree = (st: DayState, ids: number[]) => {
     const i = order.get(ids[0]) ?? 0;
@@ -180,10 +182,13 @@ export function suggest(
       const sameTime = sameDay && ids.join() === a.slots.join();
       if (!sameTime && !peopleFree(st, ids)) continue;
       if (sameDay && !sameTime && ids.some((s) => a.slots.includes(s))) continue;
-      const room = roomsFor(st, ids)[0];
-      if (!room) continue;
-      out.push({ date: st.date, room: room.id, slots: ids, sameTime, sameDay });
-      if (out.length >= limit) return out;
+      // A practical: a free lab, and a free classroom too, so it can move to a classroom if need be
+      for (const classroom of lab ? [false, true] : [false]) {
+        const room = roomsFor(st, ids, classroom)[0];
+        if (!room) continue;
+        out.push({ date: st.date, room: room.id, slots: ids, sameTime, sameDay, ...(classroom ? { classroom } : {}) });
+        if (out.length >= limit) return out;
+      }
     }
   }
   return out;

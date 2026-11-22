@@ -79,7 +79,7 @@ const SECTIONS: ManualSection[] = [
       "Press Preview. For each day it lists the classes released, every class moved and where to, and any class that could not be moved. Then press Book skill lab and move classes. Everything is saved together, or nothing is.",
     ],
     tips: [
-      "A class keeps its time if any suitable room is free then. Practicals and skill labs only move to labs.",
+      "A class keeps its time if any suitable room is free then. A practical moves to a lab where one is free; when no lab is free it keeps its time in a classroom, or else moves to a lab at another time, or a classroom at another time.",
       "If no room is free at its time, a class moves to another time the same day when its section is free, a room is free, and its faculty are free then and in the slot just before and just after.",
       "Another department's class in a lab only moves to a free room at the same time; tell that department.",
       "A class that cannot be moved shows as \"Room taken\". Move it later from Affected classes.",
@@ -93,7 +93,7 @@ const SECTIONS: ManualSection[] = [
     intro: "Every class over the next 7 or 14 days whose room was taken by a skill lab, an event or a booking, and that has not been moved yet, with free rooms and times where it could go.",
     steps: [
       "Pick the first day and 7 or 14 days, and press Show.",
-      "Each class lists up to four suggestions: the same time in another room first, then other times that day, then the next days. A suggestion needs the class's section free, a room of the right kind (practicals in labs), and its faculty free then and in the slot just before and just after. Press one to move the class there.",
+      "Each class lists up to four suggestions: the same time in another room first, then other times that day, then the next days. A suggestion needs the class's section free, a free room, and its faculty free then and in the slot just before and just after. Press one to move the class there.",
       "Or open Pick a room and time and choose the day, start time and room yourself. A clash with the section or faculty is shown and stops the move unless you tick Move anyway; a room in use is always refused.",
       "To move many at once, use Move in bulk: each ticked class goes to the place shown as its Bulk plan, chosen so that no two classes share a room and no section or faculty member is in two places. Untick any you want to move yourself.",
       "Under Sections at events and skill labs, tick the sections that attend an event or skill lab and press Add sections. Their classes whose room it took are no longer affected, and their own classes in its times are released, which frees rooms for the others.",
@@ -102,6 +102,7 @@ const SECTIONS: ManualSection[] = [
     tips: [
       "Students and faculty see a moved class as \"Moved from <room>\" on their timetable.",
       "A class shared by two sections is only released when both attend the event.",
+      "A practical whose lab was taken gets a free lab and a free classroom for each time (marked \"classroom\"), so it can be held in a classroom when the labs are full. The bulk plan keeps its time in a classroom rather than move it to a lab at another time.",
     ],
   },
   {
