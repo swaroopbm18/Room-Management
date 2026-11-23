@@ -5,8 +5,8 @@ import { isLabRoom, needsLab, type DayCell } from "./skillLab";
 import type { Room, ScheduleRow, Slot } from "./types";
 
 /**
- * Affected classes: regular classes whose room was taken (by a skill lab, an event or a booking)
- * and that have not been moved, and where each could go instead. A suggestion needs a free room
+ * Classes affected: regular classes whose room was taken (by an event, a skill lab, a CIE or SEE,
+ * or a booking) and that have not been moved, and where each could go instead. A suggestion needs a free room
  * (a practical in a lab, or else a classroom), the class's sections free, and its faculty free then and
  * in the slot just before and just after.
  */
@@ -23,6 +23,8 @@ export type Affected = {
   /** What took the room, e.g. "Skill Lab - 3B/3D" */
   takenBy: string;
   takenKind: string;
+  /** Why: an event or skill lab comes first */
+  cause: Cause;
 };
 
 /** `classroom`: a practical in a classroom, offered alongside the labs */
@@ -105,24 +107,84 @@ export function makeSectionsOf(semesterSections: Record<string, string[]>) {
     classesOf(subject).flatMap((k) => (k.length === 1 ? (semesterSections[k]?.length ? semesterSections[k] : [k]) : [k]));
 }
 
+/** Why a class lost its room, most urgent first: an event or skill lab, then a CIE or SEE, then any other booking. */
+export type Cause = "event" | "exam" | "booking";
+export const CAUSE_ORDER: Record<Cause, number> = { event: 0, exam: 1, booking: 2 };
+export const CAUSE_LABEL: Record<Cause, string> = { event: "Event", exam: "CIE / SEE", booking: "Booking" };
+
+/** Sections named in a description, e.g. "Skill lab for 3B and 3D" gives ["3B", "3D"]. */
+export const sectionsInText = (text: string | null | undefined) => [...new Set((text ?? "").match(/\b\d[A-Z]\b/g) ?? [])];
+
+const isSkillLab = (title: string | null | undefined) => /skill\s*lab/i.test(title ?? "");
+
+/** What a booking is, for Classes affected and Upcoming events. */
+export function causeOf(r: Pick<ScheduleRow, "status" | "subject" | "reason">): Cause {
+  if (r.status === "event" || isSkillLab(r.subject)) return "event";
+  if (r.status === "cie") return "exam";
+  // A booking for several sections at once (a skill lab or a workshop booked as a class), or an
+  // approved event request (it names no class)
+  if (r.status === "booked" && !movedFromRoom(r.reason) && (classesOf(r.subject ?? "").length > 1 || !classesOf(r.subject ?? "").length)) return "event";
+  return "booking";
+}
+
 /**
- * The regular classes whose room is taken on a day and that have not been moved. A class whose
- * own section the booking is for (a skill lab it attends), an exam, or a class whose room went to a
- * class moved for a skill lab (its section is at the skill lab) is not affected.
+ * Who is somewhere else in each slot of a day, so their own class is not affected when its room
+ * is taken: the sections a booking is for (named in its name, e.g. "Skill Lab - 3B/3D", or, for an
+ * event or skill lab, in its description), the sections whose classes were released for one ("3B at
+ * Skill Lab"), and every section of a semester whose classes were cancelled for a CIE or SEE.
+ */
+export function attendance(day: Day, sectionsOf: (subject: string) => string[]) {
+  const at = new Map<number, Set<string>>();
+  const add = (slot: number, secs: string[]) => {
+    const set = at.get(slot) ?? new Set<string>();
+    for (const k of secs) set.add(k);
+    at.set(slot, set);
+  };
+  const semesters = new Set<string>();
+  for (const r of day.schedule) {
+    if (["booked", "event", "event_request", "cie"].includes(r.status) && r.subject) {
+      add(r.slot_id, sectionsOf(r.subject));
+      if (!classesOf(r.subject).length && causeOf(r) === "event") add(r.slot_id, sectionsInText(r.reason));
+    }
+    if (r.status === "free" && r.reason) {
+      // "Class dropped: 3B, 3D at Skill Lab"
+      const released = /^Class dropped: ([\dA-Z,/ ]+) at /.exec(r.reason);
+      if (released) add(r.slot_id, sectionsInText(released[1]));
+      // "Class dropped: Cancelled for CIE: CIE-2, semester 3, 5"
+      const exam = /^Class dropped: Cancelled for (?:CIE|SEE): .*semester ([\d, ]+)$/.exec(r.reason);
+      if (exam) for (const x of exam[1].split(/[, ]+/)) if (x) semesters.add(x);
+    }
+  }
+  /** Whether every section of a class is elsewhere in a slot (at an event, a skill lab, an exam or another class). */
+  return (subject: string, slot: number) => {
+    const secs = sectionsOf(subject);
+    if (!secs.length) return false;
+    if (secs.every((k) => semesters.has(k[0]))) return true;
+    const here = at.get(slot);
+    return !!here && secs.every((k) => here.has(k) || (k.length === 1 && [...here].some((x) => x[0] === k)));
+  };
+}
+
+/**
+ * The regular classes whose room is taken on a day (by an event, a skill lab, a CIE or SEE, or a
+ * booking) and that have not been moved. A class is not affected when all its sections are
+ * elsewhere then: at the event or skill lab that took the room, at another one, at a class booked
+ * for them, or off for a CIE or SEE of their semester. A class whose room went to a class moved there
+ * (its section is at a skill lab) is not affected either.
  */
 export function affectedOn(state: DayState, day: Day, slots: Slot[], movedAway: (a: Affected) => boolean, started: (slot: number) => boolean): Affected[] {
   const order = new Map(slots.map((s, i) => [s.id, i]));
   const out: Affected[] = [];
-  const shares = (x: string | null, y: string) => classesOf(x ?? "").some((k) => classesOf(y).some((z) => z === k || z[0] === k || k[0] === z));
+  const away = attendance(day, (x) => state.sectionsOfSubject(x));
   for (const c of [...day.timetable].sort((a, b) => a.room_id.localeCompare(b.room_id) || (order.get(a.slot_id) ?? 0) - (order.get(b.slot_id) ?? 0))) {
     if (c.is_department || started(c.slot_id) || !classesOf(c.subject).length) continue;
     const r = state.cell.get(key(c.room_id, c.slot_id));
-    if (!r || !["booked", "event", "event_request"].includes(r.status)) continue;
-    if ((r.status === "booked" || r.status === "event") && shares(r.subject, c.subject)) continue; // taken by its own class (substitute, exchange, a skill lab or event it attends)
+    if (!r || !["booked", "event", "event_request", "cie"].includes(r.status)) continue;
+    if (away(c.subject, c.slot_id)) continue; // its students are at the booking, another event or an exam
     if (r.status === "booked" && movedFromRoom(r.reason)) continue; // its room went to a moved class: its section was released
     const last = out[out.length - 1];
     const prev = last ? last.slots[last.slots.length - 1] : -1;
-    if (last && last.room === c.room_id && last.subject === c.subject && (order.get(prev) ?? -9) + 1 === order.get(c.slot_id)) {
+    if (last && last.room === c.room_id && last.subject === c.subject && last.takenBy === (r.subject ?? last.takenBy) && (order.get(prev) ?? -9) + 1 === order.get(c.slot_id)) {
       last.slots.push(c.slot_id);
       continue;
     }
@@ -133,14 +195,22 @@ export function affectedOn(state: DayState, day: Day, slots: Slot[], movedAway: 
       subject: c.subject,
       faculty: c.faculty_initials,
       facultyName: r.original_faculty ?? null,
-      takenBy: r.subject ?? (r.status === "event" ? "Event" : "Booking"),
+      takenBy: r.subject ?? (r.status === "event" ? "Event" : r.status === "cie" ? "CIE" : "Booking"),
       takenKind: r.status,
+      cause: causeOf(r),
     });
   }
   // Moved the same day: a moved class names this room
   const movedHere = day.schedule.filter((x) => x.status === "booked" && movedFromRoom(x.reason));
   return out.filter((a) => !movedHere.some((m) => m.subject === a.subject && movedFromRoom(m.reason) === a.room) && !movedAway(a));
 }
+
+/** Events and skill labs first, then CIEs and SEEs, then other bookings; by day and time within each. */
+export const byPriority = (slots: Slot[]) => {
+  const order = new Map(slots.map((s, i) => [s.id, i]));
+  return (x: Affected, y: Affected) =>
+    CAUSE_ORDER[x.cause] - CAUSE_ORDER[y.cause] || x.date.localeCompare(y.date) || (order.get(x.slots[0]) ?? 0) - (order.get(y.slots[0]) ?? 0) || x.room.localeCompare(y.room);
+};
 
 /**
  * Where an affected class could go, best first: the same time in another room, then another time
