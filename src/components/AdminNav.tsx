@@ -26,7 +26,7 @@ const GROUPS: Group[] = [
     icon: <IconFlag className={i} />,
     tabs: [
       { href: "/admin/allot", label: "Allot / free rooms", icon: <IconFlag className={i} /> },
-      { href: "/admin/cie", label: "Bulk allot & events", icon: <IconCalendarCheck className={i} />, also: ["/admin/seating", "/admin/skill-lab", "/admin/affected", "/admin/events"] },
+      { href: "/admin/cie", label: "Bulk allot & events", icon: <IconCalendarCheck className={i} />, also: ["/admin/skill-lab", "/admin/affected", "/admin/events"] },
       { href: "/admin/rooms", label: "Room details", icon: <IconDoor className={i} /> },
       { href: "/admin/holidays", label: "Calendar & notices", icon: <IconMegaphone className={i} /> },
     ],

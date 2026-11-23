@@ -24,7 +24,7 @@ const PARTS: ManualPart[] = [
         steps: [
           "Home: today at a glance.",
           "Requests: Room requests and Class cover (exchanges and substitutes).",
-          "Rooms: Allot / free rooms, Bulk allot / CIE (with Seating plan, Skill lab and Affected classes), Room details, Calendar & notices.",
+          "Rooms: Allot / free rooms, Bulk allot & events (Bulk allotment, Classes affected and Upcoming events), Room details, Calendar & notices.",
           "Timetables: Room & class timetables (with the Health check) and Semester (End a semester's classes, Start a new semester).",
           "Faculty: Faculty profiles (with availability, and the Sign-in list & names tab), Leave & substitutes and Subjects.",
           "Records: Report, Usage (Rooms and Faculty workload) and Activity log.",
@@ -193,20 +193,6 @@ const PARTS: ManualPart[] = [
           "Press the classes affected button on a card to move the classes it took rooms from.",
         ],
         tips: ["The timetable, the home page and Classes affected read the same bookings, so a change here shows everywhere at once."],
-      },
-      {
-        id: "seating",
-        title: "CIE seating plan",
-        where: "Admin → Rooms → Bulk allot & events → CIE seating plan",
-        href: "/admin/seating",
-        intro: "The planner fills the rooms free at a given time, biggest first, prints a seating sheet for each room's door, and can book the rooms for the CIE.",
-        steps: [
-          "Pick the Date and the Start and End time.",
-          "Choose Seating: Every seat, Three in four seats, or Every other seat.",
-          "Type each class and its number of students, one per line, for example \"3A 64\". Add the Exam name.",
-          "Press Plan seating. Check the rooms and the classes in each.",
-          "Press Print seating sheets to print one sheet per door, and Book these rooms to allot them for the CIE.",
-        ],
       },
       {
         id: "room-details",

@@ -169,57 +169,6 @@ export async function adminRestoreSlots(form: FormData) {
   redirect(withParam(to, error ? "error" : "msg", error ? error.message : slots.length === 1 ? "Slot restored to the timetable." : `${slots.length} slots restored to the timetable.`));
 }
 
-export async function blockCieWeek(form: FormData) {
-  const to = back(form, "/admin/cie");
-  const rooms = form.getAll("rooms").map(String).filter(Boolean);
-  const from = s(form, "from_date");
-  const until = s(form, "to_date") || from;
-  const semesters = form.getAll("semesters").map(String).filter((x) => /^\d$/.test(x));
-  const cancel = semesters.length > 0 && s(form, "cancel_classes") === "on";
-  if (!rooms.length && !cancel) redirect(withParam(to, "error", "Pick at least one room, or a semester whose classes to cancel."));
-  if (!from || until < from) redirect(withParam(to, "error", "The last day must be on or after the first day."));
-  const [picked, holidays] = await Promise.all([slotRange(form, to), getHolidays()]);
-  const days: string[] = [];
-  for (let d = from; d <= until && days.length < 31; d = addDays(d, 1)) {
-    if (!isClosedSunday(d) && !holidays.has(d)) days.push(d);
-  }
-  if (!days.length) redirect(withParam(to, "error", "Those days are all Sundays or holidays."));
-  const supabase = await createClient();
-  const failed: string[] = [];
-  let done = 0;
-  for (const d of days) {
-    for (const room of rooms) {
-      const { error } = await supabase.rpc("admin_override_slots", {
-        p_room: room,
-        p_date: d,
-        p_slots: picked,
-        p_kind: s(form, "kind") === "event" ? "event" : "cie",
-        p_title: s(form, "title"),
-        p_reason: s(form, "reason"),
-      });
-      if (error) failed.push(`${room} on ${formatDate(d, { year: undefined })} (${error.message})`);
-      else done++;
-    }
-  }
-  // Cancel every class of the semesters writing the CIE, on each of those days
-  let cancelled = 0;
-  if (cancel) {
-    const label = `${s(form, "title") || (s(form, "kind") === "event" ? "College event" : "CIE")}, semester ${semesters.join(", ")}`;
-    for (const d of days) {
-      const { data, error } = await supabase.rpc("admin_cancel_semester_classes", { p_date: d, p_semesters: semesters, p_reason: label });
-      if (error) {
-        failed.push(`classes on ${formatDate(d, { year: undefined })} (${error.message})`);
-      } else cancelled += Number(data ?? 0);
-    }
-  }
-  revalidatePath("/", "layout");
-  const ok = (
-    (rooms.length ? `Booked ${done} room-${done === 1 ? "day" : "days"} across ${days.length} ${days.length === 1 ? "day" : "days"}.` : "") +
-    (cancel ? ` Cancelled ${cancelled} class ${cancelled === 1 ? "slot" : "slots"} of semester ${semesters.join(", ")}.` : "")
-  ).trim();
-  redirect(withParam(to, failed.length ? "error" : "msg", failed.length ? `${done ? ok + " " : ""}Not booked: ${failed.slice(0, 6).join("; ")}${failed.length > 6 ? ` and ${failed.length - 6} more` : ""}.` : ok));
-}
-
 /**
  * Bulk allot: every working day from a start date to an end date (Sundays and holidays skipped,
  * optionally only some weekdays), and on each, every row's rooms at that row's times.
