@@ -13,6 +13,7 @@ import { cellKey, CLUSTERS, DAY_NAMES, DAY_SLOTS, DAYS, getFacultyWeeks, isFree,
 import { addSubject, clearFacultyDuties, deleteFaculty, importFacultyDuties, removeSubject, renameSubject, saveFacultyProfile, setFacultyClusters, setFacultyDuty, upsertPerson } from "../../actions";
 import WeekTable from "@/components/WeekTable";
 import SlotRange from "../allot/SlotRange";
+import DeleteFaculty from "./DeleteFaculty";
 
 export const dynamic = "force-dynamic";
 
@@ -106,7 +107,7 @@ export default async function FacultyTimetables({ searchParams }: { searchParams
       </section>
 
       {selected && profile && (
-        <FacultyProfile person={selected} profile={profile} week={weeks.get(selected.initials)} slots={slots} back={back} dutiesReady={dutiesReady} clustersReady={clustersReady} />
+        <FacultyProfile person={selected} profile={profile} week={weeks.get(selected.initials)} slots={slots} back={back} done={link({ f: "" })} others={faculty.filter((f) => f.initials !== selected.initials)} dutiesReady={dutiesReady} clustersReady={clustersReady} />
       )}
 
       <section>
@@ -175,24 +176,32 @@ export default async function FacultyTimetables({ searchParams }: { searchParams
                   <MiniWeek week={weeks.get(f.initials)} />
                 </div>
               </Link>
-              <form action={deleteFaculty} className="absolute right-3 bottom-3">
-                <input type="hidden" name="initials" value={f.initials} />
-                <input type="hidden" name="back" value={link({})} />
-                <input type="hidden" name="done" value={link({ f: "" })} />
-                <SubmitButton
-                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"
-                  pendingText="Deleting…"
-                  message={`Deleting ${f.initials}…`}
-                  confirm={
-                    classes > 0
-                      ? `${f.initials} still teaches ${classes} class slot${classes === 1 ? "" : "s"}, so they can't be deleted yet. Give those classes to someone else in Class timetables first. Try anyway?`
-                      : `Delete ${f.name} (${f.initials})? Their name, cluster and duties go${f.email ? `, and ${f.email} can no longer sign in` : ""}. This can't be undone.`
-                  }
-                  aria-label={`Delete ${f.initials}`}
+              {classes > 0 ? (
+                // Someone who still teaches is deleted (or merged into the right initials) from their profile
+                <Link
+                  href={`${link({ f: f.initials })}#delete`}
+                  scroll={false}
+                  className="absolute right-3 bottom-3 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"
+                  aria-label={`Delete or merge ${f.initials}`}
                 >
                   <IconTrash className="h-3.5 w-3.5" /> Delete
-                </SubmitButton>
-              </form>
+                </Link>
+              ) : (
+                <form action={deleteFaculty} className="absolute right-3 bottom-3">
+                  <input type="hidden" name="initials" value={f.initials} />
+                  <input type="hidden" name="back" value={link({})} />
+                  <input type="hidden" name="done" value={link({ f: "" })} />
+                  <SubmitButton
+                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"
+                    pendingText="Deleting…"
+                    message={`Deleting ${f.initials}…`}
+                    confirm={`Delete ${f.name} (${f.initials})? Their name, cluster and duties go${f.email ? `, and ${f.email} can no longer sign in` : ""}. This can't be undone.`}
+                    aria-label={`Delete ${f.initials}`}
+                  >
+                    <IconTrash className="h-3.5 w-3.5" /> Delete
+                  </SubmitButton>
+                </form>
+              )}
               </div>
             );
           })}
@@ -330,6 +339,8 @@ function FacultyProfile({
   week,
   slots,
   back,
+  done,
+  others,
   dutiesReady,
   clustersReady,
 }: {
@@ -338,6 +349,8 @@ function FacultyProfile({
   week?: Map<string, Busy[]>;
   slots: Awaited<ReturnType<typeof getSlots>>;
   back: string;
+  done: string;
+  others: FacultyMember[];
   dutiesReady: boolean;
   clustersReady: boolean;
 }) {
@@ -501,7 +514,7 @@ function FacultyProfile({
           )}
         </ProfileCard>
 
-        <DeleteFaculty person={person} account={account} classes={classes} back={back} />
+        <DeleteFaculty person={{ initials: person.initials, name: person.name }} email={account?.email} classes={classes} others={others.map((o) => ({ initials: o.initials, name: o.name }))} back={back} done={done} />
       </div>
 
       <div className="border-t border-brand-100 px-5 pt-3 dark:border-brand-900">
@@ -548,35 +561,5 @@ function FacultyProfile({
         </form>
       )}
     </section>
-  );
-}
-
-/** Removes someone who has left: blocked while the timetable still has classes for them. */
-function DeleteFaculty({ person, account, classes, back }: { person: FacultyMember; account: Person | null; classes: number; back: string }) {
-  return (
-    <div className="rounded-xl border border-red-200 bg-white p-4 md:col-span-2 dark:border-red-900/60 dark:bg-ink">
-      <form action={deleteFaculty} className="flex flex-wrap items-center justify-between gap-3">
-        <input type="hidden" name="initials" value={person.initials} />
-        <input type="hidden" name="back" value={back} />
-        <div className="min-w-0">
-          <h3 className="font-semibold">Delete faculty member</h3>
-          <p className="muted mt-0.5 text-xs">
-            {classes > 0
-              ? `${person.initials} still has ${classes} class slot${classes === 1 ? "" : "s"} in the timetable. Give those classes to someone else in Class timetables first, then delete.`
-              : `Removes ${person.initials} from the faculty list with their name, cluster and duties${account ? ", subjects and sign-in. Past requests stay in the history" : ""}.`}
-          </p>
-        </div>
-        {classes === 0 && (
-          <SubmitButton
-            className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950"
-            pendingText="Deleting…"
-            message={`Deleting ${person.initials}…`}
-            confirm={`Delete ${person.name} (${person.initials})? ${account ? `They won't be able to sign in as ${account.email}. ` : ""}This can't be undone.`}
-          >
-            <IconTrash className="h-4 w-4" /> Delete {person.initials}
-          </SubmitButton>
-        )}
-      </form>
-    </div>
   );
 }
