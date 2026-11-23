@@ -308,7 +308,7 @@ const GLOSSARY: ManualTerm[] = [
   { term: "Class exchange", meaning: "Handing one of your classes to a free colleague. They accept and an admin approves." },
   { term: "Day swap", meaning: "A day that runs another weekday's timetable, for example a Saturday that follows Monday." },
   { term: "Make-up Sunday", meaning: "A Sunday that runs a holiday's classes to make up for it." },
-  { term: "Skill lab", meaning: "Lab sessions for some sections. Their classes then are released, and classes that lose their lab are moved to another room." },
+  { term: "Skill lab", meaning: "Lab sessions for some sections. Their classes then are released, and classes that lose their lab are moved to another room by the admin." },
   { term: "Moved from", meaning: "Shown on a class whose room was taken and that was moved to another room or time." },
 ];
 

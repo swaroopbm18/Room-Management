@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { bySection, clashes, DayState, fromText, makeSectionsOf, planBulk, releasesFor, rowKey, shortDay, slotRange, takerLabel, takersOn, type Affected } from "@/lib/affected";
+import { clashes, DayState, fromText, makeSectionsOf, planBulk, rowKey, shortDay, slotRange, takerLabel, type Affected } from "@/lib/affected";
 import { getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { DATE_RE, slotStarted } from "@/lib/time";
@@ -41,6 +41,7 @@ export async function moveAffected(form: FormData) {
     facultyName: null,
     takenBy: s(form, "why"),
     takenKind: "",
+    cause: "booking",
   };
   const date = s(form, "to_date");
   const room = s(form, "to_room");
@@ -120,34 +121,4 @@ export async function bulkMoveAffected(form: FormData) {
   revalidatePath("/", "layout");
   const text = `Moved ${moved} ${moved === 1 ? "class" : "classes"}.${failed.length ? ` Not moved: ${failed.join("; ")}.` : ""}`;
   go(moved ? "msg" : "error", text);
-}
-
-/**
- * Add sections to an event or skill lab already booked: its name gets the sections, so their classes
- * whose room it took are no longer affected, and their own classes in its times are released.
- */
-export async function addSectionsToEvent(form: FormData) {
-  const go = goTo(form);
-  const date = s(form, "date");
-  const title = s(form, "title");
-  const added = [...new Set(form.getAll("section").map((x) => String(x).trim().toUpperCase()).filter((x) => /^\d[A-Z]$/.test(x)))];
-  if (!DATE_RE.test(date) || !title) go("error", "Something was missing; refresh the page and try again.");
-  if (!added.length) go("error", "Tick the sections to add.");
-  const [{ days, semesterSections }, slots] = await Promise.all([loadDays([date]), getSlots()]);
-  const day = days[0];
-  const t = takersOn(day, [title]).find((x) => x.title === title);
-  if (!t) go("error", `"${title}" was not found on ${shortDay(date)}; refresh the page.`);
-  const taker = t!;
-  const newSecs = added.filter((k) => !taker.sections.includes(k));
-  if (!newSecs.length) go("error", "Those sections are already in it.");
-  const attending = [...taker.sections, ...newSecs].sort(bySection);
-  const newTitle = `${taker.label} - ${attending.join("/")}`;
-  const sectionsOf = makeSectionsOf(semesterSections);
-  const releases = releasesFor(day, taker, attending, newSecs, sectionsOf).filter((r) => !slotStarted(date, slots.find((x) => x.id === r.slot) ?? { starts: "00:00" }));
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("admin_add_sections", { p_date: date, p_slots: taker.slots, p_title: title, p_new_title: newTitle, p_releases: releases });
-  revalidatePath("/", "layout");
-  if (error) go("error", needsUpdate(error, "admin_add_sections") ? "Adding sections needs database update 0038. Run it in the Supabase SQL Editor." : error.message);
-  const released = (data as { released?: number } | null)?.released ?? 0;
-  go("msg", `Added ${newSecs.join(", ")} to ${taker.label} on ${shortDay(date)}: now "${newTitle}". Released ${released} ${released === 1 ? "class slot" : "class slots"} of ${newSecs.join(", ")}, so their rooms are free.`);
 }

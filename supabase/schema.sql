@@ -1,6 +1,6 @@
 -- The whole database in one file, for a new install: run this, then seed.sql.
 --
--- It is the same as running every file in migrations/ in order (0001 to 0040), generated with
+-- It is the same as running every file in migrations/ in order (0001 to 0042), generated with
 -- pg_dump from a database built that way. An existing site keeps running each new migration
 -- as before; regenerate this file after adding one (see README, "Database schema").
 
@@ -325,6 +325,46 @@ end $$;
 
 
 --
+-- Name: admin_bulk_allot_sections(jsonb, public.allotment_kind, text, text, text, jsonb); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.admin_bulk_allot_sections(p_places jsonb, p_kind public.allotment_kind, p_title text, p_reason text, p_faculty text, p_releases jsonb) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare
+  me public.people := public.require_admin();
+  v_label text := public.event_label(p_title);
+  p jsonb;
+  v_date date;
+  v_slot int;
+  v_status text;
+  v_released int := 0;
+  v_slots int;
+begin
+  if v_label = '' then
+    raise exception 'Give the event a name' using errcode = 'P0001';
+  end if;
+  -- The sections' own classes first, so the rooms they free can be booked too
+  for p in select * from jsonb_array_elements(coalesce(p_releases, '[]'::jsonb)) loop
+    v_date := (p ->> 'date')::date;
+    v_slot := (p ->> 'slot')::int;
+    continue when public.slot_has_started(v_date, v_slot);
+    perform public.booking_window_check(v_date, v_slot);
+    select s.status into v_status from public.get_day_schedule(v_date) s where s.room_id = p ->> 'room' and s.slot_id = v_slot;
+    continue when v_status is distinct from 'class';
+    insert into public.allotments (room_id, date, slot_id, kind, title, faculty_name, reason, created_by)
+    select s.room_id, v_date, v_slot, 'drop', coalesce(s.subject, 'Class'), s.faculty_name,
+           coalesce(nullif(p ->> 'section', ''), 'Class') || ' at ' || v_label, me.email
+      from public.get_day_schedule(v_date) s where s.room_id = p ->> 'room' and s.slot_id = v_slot;
+    v_released := v_released + 1;
+  end loop;
+  v_slots := public.admin_override_many(p_places, p_kind, p_title, p_reason, p_faculty);
+  return jsonb_build_object('slots', v_slots, 'released', v_released);
+end $$;
+
+
+--
 -- Name: admin_cancel_semester_classes(date, text[], text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -352,6 +392,106 @@ begin
     values (d.room_id, p_date, d.slot_id, 'drop', coalesce(d.subject, 'Class'), d.faculty_name, v_reason, me.email);
     v_n := v_n + 1;
   end loop;
+  return v_n;
+end $$;
+
+
+--
+-- Name: admin_change_event(jsonb, text, text, text, boolean); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.admin_change_event(p_places jsonb, p_title text, p_new_title text, p_reason text, p_cancel boolean) RETURNS integer
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare
+  me public.people := public.require_admin();
+  v_title text := btrim(coalesce(p_title, ''));
+  v_new_title text := btrim(coalesce(p_new_title, ''));
+  v_reason text := btrim(coalesce(p_reason, ''));
+  v_old text := public.event_label(p_title);
+  v_new text := public.event_label(p_new_title);
+  p jsonb;
+  v_room text;
+  v_date date;
+  v_slot int;
+  cur public.allotments;
+  prev public.allotments;
+  r public.allotments;
+  v_titles text[];
+  v_text text;
+  v_n int := 0;
+begin
+  if v_title = '' then
+    raise exception 'Which event?' using errcode = 'P0001';
+  end if;
+  if not p_cancel then
+    if v_new_title = '' or length(v_new_title) > 80 then
+      raise exception 'The name must be 1 to 80 characters' using errcode = 'P0001';
+    end if;
+    if length(v_reason) < 5 or length(v_reason) > 500 then
+      raise exception 'The description must be 5 to 500 characters' using errcode = 'P0001';
+    end if;
+  end if;
+  if jsonb_typeof(p_places) <> 'array' then
+    raise exception 'Which days and rooms?' using errcode = 'P0001';
+  end if;
+
+  for p in select * from jsonb_array_elements(p_places) loop
+    v_room := p ->> 'room';
+    v_date := (p ->> 'date')::date;
+    for v_slot in select x::int from jsonb_array_elements_text(p -> 'slots') x loop
+      continue when public.slot_has_started(v_date, v_slot);
+      cur := null;
+      select * into cur from public.allotments a
+       where a.room_id = v_room and a.date = v_date and a.slot_id = v_slot
+       order by a.id desc limit 1;
+      continue when cur.id is null or not public.part_of_event(cur, v_title);
+
+      if p_cancel then
+        -- Back past every row of the event, under any name it has had, to what was there before
+        prev := null;
+        v_titles := array[v_title];
+        for r in select * from public.allotments a
+                  where a.room_id = v_room and a.date = v_date and a.slot_id = v_slot and a.id <= cur.id
+                  order by a.id desc loop
+          if exists (select 1 from unnest(v_titles) t where public.part_of_event(r, t)) then
+            if r.renamed_from is not null and not r.renamed_from = any (v_titles) then
+              v_titles := v_titles || r.renamed_from;
+            end if;
+            continue;
+          end if;
+          prev := r;
+          exit;
+        end loop;
+        if prev.id is null or prev.kind = 'restore' then
+          insert into public.allotments (room_id, date, slot_id, kind, reason, faculty_email, faculty_name, created_by)
+          values (v_room, v_date, v_slot, 'restore', 'Cancelled: ' || v_title, me.email, public.display_name(me), me.email);
+        else
+          insert into public.allotments (room_id, date, slot_id, kind, title, faculty_email, faculty_name, faculty_initials, reason, request_id, created_by)
+          values (v_room, v_date, v_slot, prev.kind, prev.title, prev.faculty_email, prev.faculty_name, prev.faculty_initials, prev.reason, prev.request_id, me.email);
+        end if;
+      else
+        v_text := case
+          when cur.kind = 'class_request' and cur.reason like 'Moved from %' then
+            left(cur.reason, length(cur.reason) - length(v_old)) || v_new
+          when cur.kind in ('class_request', 'event_request', 'cie', 'event') then v_reason
+          when cur.reason ~ '^Cancelled for (CIE|SEE): ' then
+            left(cur.reason, 19) || v_new_title || substr(cur.reason, 20 + length(v_title))
+          else left(cur.reason, length(cur.reason) - length(v_old)) || v_new
+        end;
+        insert into public.allotments (room_id, date, slot_id, kind, title, faculty_email, faculty_name, faculty_initials, reason, request_id, created_by, renamed_from)
+        values (v_room, v_date, v_slot, cur.kind,
+                case when cur.kind in ('class_request', 'event_request', 'cie', 'event') and cur.title = v_title then v_new_title else cur.title end,
+                cur.faculty_email, cur.faculty_name, cur.faculty_initials, v_text, cur.request_id, me.email,
+                case when v_new_title <> v_title then v_title end);
+      end if;
+      v_n := v_n + 1;
+    end loop;
+  end loop;
+  if v_n = 0 then
+    raise exception 'Nothing of "%" is left to change; refresh the page', v_title using errcode = 'P0001';
+  end if;
   return v_n;
 end $$;
 
@@ -2653,6 +2793,17 @@ end $$;
 
 
 --
+-- Name: event_label(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.event_label(p_title text) RETURNS text
+    LANGUAGE sql IMMUTABLE
+    AS $_$
+  select btrim(regexp_replace(btrim(coalesce(p_title, '')), '\s*-\s*[0-9][A-Za-z]?(\s*[/,&]\s*[0-9][A-Za-z]?)*\s*$', ''))
+$_$;
+
+
+--
 -- Name: class_exchanges; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -3208,6 +3359,66 @@ CREATE FUNCTION public.new_feed_token() RETURNS text
     LANGUAGE sql
     AS $$
   select replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '')
+$$;
+
+
+--
+-- Name: allotments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.allotments (
+    id bigint NOT NULL,
+    room_id text NOT NULL,
+    date date NOT NULL,
+    slot_id smallint NOT NULL,
+    kind public.allotment_kind NOT NULL,
+    title text DEFAULT ''::text NOT NULL,
+    faculty_email text,
+    faculty_name text,
+    reason text DEFAULT ''::text NOT NULL,
+    request_id uuid,
+    created_by text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    faculty_initials text,
+    renamed_from text
+);
+
+
+--
+-- Name: part_of_event(public.allotments, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.part_of_event(a public.allotments, p_title text) RETURNS boolean
+    LANGUAGE sql IMMUTABLE
+    AS $$
+  select coalesce(
+    case
+      when a.kind = 'class_request' and a.reason like 'Moved from %' then
+        right(a.reason, length(' for ' || public.event_label(p_title))) = ' for ' || public.event_label(p_title)
+      when a.kind in ('class_request', 'event_request', 'cie', 'event') then a.title = btrim(p_title)
+      when a.kind = 'drop' and a.reason ~ '^Cancelled for (CIE|SEE): ' then
+        left(substr(a.reason, 20), length(btrim(p_title) || ', semester ')) = btrim(p_title) || ', semester '
+      when a.kind = 'drop' then
+        right(a.reason, length(' at ' || public.event_label(p_title))) = ' at ' || public.event_label(p_title)
+      else false
+    end, false)
+$$;
+
+
+--
+-- Name: pending_admin_count(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pending_admin_count() RETURNS integer
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  select case when not public.is_admin() then 0 else
+    (select count(distinct group_id)::int from public.requests
+      where status = 'pending' and date >= (now() at time zone 'Asia/Kolkata')::date)
+    + (select count(*)::int from public.class_exchanges
+      where status = 'accepted' and date >= (now() at time zone 'Asia/Kolkata')::date)
+  end;
 $$;
 
 
@@ -3992,27 +4203,6 @@ CREATE SEQUENCE public.activity_log_id_seq
 --
 
 ALTER SEQUENCE public.activity_log_id_seq OWNED BY public.activity_log.id;
-
-
---
--- Name: allotments; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.allotments (
-    id bigint NOT NULL,
-    room_id text NOT NULL,
-    date date NOT NULL,
-    slot_id smallint NOT NULL,
-    kind public.allotment_kind NOT NULL,
-    title text DEFAULT ''::text NOT NULL,
-    faculty_email text,
-    faculty_name text,
-    reason text DEFAULT ''::text NOT NULL,
-    request_id uuid,
-    created_by text NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    faculty_initials text
-);
 
 
 --
@@ -5838,11 +6028,27 @@ GRANT ALL ON FUNCTION public.admin_bulk_allot(p_places jsonb, p_kind public.allo
 
 
 --
+-- Name: FUNCTION admin_bulk_allot_sections(p_places jsonb, p_kind public.allotment_kind, p_title text, p_reason text, p_faculty text, p_releases jsonb); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.admin_bulk_allot_sections(p_places jsonb, p_kind public.allotment_kind, p_title text, p_reason text, p_faculty text, p_releases jsonb) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.admin_bulk_allot_sections(p_places jsonb, p_kind public.allotment_kind, p_title text, p_reason text, p_faculty text, p_releases jsonb) TO authenticated;
+
+
+--
 -- Name: FUNCTION admin_cancel_semester_classes(p_date date, p_semesters text[], p_reason text); Type: ACL; Schema: public; Owner: -
 --
 
 REVOKE ALL ON FUNCTION public.admin_cancel_semester_classes(p_date date, p_semesters text[], p_reason text) FROM PUBLIC;
 GRANT ALL ON FUNCTION public.admin_cancel_semester_classes(p_date date, p_semesters text[], p_reason text) TO authenticated;
+
+
+--
+-- Name: FUNCTION admin_change_event(p_places jsonb, p_title text, p_new_title text, p_reason text, p_cancel boolean); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.admin_change_event(p_places jsonb, p_title text, p_new_title text, p_reason text, p_cancel boolean) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.admin_change_event(p_places jsonb, p_title text, p_new_title text, p_reason text, p_cancel boolean) TO authenticated;
 
 
 --
@@ -6544,6 +6750,22 @@ GRANT ALL ON FUNCTION public.my_schedule(p_from date, p_to date) TO authenticate
 
 
 --
+-- Name: TABLE allotments; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT ON TABLE public.allotments TO anon;
+GRANT SELECT ON TABLE public.allotments TO authenticated;
+
+
+--
+-- Name: FUNCTION pending_admin_count(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.pending_admin_count() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.pending_admin_count() TO authenticated;
+
+
+--
 -- Name: FUNCTION regular_class(p_room text, p_date date, p_slot integer); Type: ACL; Schema: public; Owner: -
 --
 
@@ -6773,14 +6995,6 @@ GRANT ALL ON FUNCTION public.withdraw_request(p_id uuid) TO authenticated;
 --
 
 GRANT SELECT ON TABLE public.activity_log TO authenticated;
-
-
---
--- Name: TABLE allotments; Type: ACL; Schema: public; Owner: -
---
-
-GRANT SELECT ON TABLE public.allotments TO anon;
-GRANT SELECT ON TABLE public.allotments TO authenticated;
 
 
 --

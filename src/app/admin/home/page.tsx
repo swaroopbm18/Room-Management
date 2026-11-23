@@ -98,6 +98,7 @@ export default async function AdminHome() {
           { href: "/admin/leave", label: "Add leave", icon: <IconLeave className="h-4 w-4" /> },
           { href: "/admin/holidays#notices", label: "Add a notice", icon: <IconMegaphone className="h-4 w-4" /> },
           { href: "/admin/cie", label: "Bulk allot", icon: <IconCalendarCheck className="h-4 w-4" /> },
+          { href: "/admin/affected", label: "Classes affected", icon: <IconCalendarCheck className="h-4 w-4" /> },
         ].map((a) => (
           <PendingLink key={a.href} href={a.href} className="btn-secondary py-2.5 sm:py-2">
             {a.icon} {a.label}

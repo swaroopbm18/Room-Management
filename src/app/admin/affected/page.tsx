@@ -3,20 +3,28 @@ import { IconPrinter } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
 import SubmitButton from "@/components/SubmitButton";
-import { bySection, rowKey, shortDay, slotRange, type Suggestion, type Taker } from "@/lib/affected";
+import { CAUSE_LABEL, rowKey, shortDay, slotRange, type Cause, type Suggestion } from "@/lib/affected";
 import { addDays, DATE_RE, todayIST } from "@/lib/time";
 import type { Room, Slot } from "@/lib/types";
 import AreaTabs from "../AreaTabs";
-import { addSectionsToEvent, bulkMoveAffected, moveAffected } from "./actions";
+import { bulkMoveAffected, moveAffected } from "./actions";
 import { getAffected, workingDays, type AffectedRow } from "./data";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Affected classes", robots: { index: false } };
+export const metadata = { title: "Classes affected", robots: { index: false } };
+
+const CAUSE_TONE: Record<Cause, string> = {
+  event: "bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-200",
+  exam: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
+  booking: "bg-brand-100 text-brand-900 dark:bg-brand-900 dark:text-brand-100",
+};
 
 /**
- * Affected classes: every class over the coming days whose room was taken (a skill lab, an event,
- * a booking) and that has not been moved, with where it could go. Move it to a suggestion in one
- * press, or pick a room and time by hand; then print the changes for faculty and students.
+ * Classes affected: every class over the coming days whose room was taken (by an event, a skill
+ * lab, a CIE or SEE, or a booking) and that has not been moved, with where it could go. Classes
+ * that lost their room to an event come first and get the best rooms in the bulk plan. A class whose
+ * sections are at the event, a skill lab or an exam is not listed. Move a class to a suggestion in
+ * one press, or pick a room and time by hand; then print the changes for faculty and students.
  */
 export default async function AffectedClasses({ searchParams }: { searchParams: Promise<{ start?: string; days?: string }> }) {
   const sp = await searchParams;
@@ -24,12 +32,11 @@ export default async function AffectedClasses({ searchParams }: { searchParams: 
   const start = sp.start && DATE_RE.test(sp.start) && sp.start >= today ? sp.start : today;
   const span = [7, 14].includes(Number(sp.days)) ? Number(sp.days) : 7;
   const dates = await workingDays(start, span);
-  const { rows, rooms, slots, plan, takers, semesterSections } = dates.length
-    ? await getAffected(dates)
-    : { rows: [], rooms: [], slots: [], plan: [], takers: [], semesterSections: {} as Record<string, string[]> };
+  const { rows, rooms, slots, plan } = dates.length ? await getAffected(dates) : { rows: [], rooms: [], slots: [], plan: [] };
   const planned = new Map(plan.map((p) => [rowKey(p.a), p.to]));
   const placed = plan.filter((p) => p.to).length;
-  const allSections = Object.values(semesterSections).flat().filter((k) => /^\d[A-Z]$/.test(k)).sort(bySection);
+  const counts = { event: 0, exam: 0, booking: 0 } as Record<Cause, number>;
+  for (const r of rows) counts[r.cause]++;
   const end = addDays(start, span - 1);
   const back = `/admin/affected?${new URLSearchParams({ start, days: String(span) }).toString()}`;
   const byDay = dates.map((d) => ({ date: d, rows: rows.filter((r) => r.date === d) })).filter((d) => d.rows.length);
@@ -38,8 +45,8 @@ export default async function AffectedClasses({ searchParams }: { searchParams: 
     <div className="space-y-6">
       <AreaTabs area="cie" current="/admin/affected" />
       <PageHeader
-        title="Affected classes"
-        subtitle="Classes whose room was taken by a skill lab, an event or a booking, and that have not been moved yet. Each lists free rooms and times where it could go: the class's section is free, the room suits it (practicals in a lab, or in a classroom when no lab is free), and its faculty are free then and in the slot just before and after. Move it with one press, or pick a room and time yourself."
+        title="Classes affected"
+        subtitle="Every class whose room was taken by an event, a skill lab, a CIE or SEE, or a booking, and that has not been moved yet. Classes whose sections are at the event themselves, or off for their CIE or SEE, are not listed: their classes are released. Classes affected by events come first and get the best rooms. Each lists free rooms and times where it could go: the section is free, the room suits it (practicals in a lab, or a classroom when no lab is free), and its faculty are free then and in the slot just before and after."
       />
       <GetForm className="card flex flex-wrap items-end gap-3 p-4" message="Finding affected classes…">
         <div>
@@ -60,6 +67,21 @@ export default async function AffectedClasses({ searchParams }: { searchParams: 
       </GetForm>
 
       {rows.length > 0 && (
+        <p className="text-sm">
+          <span className="font-semibold">{rows.length} {rows.length === 1 ? "class" : "classes"} affected:</span>{" "}
+          {(["event", "exam", "booking"] as Cause[])
+            .filter((c) => counts[c])
+            .map((c) => `${counts[c]} by ${c === "event" ? "events and skill labs" : c === "exam" ? "CIEs and SEEs" : "other bookings"}`)
+            .join(", ")}
+          .{" "}
+          <PendingLink href="/admin/events" className="font-medium text-brand-700 underline dark:text-brand-300">
+            Upcoming events
+          </PendingLink>{" "}
+          lists each event and the sections attending it.
+        </p>
+      )}
+
+      {rows.length > 0 && (
         <form id="bulk" action={bulkMoveAffected} className="card flex flex-wrap items-center gap-3 p-4">
           <input type="hidden" name="back" value={back} />
           <input type="hidden" name="start" value={start} />
@@ -68,7 +90,7 @@ export default async function AffectedClasses({ searchParams }: { searchParams: 
             <p className="font-medium">Move in bulk</p>
             <p className="muted">
               Each ticked class goes to the room and time under &quot;Bulk plan&quot; on its card, chosen so that no two classes get the same room
-              and no section or faculty member is in two places. {placed} of {rows.length} {rows.length === 1 ? "class has" : "classes have"} a place. Untick
+              and no section or faculty member is in two places. Classes affected by events are placed first. {placed} of {rows.length} {rows.length === 1 ? "class has" : "classes have"} a place. Untick
               any you want to move yourself.
             </p>
           </div>
@@ -111,69 +133,7 @@ export default async function AffectedClasses({ searchParams }: { searchParams: 
         ))
       )}
 
-      {takers.length > 0 && (
-        <section className="space-y-3">
-          <div>
-            <h2 className="font-semibold">Sections at events and skill labs</h2>
-            <p className="muted text-sm">
-              Add the sections that attend an event or skill lab. Their classes whose room it took are no longer affected, and their own classes in
-              its times are released, so those rooms are free for the classes above.
-            </p>
-          </div>
-          <div className="grid gap-3 lg:grid-cols-2">
-            {takers.map((t) => (
-              <TakerCard key={`${t.date}-${t.title}`} t={t} slots={slots} allSections={allSections} back={back} />
-            ))}
-          </div>
-        </section>
-      )}
     </div>
-  );
-}
-
-function TakerCard({ t, slots, allSections, back }: { t: Taker; slots: Slot[]; allSections: string[]; back: string }) {
-  const order = new Map(slots.map((s, i) => [s.id, i]));
-  const ids = [...t.slots].sort((x, y) => (order.get(x) ?? 0) - (order.get(y) ?? 0));
-  return (
-    <article className="card space-y-3 p-4">
-      <div>
-        <div className="font-semibold">{t.title}</div>
-        <div className="muted text-sm">
-          {shortDay(t.date)} · {slotRange(slots, [ids[0], ids[ids.length - 1]])} · {t.rooms.join(", ")}
-        </div>
-        <div className="mt-1 text-sm">{t.sections.length ? `Sections: ${t.sections.join(", ")}` : "No sections named yet"}</div>
-      </div>
-      <form action={addSectionsToEvent} className="space-y-3">
-        <input type="hidden" name="back" value={back} />
-        <input type="hidden" name="date" value={t.date} />
-        <input type="hidden" name="title" value={t.title} />
-        <div className="flex flex-wrap gap-x-4 gap-y-2">
-          {allSections.map((k) => (
-            <label key={k} className="flex items-center gap-1.5 text-sm">
-              <input
-                type="checkbox"
-                name="section"
-                value={k}
-                defaultChecked={t.sections.includes(k)}
-                disabled={t.sections.includes(k)}
-                className="h-4 w-4 accent-brand-600"
-              />
-              {k}
-            </label>
-          ))}
-        </div>
-        <div className="flex justify-end">
-          <SubmitButton
-            className="btn-secondary py-1.5 text-sm"
-            pendingText="Adding…"
-            confirm={`Add the ticked sections to ${t.label} on ${shortDay(t.date)} and release their classes in its times?`}
-            confirmLabel="Yes, add them"
-          >
-            Add sections
-          </SubmitButton>
-        </div>
-      </form>
-    </article>
   );
 }
 
@@ -221,8 +181,9 @@ function AffectedCard({
             {r.facultyName ? ` · ${r.facultyName}` : r.faculty.length ? ` · ${r.faculty.join(", ")}` : ""}
           </div>
         </div>
-        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-          Room taken: {r.takenBy}
+        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${CAUSE_TONE[r.cause]}`}>
+          {r.cause === "event" ? "Priority · " : ""}
+          {CAUSE_LABEL[r.cause]}: {r.takenBy}
         </span>
       </div>
 

@@ -1,61 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { planSkillLabDay, type DayCell, type DayInput } from "../skillLab";
-import { DATE, ROOMS, SLOTS, day, free, row } from "./fixtures";
+import { isLabRoom, needsLab, skillLabTitle } from "../skillLab";
 
-const tt = (room: string, slot: number, subject: string, faculty: string[]): DayCell => ({ room_id: room, slot_id: slot, subject, faculty_initials: faculty, is_department: false });
-
-/** A skill lab for 3B in LAB-1 over slots 1–2. LAB-1 has 3A's practical then; 3B has DBMS in CR-1. */
-function input(over: Partial<DayInput> = {}): DayInput {
-  const timetable = [tt("LAB-1", 1, "ML(P)-3A", ["AAA"]), tt("LAB-1", 2, "ML(P)-3A", ["AAA"]), tt("CR-1", 1, "DBMS-3B", ["BBB"]), tt("CR-1", 2, "DBMS-3B", ["BBB"])];
-  return {
-    date: DATE,
-    schedule: day(timetable.map((c) => row(c.room_id, c.slot_id, "class", c.subject))),
-    timetable,
-    status: free(["AAA", "BBB", "SKL"], [["AAA", 1], ["AAA", 2], ["BBB", 1], ["BBB", 2]]),
-    rooms: ROOMS,
-    slots: SLOTS,
-    sections: ["3B"],
-    semesterSections: { "3": ["3A", "3B"] },
-    labs: ["LAB-1"],
-    slotIds: [1, 2],
-    faculty: ["SKL"],
-    started: () => false,
-    ...over,
-  };
-}
-
-describe("planSkillLabDay", () => {
-  it("releases the attending section's own classes", () => {
-    const plan = planSkillLabDay(input());
-    expect(plan.releases.map((r) => [r.room, r.slot, r.section])).toEqual([
-      ["CR-1", 1, "3B"],
-      ["CR-1", 2, "3B"],
-    ]);
+describe("skillLabTitle", () => {
+  it("adds the sections to the name", () => {
+    expect(skillLabTitle("Skill Lab", ["3B", "3D"])).toBe("Skill Lab - 3B/3D");
   });
-
-  it("moves another section's practical out of the lab to a free lab at the same time", () => {
-    const plan = planSkillLabDay(input());
-    expect(plan.moves).toHaveLength(1);
-    expect(plan.moves[0]).toMatchObject({ subject: "ML(P)-3A", from: "LAB-1", room: "LAB-2", slots: [1, 2] });
-    expect(plan.unplaced).toEqual([]);
+  it("replaces sections already in the name", () => {
+    expect(skillLabTitle("Skill Lab - 3B", ["3B", "3F"])).toBe("Skill Lab - 3B/3F");
   });
-
-  it("does not treat an attending section's class in the lab as displaced", () => {
-    const timetable = [tt("LAB-1", 1, "ML(P)-3B", ["AAA"]), tt("LAB-1", 2, "ML(P)-3B", ["AAA"])];
-    const plan = planSkillLabDay(input({ timetable, schedule: day(timetable.map((c) => row(c.room_id, c.slot_id, "class", c.subject))) }));
-    expect(plan.moves).toEqual([]);
-    expect(plan.unplaced).toEqual([]);
+  it("keeps a name whose dash is not followed by sections", () => {
+    expect(skillLabTitle("CIE-2, 5th sem", ["5A"])).toBe("CIE-2, 5th sem - 5A");
   });
-
-  it("keeps a class shared with a section that is not attending", () => {
-    const timetable = [tt("CR-2", 1, "OS-3A/3B", ["BBB"])];
-    const plan = planSkillLabDay(input({ timetable, schedule: day(timetable.map((c) => row(c.room_id, c.slot_id, "class", c.subject))) }));
-    expect(plan.releases).toEqual([]);
-    expect(plan.shared).toHaveLength(1);
+  it("defaults the name", () => {
+    expect(skillLabTitle("", ["3A"])).toBe("Skill Lab - 3A");
   });
+});
 
-  it("flags the skill lab's faculty when they are busy then", () => {
-    const plan = planSkillLabDay(input({ status: free(["AAA", "BBB", "SKL"], [["SKL", 2]]) }));
-    expect(plan.facultyClashes).toHaveLength(1);
+describe("labs", () => {
+  it("knows a lab room and a practical", () => {
+    expect(isLabRoom({ id: "MEL-LAB-01", name: "MEL-LAB-01", kind: "classroom" } as never)).toBe(true);
+    expect(needsLab("DBMS(P)-3A")).toBe(true);
+    expect(needsLab("DBMS-3A")).toBe(false);
   });
 });

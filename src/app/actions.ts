@@ -8,7 +8,9 @@ import { createClient } from "@/lib/supabase/server";
 import { fixFor } from "@/lib/fixLinks";
 import { applyFacultyAliases, type ParsedEntry } from "@/lib/timetableDocx";
 import { mergeRuns } from "@/lib/bookings";
-import type { AllotmentRow } from "@/lib/types";
+import type { AllotmentRow, Slot } from "@/lib/types";
+import { skillLabTitle } from "@/lib/skillLab";
+import { classesHit, type Release } from "./admin/affected/data";
 
 function back(form: FormData, fallback: string) {
   const to = String(form.get("back") ?? fallback);
@@ -757,52 +759,147 @@ async function bulkPlaces(form: FormData): Promise<{ places: Place[]; days: stri
   return { places: [...byKey.values()], days };
 }
 
-export type BulkPreview = { error?: string; days?: string[]; rooms?: number; slots?: number; clashes?: string[] };
+export type BulkPreview = {
+  error?: string;
+  days?: string[];
+  rooms?: number;
+  slots?: number;
+  clashes?: string[];
+  /** The name it will have, with its sections: "Skill Lab - 3B/3D" */
+  title?: string;
+  /** Classes of the sections attending, released (one line per run) */
+  released?: string[];
+  /** Classes of other sections that lose their room to it: they go to Classes affected */
+  displaced?: string[];
+  /** Days read for released and displaced classes, when fewer than all */
+  readDays?: number;
+};
+
+type BulkKind = "cie" | "see" | "event" | "skill_lab" | "class_request";
+const bulkKind = (form: FormData): BulkKind => {
+  const k = s(form, "kind");
+  return k === "cie" || k === "see" || k === "event" || k === "skill_lab" || k === "class_request" ? k : "event";
+};
+
+/** The sections attending an event or skill lab, e.g. ["3B", "3D"]; none for a CIE, SEE or class. */
+function bulkSections(form: FormData) {
+  const kind = bulkKind(form);
+  if (kind !== "event" && kind !== "skill_lab") return [];
+  return [...new Set(form.getAll("sections").map((x) => String(x).toUpperCase()).filter((x) => /^\d[A-Z]$/.test(x)))].sort((x, y) => x.localeCompare(y, "en", { numeric: true }));
+}
+
+/** The name a bulk allotment is saved under: an event or skill lab gets its sections ("Skill Lab - 3B/3D"), an SEE starts "SEE". */
+function bulkTitle(form: FormData, sections: string[]) {
+  const kind = bulkKind(form);
+  const title = s(form, "title");
+  if (kind === "see") return /^SEE\b/i.test(title) ? title : title ? `SEE ${title}` : "SEE";
+  if (kind === "skill_lab") return skillLabTitle(title || "Skill Lab", sections);
+  if (kind === "event" && sections.length) return skillLabTitle(title || "Event", sections);
+  return title;
+}
+
+function lines(rows: { date: string; room: string; slots: number[]; subject: string; section?: string }[], slots: Slot[], many: boolean) {
+  const label = (ids: number[]) => {
+    const a = slots.find((x) => x.id === ids[0]);
+    const b = slots.find((x) => x.id === ids[ids.length - 1]);
+    return a && b ? `${a.label.split(" – ")[0]} – ${b.label.split(" – ")[1]}` : "";
+  };
+  return rows.map((r) => `${many ? `${formatDate(r.date, { year: undefined })}, ` : ""}${r.section ? `${r.section}: ` : ""}${r.subject} in ${r.room}, ${label(r.slots)}`);
+}
+
+/** Released classes as runs: back-to-back slots of one class in one room are one line. */
+function releaseRuns(releases: Release[], slots: Slot[]) {
+  const order = new Map(slots.map((x, i) => [x.id, i]));
+  const runs: { date: string; room: string; slots: number[]; subject: string; section: string }[] = [];
+  for (const r of releases) {
+    const last = runs[runs.length - 1];
+    if (last && last.date === r.date && last.room === r.room && last.subject === r.subject && (order.get(last.slots[last.slots.length - 1]) ?? -9) + 1 === order.get(r.slot)) last.slots.push(r.slot);
+    else runs.push({ date: r.date, room: r.room, slots: [r.slot], subject: r.subject, section: r.section });
+  }
+  return runs;
+}
+
+/** The semesters whose classes a CIE or SEE cancels. */
+const bulkSemesters = (form: FormData) => {
+  const kind = bulkKind(form);
+  return kind === "cie" || kind === "see" ? form.getAll("semesters").map(String).filter((x) => /^\d$/.test(x)) : [];
+};
 
 /** What a bulk allotment would take, and what is already booked there, without saving anything. */
 export async function bulkAllotPreview(form: FormData): Promise<BulkPreview> {
   const plan = await bulkPlaces(form);
   if ("error" in plan) return { error: plan.error };
+  const kind = bulkKind(form);
+  const sections = bulkSections(form);
+  if (kind === "skill_lab" && !sections.length) return { error: "Pick the sections that go to the skill lab." };
+  const [clashes, slots, hit] = await Promise.all([clashesFor(plan.places), getSlots(), classesHit(plan.places, sections, bulkSemesters(form), 14)]);
+  const many = plan.days.length > 1;
   return {
     days: plan.days,
     rooms: new Set(plan.places.map((p) => p.room)).size,
     slots: plan.places.reduce((n, p) => n + p.slots.length, 0),
-    clashes: await clashesFor(plan.places),
+    clashes,
+    title: bulkTitle(form, sections),
+    released: lines(releaseRuns(hit.releases, slots), slots, many),
+    displaced: lines(hit.displaced, slots, many),
+    readDays: hit.read < plan.days.length ? hit.read : undefined,
   };
 }
 
+/**
+ * Bulk allotment: a CIE, SEE, event, skill lab or class, all or none. An event or skill lab for some
+ * sections releases those sections' own classes at its times. Then, if any class lost its room to
+ * it, Classes affected opens on those days, to move them.
+ */
 export async function adminBulkAllot(form: FormData) {
   const to = back(form, "/admin/cie");
   const plan = await bulkPlaces(form);
   if ("error" in plan) redirect(withParam(to, "error", plan.error));
-  const see = s(form, "kind") === "see";
-  const kind = see ? "cie" : ["cie", "event", "class_request"].includes(s(form, "kind")) ? s(form, "kind") : "event";
-  const title = s(form, "title");
-  const semesters = kind === "cie" ? form.getAll("semesters").map(String).filter((x) => /^\d$/.test(x)) : [];
+  const kind = bulkKind(form);
+  const sections = bulkSections(form);
+  if (kind === "skill_lab" && !sections.length) redirect(withParam(to, "error", "Pick the sections that go to the skill lab."));
+  const title = bulkTitle(form, sections);
+  const semesters = bulkSemesters(form);
+  const reason = s(form, "reason");
+  const faculty = s(form, "faculty") || null;
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("admin_bulk_allot", {
-    p_places: plan.places,
-    p_kind: kind,
-    p_title: see ? (/^SEE\b/i.test(title) ? title : title ? `SEE ${title}` : "SEE") : title,
-    p_reason: s(form, "reason"),
-    p_faculty: s(form, "faculty") || null,
-    p_semesters: semesters.length ? semesters : null,
-  });
+  const hit = sections.length ? await classesHit(plan.places, sections) : null;
+  const releases = (hit?.releases ?? []).map(({ room, date, slot, section }) => ({ room, date, slot, section }));
+  let rpc: string;
+  const { data, error } =
+    kind === "skill_lab"
+      ? await supabase.rpc((rpc = "admin_skill_lab"), { p_title: title, p_reason: reason, p_faculty: faculty, p_places: plan.places, p_releases: releases, p_moves: [] })
+      : sections.length
+        ? await supabase.rpc((rpc = "admin_bulk_allot_sections"), { p_places: plan.places, p_kind: "event", p_title: title, p_reason: reason, p_faculty: faculty, p_releases: releases })
+        : await supabase.rpc((rpc = "admin_bulk_allot"), {
+            p_places: plan.places,
+            p_kind: kind === "see" ? "cie" : kind,
+            p_title: title,
+            p_reason: reason,
+            p_faculty: faculty,
+            p_semesters: semesters.length ? semesters : null,
+          });
   revalidatePath("/", "layout");
   if (error) {
-    const missing = error.code === "PGRST202" || /admin_bulk_allot/.test(error.message);
-    redirect(withParam(to, "error", missing ? "Bulk allot needs database update 0035. Run it in the Supabase SQL Editor." : `Nothing was allotted: ${error.message}`));
+    const missing = error.code === "PGRST202" || error.message.includes(rpc);
+    const update = rpc === "admin_skill_lab" ? "0037" : rpc === "admin_bulk_allot" ? "0035" : "0042";
+    redirect(withParam(to, "error", missing ? `This needs database update ${update}. Run it in the Supabase SQL Editor.` : `Nothing was allotted: ${error.message}`));
   }
-  const r = (data ?? {}) as { slots?: number; cancelled?: number };
+  const r = (data ?? {}) as { slots?: number; booked?: number; cancelled?: number; released?: number };
+  const booked = r.slots ?? r.booked ?? 0;
   const rooms = new Set(plan.places.map((p) => p.room)).size;
-  redirect(
-    withParam(
-      to,
-      "msg",
-      `Allotted ${r.slots ?? 0} slots in ${rooms} ${rooms === 1 ? "room" : "rooms"} over ${plan.days.length} ${plan.days.length === 1 ? "day" : "days"}.` +
-        (semesters.length ? ` Cancelled ${r.cancelled ?? 0} class slots of semester ${semesters.join(", ")}.` : ""),
-    ),
-  );
+  let msg =
+    `${title ? `${title}: a` : "A"}llotted ${booked} slots in ${rooms} ${rooms === 1 ? "room" : "rooms"} over ${plan.days.length} ${plan.days.length === 1 ? "day" : "days"}.` +
+    (semesters.length ? ` Cancelled ${r.cancelled ?? 0} class slots of semester ${semesters.join(", ")}.` : "") +
+    (sections.length ? ` Released ${r.released ?? 0} class ${r.released === 1 ? "slot" : "slots"} of ${sections.join(", ")}.` : "");
+  // Classes that lost their room: open Classes affected on those days to move them
+  const lost = hit ? hit.displaced : (await classesHit(plan.places, sections, semesters, 14)).displaced;
+  if (lost.length) {
+    msg += ` ${lost.length} ${lost.length === 1 ? "class" : "classes"} of other sections lost ${lost.length === 1 ? "its" : "their"} room: move ${lost.length === 1 ? "it" : "them"} below.`;
+    const start = plan.days[0] < todayIST() ? todayIST() : plan.days[0];
+    redirect(withParam(`/admin/affected?${new URLSearchParams({ start, days: "14" }).toString()}`, "msg", msg));
+  }
+  redirect(withParam(to, "msg", msg));
 }
 
 export type UploadChange = { room: string; weekday: number; slot: number; before: string; after: string };

@@ -9,13 +9,15 @@ import type { Slot } from "@/lib/types";
 import { adminBulkAllot, bulkAllotPreview, type BulkPreview } from "../../actions";
 import SlotRange from "../allot/SlotRange";
 
-type Kind = "cie" | "see" | "event" | "class_request";
+export type Kind = "cie" | "see" | "event" | "skill_lab" | "class_request";
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const ordinal = (n: string) => `${n}${n === "1" ? "st" : n === "2" ? "nd" : n === "3" ? "rd" : "th"}`;
 
 /**
- * Bulk allot: one event, CIE, SEE or class over a run of days, each row its own rooms and times.
- * Preview first (what it takes, and what is already booked there), then allot all or none.
+ * Bulk allotment: one CIE, SEE, event, skill lab or class over a run of days, each row its own rooms
+ * and times. An event or skill lab names the sections attending: their own classes then are
+ * released. Preview first (what it takes, what is already booked there, which classes are released
+ * and which lose their room), then allot all or none.
  */
 export default function BulkAllotForm({
   rooms,
@@ -24,22 +26,27 @@ export default function BulkAllotForm({
   faculty,
   firstDay,
   back,
+  initialKind = "cie",
 }: {
-  rooms: { id: string; name: string; summary: string }[];
+  rooms: { id: string; name: string; summary: string; lab?: boolean }[];
   slots: Slot[];
   semesters: { sem: string; classes: string[] }[];
   faculty: PickFaculty[];
   firstDay: string;
   back: string;
+  initialKind?: Kind;
 }) {
   const form = useRef<HTMLFormElement>(null);
-  const [kind, setKind] = useState<Kind>("cie");
+  const [kind, setKind] = useState<Kind>(initialKind);
   const [rows, setRows] = useState([0]);
   const [next, setNext] = useState(1);
   const [picked, setPicked] = useState<Record<number, string[]>>({});
   const [preview, setPreview] = useState<BulkPreview | null>(null);
   const [checking, setChecking] = useState(false);
   const exam = kind === "cie" || kind === "see";
+  const forSections = kind === "event" || kind === "skill_lab";
+  // A skill lab lists the labs first
+  const roomList = kind === "skill_lab" ? [...rooms].sort((a, b) => Number(!!b.lab) - Number(!!a.lab)) : rooms;
 
   const check = async () => {
     if (!form.current?.reportValidity()) return;
@@ -99,7 +106,7 @@ export default function BulkAllotForm({
                     <span aria-hidden className="muted text-xs">▾</span>
                   </summary>
                   <div className="absolute z-20 mt-1 max-h-72 w-full min-w-[16rem] overflow-y-auto rounded-xl border border-brand-100 bg-white p-2 shadow-xl dark:border-brand-900 dark:bg-ink">
-                    {rooms.map((r) => (
+                    {roomList.map((r) => (
                       <label key={r.id} className="flex cursor-pointer items-start gap-2 rounded-md px-1.5 py-1 text-sm hover:bg-brand-50 dark:hover:bg-brand-950">
                         <input
                           type="checkbox"
@@ -159,12 +166,16 @@ export default function BulkAllotForm({
               <option value="cie">CIE (exam)</option>
               <option value="see">SEE (exam)</option>
               <option value="event">College event</option>
+              <option value="skill_lab">Skill lab</option>
               <option value="class_request">Class</option>
             </select>
           </div>
           <div>
             <label className="label" htmlFor="title">{kind === "class_request" ? "Subject" : "Title"}</label>
-            <input id="title" name="title" className="input" placeholder={kind === "see" ? "e.g. DBMS, 3rd sem" : kind === "cie" ? "e.g. CIE-2, 5th sem" : kind === "event" ? "e.g. IEEE workshop on GenAI" : "e.g. DBMS-3B extra class"} />
+            <input id="title" name="title" className="input" key={kind}
+              defaultValue={kind === "skill_lab" ? "Skill Lab" : undefined}
+              placeholder={kind === "see" ? "e.g. DBMS, 3rd sem" : kind === "cie" ? "e.g. CIE-2, 5th sem" : kind === "event" ? "e.g. IEEE workshop on GenAI" : "e.g. DBMS-3B extra class"} />
+            {forSections && <p className="muted mt-1 text-xs">The sections are added: &quot;{kind === "skill_lab" ? "Skill Lab" : "Workshop"} - 3B/3D&quot;.</p>}
           </div>
           <div>
             <label className="label" htmlFor="reason">Description <span className="text-red-600">*</span></label>
@@ -207,6 +218,35 @@ export default function BulkAllotForm({
             </div>
           </fieldset>
         )}
+        {forSections && semesters.length > 0 && (
+          <fieldset className="rounded-xl border border-brand-200 bg-brand-50/60 p-4 dark:border-brand-800 dark:bg-brand-950/30">
+            <legend className="px-1 text-sm font-semibold">
+              Sections attending {kind === "skill_lab" ? <span className="text-red-600">*</span> : <span className="muted font-normal">(optional)</span>}
+            </legend>
+            <p className="muted mb-3 text-xs">
+              Their own classes at these times are released, since the students are here, so those rooms are free. Classes of other sections that lose
+              their room show in Classes affected, ready to move.
+            </p>
+            <div className="space-y-2">
+              {semesters
+                .filter((x) => x.classes.some((c) => c.length > 1))
+                .map(({ sem, classes }) => (
+                  <div key={sem} className="flex flex-wrap items-center gap-1.5">
+                    <span className="w-28 text-sm font-medium">{ordinal(sem)} semester</span>
+                    {classes.map((c) => (
+                      <label
+                        key={c}
+                        className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-brand-100 bg-white px-2.5 py-1.5 text-sm has-[:checked]:border-brand-500 has-[:checked]:bg-brand-100 dark:border-brand-900 dark:bg-ink dark:has-[:checked]:bg-brand-900"
+                      >
+                        <input type="checkbox" name="sections" value={c} className="h-4 w-4 accent-brand-600" />
+                        {c}
+                      </label>
+                    ))}
+                  </div>
+                ))}
+            </div>
+          </fieldset>
+        )}
       </section>
 
       {preview && (
@@ -230,6 +270,22 @@ export default function BulkAllotForm({
               ) : (
                 <p className="text-emerald-700 dark:text-emerald-300">Nothing else is booked in these rooms and times.</p>
               )}
+              {preview.title && forSections && <p>Saved as <span className="font-semibold">{preview.title}</span>.</p>}
+              {forSections && (
+                <PreviewList
+                  tone="good"
+                  title={`Released: ${preview.released!.length} ${preview.released!.length === 1 ? "class" : "classes"} of the sections attending`}
+                  empty="No class of these sections is released at these times."
+                  rows={preview.released!}
+                />
+              )}
+              <PreviewList
+                tone="warn"
+                title={`Lose their room: ${preview.displaced!.length} ${preview.displaced!.length === 1 ? "class" : "classes"}, listed in Classes affected to move`}
+                empty="No other class loses its room."
+                rows={preview.displaced!}
+              />
+              {preview.readDays && <p className="muted text-xs">Classes are checked for the first {preview.readDays} days.</p>}
               <p className="muted text-xs">Everything is allotted together: if any slot fails, nothing is saved.</p>
             </div>
           )}
@@ -253,5 +309,20 @@ export default function BulkAllotForm({
       </div>
       {checking && <LoadingOverlay label="Checking the slots…" />}
     </form>
+  );
+}
+
+function PreviewList({ title, empty, rows, tone }: { title: string; empty: string; rows: string[]; tone: "good" | "warn" }) {
+  return (
+    <div>
+      <p className={`font-medium ${rows.length ? (tone === "good" ? "text-emerald-700 dark:text-emerald-300" : "text-amber-800 dark:text-amber-300") : ""}`}>{rows.length ? title : empty}</p>
+      {rows.length > 0 && (
+        <ul className="mt-1 max-h-48 list-disc space-y-0.5 overflow-y-auto pl-5 text-xs">
+          {rows.map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

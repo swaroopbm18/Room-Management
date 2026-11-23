@@ -3,12 +3,12 @@ import SubTabs from "@/components/SubTabs";
 /** The views of each admin menu entry that covers more than one page, as tabs at the top of each. */
 const AREAS = {
   cie: {
-    label: "Bulk allot / CIE / Skill lab",
+    label: "Bulk allotment, classes affected and upcoming events",
     tabs: [
-      { label: "1. Bulk allot", href: "/admin/cie" },
-      { label: "2. Seating plan", href: "/admin/seating" },
-      { label: "Skill lab", href: "/admin/skill-lab" },
-      { label: "Affected classes", href: "/admin/affected" },
+      { label: "Bulk allotment", href: "/admin/cie" },
+      { label: "Classes affected", href: "/admin/affected" },
+      { label: "Upcoming events", href: "/admin/events" },
+      { label: "CIE seating plan", href: "/admin/seating" },
     ],
   },
   records: {
