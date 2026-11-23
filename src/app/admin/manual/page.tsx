@@ -272,6 +272,22 @@ const PARTS: ManualPart[] = [
         tips: ["Initials that are not in the faculty list are marked, so typos stand out."],
       },
       {
+        id: "timetable-pdfs",
+        title: "Timetable PDFs",
+        where: "Admin → Timetables → Room & class timetables → Timetable PDFs",
+        href: "/admin/timetable-pdfs",
+        intro: "Keep the timetable office's PDFs on the site: one for each semester or section, one of all classes and one of every faculty member's timetable. Students open their class's PDF from Class timetables, and faculty open the faculty PDF from their dashboard.",
+        steps: [
+          "To upload one PDF: find the semester or section in the list and press Upload PDF (or Replace, when it has one).",
+          "To upload many at once: press Choose PDFs under Upload many PDFs at once and pick every file. Check what each one is for (it is guessed from the file name, such as 3A.pdf, Sem 5.pdf, CLASS_TT… or INDIV_TT…), then press Upload.",
+          "Press Remove to take a PDF down.",
+        ],
+        tips: [
+          "A class shows its section's PDF; if there is none, its semester's; and if there is none, the PDF of all classes.",
+          "The PDFs are shown as they are. The room timetable the site runs on still comes from the Word upload under Room timetable.",
+        ],
+      },
+      {
         id: "health",
         title: "Health check",
         where: "Admin → Timetables → Room & class timetables → Health check",
@@ -323,7 +339,10 @@ const PARTS: ManualPart[] = [
           "To add many people, use Import a list: upload a CSV or paste rows of email, full name, initials, title, role, and press Import. Existing people are updated. Download a template shows the layout.",
           "Faculty names and initials lists every set of initials in the timetable with the name shown for it. Add a name where only initials show.",
         ],
-        tips: ["A person marked \"Not in the timetable\" has no classes matched. Check their initials."],
+        tips: [
+          "A person marked \"Not in the timetable\" has no classes matched. Check their initials.",
+          "Typos fixed by merging are listed under Faculty names and initials. Press Forget to stop reading one as the other.",
+        ],
       },
       {
         id: "profiles",
@@ -336,6 +355,7 @@ const PARTS: ManualPart[] = [
           "To add another duty (proctoring, a committee, lab in-charge), pick the day and slots, type the duty and save. Leave the duty empty to clear those slots, or press Clear all duties.",
           "To load duties for many people at once, use Upload faculty timetables: one slot per line, initials, day, start time, duty (for example \"AKN, Mon, 8:00, Proctoring\").",
           "Put each faculty member in Cluster A or Cluster B and press Save clusters. The free and busy cards and the meeting finder use these groups.",
+          "To remove a faculty record, even one the timetable still uses, open their profile and go to Delete or merge. If the initials are a typo (for example LKB for LBK), type the right initials under Give their classes and duties to and press Merge: their classes from tomorrow, duties, cluster, leave and sign-in move to that person, and a later timetable upload that still has the typo is read the right way. Leave it empty and press Delete to take them off their classes and remove them.",
         ],
         tips: ["The Faculty availability button opens who is free by day or by week, and Find a meeting time. The Week tab is only for admins."],
       },
@@ -388,7 +408,7 @@ const PARTS: ManualPart[] = [
         title: "Usage: rooms and faculty workload",
         where: "Admin → Records → Usage",
         href: "/admin/usage",
-        intro: "Room usage shows how full each room is in a week, the busiest and most idle rooms, and a busy-hours chart. Workload shows each faculty member's regular week: classes and other duties.",
+        intro: "The Rooms tab shows how full each room is in a week, the busiest and most idle rooms, and a busy-hours chart. The Faculty workload tab shows each faculty member's regular week: classes and other duties.",
         steps: [
           "On the Rooms tab, move between weeks with the arrows. Darker cells in Busy hours are busier.",
           "On the Faculty workload tab, pick the whole department or a cluster. Blue in the load bar is classes, amber is other duties. Press Download Excel for a copy.",

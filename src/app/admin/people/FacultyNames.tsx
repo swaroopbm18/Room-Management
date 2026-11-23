@@ -1,8 +1,10 @@
+import Link from "next/link";
 import SubmitButton from "@/components/SubmitButton";
 import { IconAlert, IconPlus, IconTrash } from "@/components/Icons";
-import { deleteFaculty, saveFaculty } from "../../actions";
+import { deleteFaculty, removeFacultyAlias, saveFaculty } from "../../actions";
 
 export type DirectoryEntry = { initials: string; title: string; full_name: string };
+export type FacultyAlias = { alias: string; initials: string };
 
 const TITLES = ["Prof.", "Dr.", "Mr.", "Ms.", "Mrs.", ""];
 
@@ -22,7 +24,17 @@ function TitleSelect({ value }: { value: string }) {
  * Every faculty member the timetable knows by initials, with the name shown for them.
  * Admins name the ones that show only as initials, fix a name or title, or change initials.
  */
-export default function FacultyNames({ directory, inTimetable, owner }: { directory: DirectoryEntry[]; inTimetable: Set<string>; owner: Map<string, string> }) {
+export default function FacultyNames({
+  directory,
+  inTimetable,
+  owner,
+  aliases = [],
+}: {
+  directory: DirectoryEntry[];
+  inTimetable: Set<string>;
+  owner: Map<string, string>;
+  aliases?: FacultyAlias[];
+}) {
   const byIni = new Map(directory.map((d) => [d.initials, d]));
   // Initials in the timetable with no directory entry are listed too, so they can be named
   for (const ini of inTimetable) if (!byIni.has(ini)) byIni.set(ini, { initials: ini, title: "Prof.", full_name: "" });
@@ -66,6 +78,17 @@ export default function FacultyNames({ directory, inTimetable, owner }: { direct
         <SubmitButton className="btn-primary py-1.5" pendingText="Saving…" message="Saving the faculty member…">
           Save
         </SubmitButton>
+        {inTimetable.has(r.initials) && (
+          // Still in the timetable: deleted (or merged into the right initials) from their profile
+          <Link
+            href={`/admin/faculty?f=${encodeURIComponent(r.initials)}#delete`}
+            className="btn-secondary px-2 py-1.5 text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"
+            title={`Delete ${r.initials}, or merge a typo into the right initials`}
+            aria-label={`Delete or merge ${r.initials}`}
+          >
+            <IconTrash className="h-4 w-4" />
+          </Link>
+        )}
         {(listed.has(r.initials) || owner.has(r.initials)) && !inTimetable.has(r.initials) && (
           <SubmitButton
             formAction={deleteFaculty}
@@ -108,6 +131,35 @@ export default function FacultyNames({ directory, inTimetable, owner }: { direct
         </summary>
         <div className="mt-2">{list(rows.filter((r) => r.full_name.trim()))}</div>
       </details>
+
+      {aliases.length > 0 && (
+        <div className="card p-3 text-sm sm:p-4">
+          <div className="font-medium">Typos fixed by merging</div>
+          <p className="muted text-xs">A timetable upload or edit that uses the typo is read as the right initials.</p>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {aliases.map((a) => (
+              <li key={a.alias}>
+                <form action={removeFacultyAlias} className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 py-0.5 pr-1 pl-3 dark:border-brand-800">
+                  <input type="hidden" name="alias" value={a.alias} />
+                  <input type="hidden" name="initials" value={a.initials} />
+                  <input type="hidden" name="back" value="/admin/people" />
+                  <span className="font-mono text-xs">
+                    {a.alias} → {a.initials}
+                  </span>
+                  <SubmitButton
+                    className="rounded-full px-1.5 py-0.5 text-xs text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"
+                    pendingText=""
+                    message={`Forgetting ${a.alias}…`}
+                    aria-label={`Stop reading ${a.alias} as ${a.initials}`}
+                  >
+                    Forget
+                  </SubmitButton>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <form action={saveFaculty} className="card flex flex-wrap items-center gap-2 p-3 sm:p-4">
         <span className="w-full text-sm font-medium sm:w-auto">Add a faculty member</span>

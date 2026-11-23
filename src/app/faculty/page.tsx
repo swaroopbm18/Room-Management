@@ -2,9 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
-import { IconBook, IconClock, IconDashboard, IconInbox, IconPlus, IconSwap } from "@/components/Icons";
+import { IconBook, IconClock, IconDashboard, IconFile, IconInbox, IconPlus, IconSwap } from "@/components/Icons";
+import { pdfUrl } from "@/lib/timetablePdfs";
 import { displayName, requireStaff } from "@/lib/auth";
-import { getHolidays, getSlots } from "@/lib/data";
+import { getHolidays, getSlots, getTimetablePdfs } from "@/lib/data";
 import { getMyExchanges, stageOf, isOpenStage } from "@/lib/exchanges";
 import { groupRequests } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
@@ -28,12 +29,15 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
   const supabase = await createClient();
   await getHolidays(); // also loads make-up Sundays
 
-  const [slots, { data: reqData }, exchanges, { data: subjectData }] = await Promise.all([
+  const [slots, { data: reqData }, exchanges, { data: subjectData }, pdfs] = await Promise.all([
     getSlots(),
     supabase.from("requests").select("*").eq("requester_email", person.email).order("created_at", { ascending: false }).limit(50),
     getMyExchanges(person.email),
     tab === "requests" ? supabase.from("faculty_subjects").select("subject").eq("email", person.email).order("subject") : Promise.resolve({ data: [] }),
+    getTimetablePdfs(),
   ]);
+  // The timetable office's PDF of every faculty member's timetable
+  const facultyPdf = pdfs.find((p) => p.key === "FACULTY");
   const slotById = new Map(slots.map((s) => [s.id, s]));
   // One entry per request, however many slots it covers. A request is over once its first slot ends.
   const groups = groupRequests((reqData ?? []) as RequestRow[], slotById).map((g) => ({ ...g, ended: slotEnded(g.first.date, slotById.get(g.first.slot_id)!) }));
@@ -52,6 +56,11 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
   return (
     <div className="space-y-6">
       <PageHeader title={`Welcome, ${displayName(person)}`} subtitle={person.email}>
+        {facultyPdf && (
+          <a href={pdfUrl(facultyPdf.path)} target="_blank" rel="noopener" className="btn-secondary">
+            <IconFile className="h-4 w-4" /> Faculty timetables PDF
+          </a>
+        )}
         <Link href="/faculty-status/meetings" className="btn-secondary">
           <IconClock className="h-4 w-4" /> Find a meeting time
         </Link>

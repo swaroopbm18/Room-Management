@@ -6,7 +6,7 @@ import { getHolidays, getSlots } from "@/lib/data";
 import { addDays, DATE_RE, formatDate, isClosedSunday, todayIST, weekdayOf } from "@/lib/time";
 import { createClient } from "@/lib/supabase/server";
 import { fixFor } from "@/lib/fixLinks";
-import type { ParsedEntry } from "@/lib/timetableDocx";
+import { applyFacultyAliases, type ParsedEntry } from "@/lib/timetableDocx";
 import { mergeRuns } from "@/lib/bookings";
 import type { AllotmentRow } from "@/lib/types";
 
@@ -356,6 +356,38 @@ export async function deleteFaculty(form: FormData) {
   }
   const kept = data === "kept_history" ? " Their past requests are kept, but they can no longer sign in." : "";
   redirect(withParam(s(form, "done") || "/admin/faculty", "msg", `${initials} deleted.${kept}`));
+}
+
+/**
+ * Deletes a faculty record whatever the timetable says. With "into" set, it is merged into that
+ * faculty member: their classes (from tomorrow), duties, cluster, leave and sign-in move there, and
+ * the typo is remembered for later uploads. Without it, they are taken off every class they are on.
+ */
+export async function purgeFaculty(form: FormData) {
+  const supabase = await createClient();
+  const initials = s(form, "initials").toUpperCase();
+  const into = s(form, "into").toUpperCase();
+  const { data, error } = await supabase.rpc("admin_purge_faculty", { p_initials: initials, p_into: into || null });
+  revalidatePath("/", "layout");
+  if (error) redirect(withParam(back(form, "/admin/faculty"), "error", error.message));
+  const r = (data ?? {}) as { slots?: number; account?: string | null };
+  const n = r.slots ?? 0;
+  const slots = `${n} class slot${n === 1 ? "" : "s"}`;
+  const from = formatDate(addDays(todayIST(), 1), { weekday: "long" });
+  const msg = into
+    ? `${initials} merged into ${into}.` +
+      (n ? ` ${slots} moved to ${into} from ${from}.` : "") +
+      (r.account === "moved" ? ` Their sign-in now uses ${into}.` : "") +
+      ` A timetable upload that still says ${initials} will read it as ${into}.`
+    : `${initials} deleted.` +
+      (n ? ` Taken off ${slots} from ${from}.` : "") +
+      (r.account === "kept_history" ? " Their past requests are kept, but they can no longer sign in." : "");
+  redirect(withParam(s(form, "done") || "/admin/faculty", "msg", msg));
+}
+
+/** Stops reading a remembered typo as someone else's initials. */
+export async function removeFacultyAlias(form: FormData) {
+  await run(form, "/admin/people", "admin_remove_faculty_alias", { p_alias: s(form, "alias") }, `${s(form, "alias")} is no longer read as ${s(form, "initials")}.`);
 }
 
 export async function adminEditTimetable(form: FormData) {
@@ -791,8 +823,13 @@ export async function previewTimetableUpload(_prev: UploadPreview, form: FormDat
     return { error: "The timetable could not be read. Please choose the file again." };
   }
   const supabase = await createClient();
-  const currentRes = await supabase.rpc("get_timetable_all", { p_date: addDays(todayIST(), 1) });
+  const [currentRes, aliasRes] = await Promise.all([
+    supabase.rpc("get_timetable_all", { p_date: addDays(todayIST(), 1) }),
+    supabase.from("faculty_aliases").select("alias, initials"),
+  ]);
   if (currentRes.error) return { error: currentRes.error.message };
+  // Typos an admin merged into the right faculty member are read as that member (the database does the same on save)
+  parsed.entries = applyFacultyAliases(parsed.entries, (aliasRes.data ?? []) as { alias: string; initials: string }[]);
   type Cell = { room_id: string; weekday: number; slot_id: number; subject: string; faculty_initials: string[]; faculty_label: string; is_department: boolean };
   const key = (c: { room_id: string; weekday: number; slot_id: number }) => `${c.room_id}|${c.weekday}|${c.slot_id}`;
   const current = new Map(((currentRes.data ?? []) as Cell[]).filter((c) => parsed.rooms.includes(c.room_id)).map((c) => [key(c), c]));
@@ -1155,4 +1192,14 @@ export async function adminEditRecord(form: FormData) {
     redirect(withParam(to, "error", missing ? "Editing records needs database update 0033. Run it in the Supabase SQL Editor." : error.message));
   }
   redirect(withParam(to, "msg", data === 1 ? "Record updated." : `Record updated for ${data} slots.`));
+}
+
+/** Remove a semester's or section's timetable PDF, and its file. */
+export async function deleteTimetablePdf(form: FormData) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_delete_timetable_pdf", { p_key: s(form, "key") });
+  if (!error && data) await supabase.storage.from("timetables").remove([String(data)]);
+  revalidatePath("/", "layout");
+  const to = back(form, "/admin/timetable-pdfs");
+  redirect(withParam(to, error ? "error" : "msg", error ? error.message : "Timetable PDF removed."));
 }

@@ -23,6 +23,7 @@ const AREAS = {
     tabs: [
       { label: "Room timetable", href: "/admin/timetable" },
       { label: "Class timetable", href: "/admin/class-timetable" },
+      { label: "Timetable PDFs", href: "/admin/timetable-pdfs" },
       { label: "Health check", href: "/admin/health" },
     ],
   },

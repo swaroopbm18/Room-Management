@@ -5,6 +5,7 @@ import { createClient } from "./supabase/server";
 import { semestersOf, type Cell } from "./classTimetable";
 import { setMakeupSundays } from "./time";
 import type { PublicRequest, Room, ScheduleRow, Slot, UpcomingRow } from "./types";
+import type { TimetablePdf } from "./timetablePdfs";
 
 // Rooms and slots are public and almost never change, so they are cached for an hour
 // instead of being fetched on every page.
@@ -145,4 +146,10 @@ export async function getNotices(from: string): Promise<Notice[]> {
   const supabase = publicClient();
   const { data } = await supabase.from("notices").select("id, message, starts_on, ends_on").gte("ends_on", from).order("starts_on");
   return (data ?? []) as Notice[];
+}
+
+/** The uploaded timetable PDFs (see timetablePdfs.ts). Empty until migration 0039 is run. */
+export async function getTimetablePdfs(): Promise<TimetablePdf[]> {
+  const { data } = await publicClient().from("timetable_pdfs").select("*").order("key");
+  return (data ?? []) as TimetablePdf[];
 }
