@@ -53,9 +53,10 @@ export function undoToken(kind: UndoKind, args: Record<string, unknown>) {
   return Buffer.from(JSON.stringify({ k: kind, a: args })).toString("base64url");
 }
 
-/** Re-renders every page and clears the cached holidays and day swaps (lib/data.ts) after a change. */
+/** Re-renders every page and clears the cached holidays, day swaps (lib/data.ts) and faculty names (lib/facultyNames.ts) after a change. */
 export function refreshPages() {
   revalidateTag("calendar");
+  revalidateTag("faculty-names");
   revalidatePath("/", "layout");
 }
 
