@@ -1,4 +1,4 @@
--- 0039: Delete any faculty record, even one the timetable still uses.
+-- 0040: Delete any faculty record, even one the timetable still uses.
 -- A stray record (for example the typo LKB that should have been LBK) could not be deleted while
 -- any timetable version still named it, and the old versions always do, because records are
 -- permanent. Now an admin can:
