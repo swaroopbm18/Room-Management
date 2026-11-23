@@ -23,14 +23,29 @@ const AREAS = {
     tabs: [
       { label: "Room timetable", href: "/admin/timetable" },
       { label: "Class timetable", href: "/admin/class-timetable" },
+      { label: "Timetable PDFs", href: "/admin/timetable-pdfs" },
       { label: "Health check", href: "/admin/health" },
     ],
   },
-  supplies: {
-    label: "Equipment and supplies",
+  faculty: {
+    label: "Faculty",
     tabs: [
-      { label: "Supply requests", href: "/admin/resources" },
-      { label: "Equipment bookings", href: "/equipment" },
+      { label: "Faculty profiles", href: "/admin/faculty" },
+      { label: "Sign-in list & names", href: "/admin/people" },
+    ],
+  },
+  semester: {
+    label: "Semester",
+    tabs: [
+      { label: "1. End a semester's classes", href: "/admin/semester-end" },
+      { label: "2. Start a new semester", href: "/admin/rollover" },
+    ],
+  },
+  usage: {
+    label: "Usage",
+    tabs: [
+      { label: "Rooms", href: "/admin/usage" },
+      { label: "Faculty workload", href: "/admin/workload" },
     ],
   },
 } as const;

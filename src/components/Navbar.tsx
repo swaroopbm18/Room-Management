@@ -2,7 +2,7 @@ import SubmitButton from "./SubmitButton";
 import Link from "next/link";
 import { displayName, getPerson } from "@/lib/auth";
 import { pendingRequestCount } from "@/lib/pending";
-import { IconBook, IconBuilding, IconCalendar, IconCalendarCheck, IconDashboard, IconHome, IconLogin, IconLogout, IconShield, IconPlug } from "./Icons";
+import { IconBook, IconBuilding, IconCalendar, IconCalendarCheck, IconDashboard, IconHome, IconLogin, IconLogout, IconShield } from "./Icons";
 import PendingLink from "./PendingLink";
 import ColorPicker from "./ColorPicker";
 import ThemeToggle from "./ThemeToggle";
@@ -15,7 +15,6 @@ export default async function Navbar() {
     { href: "/free", label: "Free slots", icon: <IconCalendarCheck className="h-4 w-4" /> },
     { href: "/classes", label: "Class timetables", icon: <IconCalendar className="h-4 w-4" /> },
     ...(person ? [{ href: "/faculty", label: "My dashboard", icon: <IconDashboard className="h-4 w-4" /> }] : []),
-    ...(person ? [{ href: "/equipment", label: "Equipment", icon: <IconPlug className="h-4 w-4" /> }] : []),
     ...(person?.role === "admin" ? [{ href: "/admin/home", label: "Admin", icon: <IconShield className="h-4 w-4" />, badge: pending }] : []),
     // The user manual for the signed-in role; the admin manual links to the faculty one
     ...(person ? [{ href: person.role === "admin" ? "/admin/manual" : "/faculty/manual", label: "Help", icon: <IconBook className="h-4 w-4" /> }] : []),

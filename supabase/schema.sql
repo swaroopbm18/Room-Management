@@ -642,43 +642,17 @@ CREATE FUNCTION public.admin_delete_faculty(p_initials text) RETURNS text
 declare
   me public.people := public.require_admin();
   v_ini text := upper(btrim(coalesce(p_initials, '')));
-  v_person public.people;
   v_classes int;
 begin
-  if v_ini = '' then
-    raise exception 'Pick a faculty member to delete' using errcode = 'P0001';
-  end if;
-  if me.initials = v_ini then
-    raise exception 'You cannot delete yourself' using errcode = 'P0001';
-  end if;
-
   select count(*) into v_classes
-  from public.timetable_entries t
-  join public.timetable_versions v on v.id = t.version_id
-  where v.valid_to >= public.ist_today() + 1 and v_ini = any (t.faculty_initials);
+    from public.timetable_entries t
+   where t.version_id in (select public.live_timetable_versions(public.ist_today() + 1))
+     and v_ini = any (t.faculty_initials) and not t.is_department;
   if v_classes > 0 then
-    raise exception '% still has % class slot(s) in the timetable. Move those classes to someone else in Class timetables first, then delete.', v_ini, v_classes
+    raise exception '% still has % class slot(s) in the timetable. Open their profile and use Delete to give those classes to someone else or remove them.', v_ini, v_classes
       using errcode = 'P0001';
   end if;
-
-  delete from public.faculty_duties where initials = v_ini;
-  delete from public.faculty_clusters where initials = v_ini;
-  delete from public.faculty_directory where initials = v_ini;
-
-  select * into v_person from public.people where initials = v_ini;
-  if v_person.email is null then
-    return 'deleted';
-  end if;
-  delete from public.faculty_subjects where email = v_person.email;
-  update public.requests set status = 'withdrawn', decided_at = now(), decided_by = me.email
-   where requester_email = v_person.email and status = 'pending';
-  if exists (select 1 from public.requests where requester_email = v_person.email) then
-    -- Kept only so past requests still say who made them; they can't sign in and have no card
-    update public.people set initials = null, active = false, role = 'faculty' where email = v_person.email;
-    return 'kept_history';
-  end if;
-  delete from public.people where email = v_person.email;
-  return 'deleted';
+  return coalesce(public.admin_purge_faculty(v_ini, null) ->> 'account', 'deleted');
 end $$;
 
 
@@ -777,6 +751,24 @@ begin
       using errcode = 'P0001';
   end if;
   delete from public.rooms where id = p_room;
+end $$;
+
+
+--
+-- Name: admin_delete_timetable_pdf(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.admin_delete_timetable_pdf(p_key text) RETURNS text
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare v_old text;
+begin
+  if not public.is_admin() then
+    raise exception 'Only admins can remove timetables' using errcode = '42501';
+  end if;
+  delete from public.timetable_pdfs where key = upper(btrim(coalesce(p_key, ''))) returning path into v_old;
+  return v_old;
 end $$;
 
 
@@ -1207,6 +1199,134 @@ end $$;
 
 
 --
+-- Name: admin_purge_faculty(text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.admin_purge_faculty(p_initials text, p_into text DEFAULT NULL::text) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+declare
+  me public.people := public.require_admin();
+  v_ini text := upper(btrim(coalesce(p_initials, '')));
+  v_into text := nullif(upper(btrim(coalesce(p_into, ''))), '');
+  v_from date := public.ist_today() + 1;
+  v_src public.timetable_versions;
+  v_new int;
+  v_slots int := 0;
+  v_person public.people;
+  v_account text;
+begin
+  if v_ini = '' then
+    raise exception 'Pick a faculty member to delete' using errcode = 'P0001';
+  end if;
+  if me.initials = v_ini then
+    raise exception 'You cannot delete yourself' using errcode = 'P0001';
+  end if;
+  if v_into = v_ini then
+    raise exception 'Pick someone other than % to give their classes to', v_ini using errcode = 'P0001';
+  end if;
+  if v_into is not null and v_into !~ '^[A-Z][A-Z.]{0,9}$' then
+    raise exception 'Initials must be 1 to 10 letters, e.g. AKN' using errcode = 'P0001';
+  end if;
+  select * into v_person from public.people where initials = v_ini;
+  if v_into is not null and v_person.email is not null and exists (select 1 from public.people where initials = v_into) then
+    raise exception '% and % both sign in with their own accounts. Delete the wrong account under Sign-in list first.', v_ini, v_into
+      using errcode = 'P0001';
+  end if;
+
+  -- 1. The timetable from tomorrow on: a new version of each live version that names them
+  for v_src in select v.* from public.timetable_versions v
+                where v.id in (select public.live_timetable_versions(v_from))
+                  and exists (select 1 from public.timetable_entries t where t.version_id = v.id and v_ini = any (t.faculty_initials))
+                order by v.valid_from, v.id loop
+    insert into public.timetable_versions (name, valid_from, valid_to)
+    values (case when v_into is null then v_ini || ' deleted' else v_ini || ' merged into ' || v_into end
+              || ' by ' || me.email || ' on ' || to_char(public.ist_today(), 'DD/MM/YYYY'),
+            greatest(v_src.valid_from, v_from), v_src.valid_to)
+    returning id into v_new;
+
+    insert into public.timetable_entries (version_id, room_id, weekday, slot_id, subject, faculty_initials, faculty_label, is_department)
+    select v_new, t.room_id, t.weekday, t.slot_id, t.subject,
+           case when v_ini = any (t.faculty_initials) then s.initials else t.faculty_initials end,
+           case when v_ini = any (t.faculty_initials) then s.label else t.faculty_label end,
+           t.is_department
+      from public.timetable_entries t
+      cross join lateral public.swap_faculty(t.faculty_initials, t.faculty_label, v_ini, v_into) s
+     where t.version_id = v_src.id;
+
+    insert into public.timetable_changes (version_id, room_id, weekday, slot_ids, old_value, new_value, effective_from, changed_by)
+    select v_new, o.room_id, o.weekday, array[o.slot_id]::smallint[],
+           o.subject || coalesce(' (' || nullif(o.faculty_label, '') || ')', ''),
+           n.subject || coalesce(' (' || nullif(n.faculty_label, '') || ')', ''),
+           greatest(v_src.valid_from, v_from), me.email
+      from public.timetable_entries o
+      join public.timetable_entries n on n.version_id = v_new and n.room_id = o.room_id and n.weekday = o.weekday and n.slot_id = o.slot_id
+     where o.version_id = v_src.id and v_ini = any (o.faculty_initials)
+     order by o.room_id, o.weekday, o.slot_id;
+
+    -- Counted once, from the version in effect tomorrow
+    if v_slots = 0 then
+      select count(*) into v_slots from public.timetable_entries t
+       where t.version_id = v_src.id and v_ini = any (t.faculty_initials) and not t.is_department;
+    end if;
+  end loop;
+
+  -- 2. Everything else that names them
+  if v_into is not null then
+    insert into public.faculty_duties (initials, weekday, slot_id, activity, updated_by)
+    select v_into, d.weekday, d.slot_id, d.activity, me.email from public.faculty_duties d where d.initials = v_ini
+    on conflict do nothing;
+    insert into public.faculty_clusters (initials, cluster, updated_by)
+    select v_into, c.cluster, me.email from public.faculty_clusters c where c.initials = v_ini
+    on conflict do nothing;
+    update public.faculty_leave set initials = v_into where initials = v_ini;
+    update public.class_exchanges set target_initials = v_into where target_initials = v_ini and status in ('pending', 'accepted');
+    update public.class_exchanges set requester_initials = v_into where requester_initials = v_ini and status in ('pending', 'accepted');
+    -- The right person keeps their own name; a name only the typo had moves to them
+    insert into public.faculty_directory (initials, title, full_name)
+    select v_into, d.title, d.full_name from public.faculty_directory d where d.initials = v_ini and btrim(d.full_name) <> ''
+    on conflict (initials) do update set title = excluded.title, full_name = excluded.full_name
+      where btrim(public.faculty_directory.full_name) = '';
+    -- Remember the typo, and point older typos of it to the right person too
+    update public.faculty_aliases set initials = v_into where initials = v_ini;
+    delete from public.faculty_aliases where alias = v_into or alias = initials;
+    insert into public.faculty_aliases (alias, initials, created_by) values (v_ini, v_into, me.email)
+    on conflict (alias) do update set initials = excluded.initials, created_by = excluded.created_by, created_at = now();
+  else
+    delete from public.faculty_leave where initials = v_ini;
+    update public.class_exchanges set status = 'withdrawn', decided_at = now(), decided_by = me.email
+     where (target_initials = v_ini or requester_initials = v_ini) and status in ('pending', 'accepted');
+    delete from public.faculty_aliases where initials = v_ini;
+  end if;
+  delete from public.faculty_duties where initials = v_ini;
+  delete from public.faculty_clusters where initials = v_ini;
+  delete from public.faculty_directory where initials = v_ini;
+
+  -- 3. Their sign-in: moved to the right initials when merging, otherwise removed
+  if v_person.email is not null then
+    if v_into is not null then
+      update public.people set initials = v_into where email = v_person.email;
+      v_account := 'moved';
+    else
+      delete from public.faculty_subjects where email = v_person.email;
+      update public.requests set status = 'withdrawn', decided_at = now(), decided_by = me.email
+       where requester_email = v_person.email and status = 'pending';
+      if exists (select 1 from public.requests where requester_email = v_person.email) then
+        -- Kept only so past requests still say who made them; they can't sign in and have no card
+        update public.people set initials = null, active = false, role = 'faculty' where email = v_person.email;
+        v_account := 'kept_history';
+      else
+        delete from public.people where email = v_person.email;
+        v_account := 'deleted';
+      end if;
+    end if;
+  end if;
+  return jsonb_build_object('slots', v_slots, 'account', v_account);
+end $_$;
+
+
+--
 -- Name: admin_remove_faculty(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1217,6 +1337,20 @@ CREATE FUNCTION public.admin_remove_faculty(p_initials text) RETURNS void
 declare me public.people := public.require_admin();
 begin
   delete from public.faculty_directory where initials = upper(btrim(coalesce(p_initials, '')));
+end $$;
+
+
+--
+-- Name: admin_remove_faculty_alias(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.admin_remove_faculty_alias(p_alias text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare me public.people := public.require_admin();
+begin
+  delete from public.faculty_aliases where alias = upper(btrim(coalesce(p_alias, '')));
 end $$;
 
 
@@ -1654,6 +1788,41 @@ begin
 exception when unique_violation then
   raise exception 'There is already an item called %', btrim(p_name) using errcode = 'P0001';
 end $$;
+
+
+--
+-- Name: admin_save_timetable_pdf(text, text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.admin_save_timetable_pdf(p_key text, p_path text, p_file_name text) RETURNS text
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+declare
+  v_key text := upper(btrim(coalesce(p_key, '')));
+  v_size bigint;
+  v_old text;
+begin
+  if not public.is_admin() then
+    raise exception 'Only admins can upload timetables' using errcode = '42501';
+  end if;
+  if v_key !~ '^([1-8][A-Z]?|ALL|FACULTY)$' then
+    raise exception 'Pick the semester or section this timetable is for' using errcode = 'P0001';
+  end if;
+  select (o.metadata ->> 'size')::bigint into v_size
+    from storage.objects o where o.bucket_id = 'timetables' and o.name = p_path;
+  if v_size is null then
+    raise exception 'The PDF was not uploaded. Please try again.' using errcode = 'P0001';
+  end if;
+
+  select path into v_old from public.timetable_pdfs where key = v_key;
+  insert into public.timetable_pdfs (key, path, file_name, size_bytes, uploaded_by, uploaded_at)
+  values (v_key, p_path, left(btrim(coalesce(p_file_name, '')), 200), v_size, coalesce(public.current_email(), ''), now())
+  on conflict (key) do update
+    set path = excluded.path, file_name = excluded.file_name, size_bytes = excluded.size_bytes,
+        uploaded_by = excluded.uploaded_by, uploaded_at = excluded.uploaded_at;
+  return nullif(v_old, p_path);
+end $_$;
 
 
 --
@@ -3061,6 +3230,23 @@ CREATE FUNCTION public.ist_today() RETURNS date
 
 
 --
+-- Name: live_timetable_versions(date); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.live_timetable_versions(p_from date) RETURNS SETOF integer
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    SET jit TO 'off'
+    AS $$
+  (select v.id from public.timetable_versions v
+    where p_from between v.valid_from and v.valid_to
+    order by v.valid_from desc, v.id desc limit 1)
+  union
+  select v.id from public.timetable_versions v where v.valid_from > p_from
+$$;
+
+
+--
 -- Name: log_activity(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -3216,6 +3402,23 @@ CREATE FUNCTION public.part_of_event(a public.allotments, p_title text) RETURNS 
         right(a.reason, length(' at ' || public.event_label(p_title))) = ' at ' || public.event_label(p_title)
       else false
     end, false)
+$$;
+
+
+--
+-- Name: pending_admin_count(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.pending_admin_count() RETURNS integer
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+  select case when not public.is_admin() then 0 else
+    (select count(distinct group_id)::int from public.requests
+      where status = 'pending' and date >= (now() at time zone 'Asia/Kolkata')::date)
+    + (select count(*)::int from public.class_exchanges
+      where status = 'accepted' and date >= (now() at time zone 'Asia/Kolkata')::date)
+  end;
 $$;
 
 
@@ -3742,6 +3945,47 @@ $_$;
 
 
 --
+-- Name: swap_faculty(text[], text, text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.swap_faculty(p_initials text[], p_label text, p_old text, p_new text, OUT initials text[], OUT label text) RETURNS record
+    LANGUAGE sql IMMUTABLE
+    AS $$
+  with x as (
+    select i.ord,
+           case when i.ini = p_old then p_new else i.ini end as ini,
+           case when i.ini = p_old then coalesce(nullif(replace(split_part(p_label, ', ', i.ord::int), p_old, p_new), ''), p_new)
+                else nullif(split_part(p_label, ', ', i.ord::int), '') end as lab
+      from unnest(p_initials) with ordinality as i(ini, ord)
+  ),
+  y as (select distinct on (ini) ord, ini, lab from x where ini is not null order by ini, ord)
+  select coalesce((select array_agg(ini order by ord) from y), '{}'),
+         coalesce((select string_agg(coalesce(lab, ini), ', ' order by ord) from y), '')
+$$;
+
+
+--
+-- Name: timetable_entries_apply_aliases(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.timetable_entries_apply_aliases() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare a record;
+begin
+  for a in select f.alias, f.initials from public.faculty_aliases f
+            where f.alias = any (new.faculty_initials)
+              and not exists (select 1 from public.faculty_directory d where d.initials = f.alias)
+              and not exists (select 1 from public.people p where p.initials = f.alias) loop
+    select s.initials, s.label into new.faculty_initials, new.faculty_label
+      from public.swap_faculty(new.faculty_initials, new.faculty_label, a.alias, a.initials) s;
+  end loop;
+  return new;
+end $$;
+
+
+--
 -- Name: timetable_entries_guard_insert(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -3769,9 +4013,9 @@ CREATE FUNCTION public.timetable_subjects() RETURNS TABLE(initials text, subject
     AS $$
   select distinct i.ini, upper(btrim(t.subject))
     from public.timetable_entries t
-    join public.timetable_versions v on v.id = t.version_id and v.valid_to >= public.ist_today()
     cross join lateral unnest(t.faculty_initials) as i(ini)
-   where not t.is_department and btrim(t.subject) <> '' and length(btrim(t.subject)) <= 40
+   where t.version_id in (select public.live_timetable_versions(public.ist_today() + 1))
+     and not t.is_department and btrim(t.subject) <> '' and length(btrim(t.subject)) <= 40
 $$;
 
 
@@ -4096,6 +4340,20 @@ CREATE SEQUENCE public.equipment_id_seq
 --
 
 ALTER SEQUENCE public.equipment_id_seq OWNED BY public.equipment.id;
+
+
+--
+-- Name: faculty_aliases; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.faculty_aliases (
+    alias text NOT NULL,
+    initials text NOT NULL,
+    created_by text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT faculty_aliases_alias_check CHECK ((alias ~ '^[A-Z][A-Z.]{0,9}$'::text)),
+    CONSTRAINT faculty_aliases_check CHECK (((initials ~ '^[A-Z][A-Z.]{0,9}$'::text) AND (initials <> alias)))
+);
 
 
 --
@@ -4467,6 +4725,21 @@ ALTER SEQUENCE public.timetable_entries_id_seq OWNED BY public.timetable_entries
 
 
 --
+-- Name: timetable_pdfs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.timetable_pdfs (
+    key text NOT NULL,
+    path text NOT NULL,
+    file_name text DEFAULT ''::text NOT NULL,
+    size_bytes bigint DEFAULT 0 NOT NULL,
+    uploaded_by text DEFAULT ''::text NOT NULL,
+    uploaded_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT timetable_pdfs_key_check CHECK ((key ~ '^([1-8][A-Z]?|ALL|FACULTY)$'::text))
+);
+
+
+--
 -- Name: timetable_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
@@ -4643,6 +4916,14 @@ ALTER TABLE ONLY public.equipment
 
 
 --
+-- Name: faculty_aliases faculty_aliases_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.faculty_aliases
+    ADD CONSTRAINT faculty_aliases_pkey PRIMARY KEY (alias);
+
+
+--
 -- Name: faculty_clusters faculty_clusters_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -4792,6 +5073,14 @@ ALTER TABLE ONLY public.timetable_entries
 
 ALTER TABLE ONLY public.timetable_entries
     ADD CONSTRAINT timetable_entries_version_id_room_id_weekday_slot_id_key UNIQUE (version_id, room_id, weekday, slot_id);
+
+
+--
+-- Name: timetable_pdfs timetable_pdfs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.timetable_pdfs
+    ADD CONSTRAINT timetable_pdfs_pkey PRIMARY KEY (key);
 
 
 --
@@ -4992,6 +5281,13 @@ CREATE TRIGGER log_activity AFTER INSERT OR DELETE OR UPDATE ON public.equipment
 
 
 --
+-- Name: faculty_aliases log_activity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER log_activity AFTER INSERT OR DELETE OR UPDATE ON public.faculty_aliases FOR EACH ROW EXECUTE FUNCTION public.log_activity();
+
+
+--
 -- Name: faculty_clusters log_activity; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -5090,6 +5386,13 @@ CREATE TRIGGER log_activity AFTER INSERT OR DELETE OR UPDATE ON public.timetable
 
 
 --
+-- Name: timetable_pdfs log_activity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER log_activity AFTER INSERT OR DELETE OR UPDATE ON public.timetable_pdfs FOR EACH ROW EXECUTE FUNCTION public.log_activity();
+
+
+--
 -- Name: timetable_versions log_activity; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -5115,6 +5418,13 @@ CREATE TRIGGER requests_no_delete BEFORE DELETE ON public.requests FOR EACH ROW 
 --
 
 CREATE TRIGGER timetable_changes_no_update BEFORE DELETE OR UPDATE ON public.timetable_changes FOR EACH ROW EXECUTE FUNCTION public.forbid_change();
+
+
+--
+-- Name: timetable_entries timetable_entries_apply_aliases; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER timetable_entries_apply_aliases BEFORE INSERT ON public.timetable_entries FOR EACH ROW EXECUTE FUNCTION public.timetable_entries_apply_aliases();
 
 
 --
@@ -5368,6 +5678,13 @@ CREATE POLICY "anyone reads equipment" ON public.equipment FOR SELECT USING (tru
 
 
 --
+-- Name: faculty_aliases anyone reads faculty aliases; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "anyone reads faculty aliases" ON public.faculty_aliases FOR SELECT USING (true);
+
+
+--
 -- Name: faculty_directory anyone reads faculty names; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -5454,6 +5771,13 @@ ALTER TABLE public.equipment ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.equipment_bookings ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: timetable_pdfs everyone reads timetable pdfs; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "everyone reads timetable pdfs" ON public.timetable_pdfs FOR SELECT USING (true);
+
+
+--
 -- Name: faculty_duties faculty read own duties; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -5461,6 +5785,12 @@ CREATE POLICY "faculty read own duties" ON public.faculty_duties FOR SELECT USIN
    FROM public.people p
   WHERE ((p.email = public.current_email()) AND p.active))));
 
+
+--
+-- Name: faculty_aliases; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.faculty_aliases ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: faculty_clusters; Type: ROW SECURITY; Schema: public; Owner: -
@@ -5622,6 +5952,12 @@ ALTER TABLE public.timetable_changes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.timetable_entries ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: timetable_pdfs; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.timetable_pdfs ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: timetable_versions; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -5780,6 +6116,13 @@ GRANT ALL ON FUNCTION public.admin_delete_room(p_room text) TO authenticated;
 
 
 --
+-- Name: FUNCTION admin_delete_timetable_pdf(p_key text); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.admin_delete_timetable_pdf(p_key text) TO authenticated;
+
+
+--
 -- Name: FUNCTION admin_edit_booking(p_room text, p_date date, p_slot integer, p_title text, p_reason text); Type: ACL; Schema: public; Owner: -
 --
 
@@ -5852,11 +6195,27 @@ GRANT ALL ON FUNCTION public.admin_override_slots(p_room text, p_date date, p_sl
 
 
 --
+-- Name: FUNCTION admin_purge_faculty(p_initials text, p_into text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.admin_purge_faculty(p_initials text, p_into text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.admin_purge_faculty(p_initials text, p_into text) TO authenticated;
+
+
+--
 -- Name: FUNCTION admin_remove_faculty(p_initials text); Type: ACL; Schema: public; Owner: -
 --
 
 REVOKE ALL ON FUNCTION public.admin_remove_faculty(p_initials text) FROM PUBLIC;
 GRANT ALL ON FUNCTION public.admin_remove_faculty(p_initials text) TO authenticated;
+
+
+--
+-- Name: FUNCTION admin_remove_faculty_alias(p_alias text); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.admin_remove_faculty_alias(p_alias text) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.admin_remove_faculty_alias(p_alias text) TO authenticated;
 
 
 --
@@ -5976,6 +6335,13 @@ GRANT ALL ON FUNCTION public.admin_save_faculty(p_old_initials text, p_initials 
 
 REVOKE ALL ON FUNCTION public.admin_save_supply(p_id integer, p_name text, p_unit text, p_stock integer, p_active boolean) FROM PUBLIC;
 GRANT ALL ON FUNCTION public.admin_save_supply(p_id integer, p_name text, p_unit text, p_stock integer, p_active boolean) TO authenticated;
+
+
+--
+-- Name: FUNCTION admin_save_timetable_pdf(p_key text, p_path text, p_file_name text); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.admin_save_timetable_pdf(p_key text, p_path text, p_file_name text) TO authenticated;
 
 
 --
@@ -6353,6 +6719,14 @@ GRANT ALL ON FUNCTION public.ist_today() TO authenticated;
 
 
 --
+-- Name: FUNCTION live_timetable_versions(p_from date); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.live_timetable_versions(p_from date) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.live_timetable_versions(p_from date) TO authenticated;
+
+
+--
 -- Name: FUNCTION move_request(p_id uuid, p_dir integer); Type: ACL; Schema: public; Owner: -
 --
 
@@ -6381,6 +6755,14 @@ GRANT ALL ON FUNCTION public.my_schedule(p_from date, p_to date) TO authenticate
 
 GRANT SELECT ON TABLE public.allotments TO anon;
 GRANT SELECT ON TABLE public.allotments TO authenticated;
+
+
+--
+-- Name: FUNCTION pending_admin_count(); Type: ACL; Schema: public; Owner: -
+--
+
+REVOKE ALL ON FUNCTION public.pending_admin_count() FROM PUBLIC;
+GRANT ALL ON FUNCTION public.pending_admin_count() TO authenticated;
 
 
 --
@@ -6639,6 +7021,13 @@ GRANT SELECT ON TABLE public.equipment_bookings TO authenticated;
 
 
 --
+-- Name: TABLE faculty_aliases; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT ON TABLE public.faculty_aliases TO authenticated;
+
+
+--
 -- Name: TABLE faculty_clusters; Type: ACL; Schema: public; Owner: -
 --
 
@@ -6752,6 +7141,14 @@ GRANT SELECT ON TABLE public.timetable_entries TO authenticated;
 
 
 --
+-- Name: TABLE timetable_pdfs; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT ON TABLE public.timetable_pdfs TO anon;
+GRANT SELECT ON TABLE public.timetable_pdfs TO authenticated;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -6837,3 +7234,20 @@ create policy "staff upload own letters" on storage.objects for insert to authen
 create policy "own letters or admin" on storage.objects for select to authenticated
   using (bucket_id = 'letters'
          and ((storage.foldername(name))[1] = public.current_email() or public.is_admin()));
+
+-- ---------------------------------------------------------------------------
+-- Storage: public bucket for timetable PDFs (at most 20 MB); only admins upload or delete
+-- ---------------------------------------------------------------------------
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('timetables', 'timetables', true, 20971520, array['application/pdf'])
+on conflict (id) do nothing;
+
+create policy "admins upload timetable pdfs" on storage.objects for insert to authenticated
+  with check (bucket_id = 'timetables' and public.is_admin());
+
+create policy "admins read timetable pdfs" on storage.objects for select to authenticated
+  using (bucket_id = 'timetables' and public.is_admin());
+
+create policy "admins delete timetable pdfs" on storage.objects for delete to authenticated
+  using (bucket_id = 'timetables' and public.is_admin());

@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { displayName } from "@/lib/auth";
 import type { Person } from "@/lib/types";
 import { deletePerson, importPeople, upsertPerson } from "../../actions";
-import FacultyNames, { type DirectoryEntry } from "./FacultyNames";
+import FacultyNames, { type DirectoryEntry, type FacultyAlias } from "./FacultyNames";
+import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -121,10 +122,11 @@ function PeopleList({ title, people, empty, choices }: { title: string; people: 
 
 export default async function People() {
   const supabase = await createClient();
-  const [{ data }, dirRes, ttRes] = await Promise.all([
+  const [{ data }, dirRes, ttRes, aliasRes] = await Promise.all([
     supabase.from("people").select("*").order("role").order("full_name"),
     supabase.from("faculty_directory").select("initials, title, full_name"),
     supabase.rpc("timetable_subjects"),
+    supabase.from("faculty_aliases").select("alias, initials").order("alias"),
   ]);
   const people = (data ?? []) as Person[];
   // Every initial used in the current timetable, named from the faculty directory
@@ -139,6 +141,7 @@ export default async function People() {
 
   return (
     <div className="space-y-8">
+      <AreaTabs area="faculty" current="/admin/people" />
       <PageHeader
         title="Sign-in list & names"
         subtitle={`${people.filter((p) => p.active).length} people can sign in. Initials link each person to their classes in the timetable. To change one person's details, cluster or subjects, open their Faculty profile.`}
@@ -153,7 +156,7 @@ export default async function People() {
       <AddPerson role="faculty" choices={choices} />
       </div>
 
-      <FacultyNames directory={directory} inTimetable={inTimetable} owner={owner} />
+      <FacultyNames directory={directory} inTimetable={inTimetable} owner={owner} aliases={(aliasRes.data ?? []) as FacultyAlias[]} />
 
       <section className="card p-5">
         <h2 className="font-semibold">Import a list</h2>

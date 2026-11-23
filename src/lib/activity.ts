@@ -28,12 +28,14 @@ const AREA_OF: Record<string, Area> = {
   allotments: "bookings",
   timetable_changes: "timetable",
   timetable_versions: "timetable",
+  timetable_pdfs: "timetable",
   people: "faculty",
   faculty_directory: "faculty",
   faculty_clusters: "faculty",
   faculty_duties: "faculty",
   faculty_subjects: "faculty",
   faculty_leave: "faculty",
+  faculty_aliases: "faculty",
   rooms: "rooms",
   holidays: "calendar",
   day_orders: "calendar",
@@ -143,6 +145,10 @@ function describe(tbl: string, rows: LogRow[]): string[] {
       for (const l of ins) out.push(`${str(l.initials)} on leave ${l.starts_on === l.ends_on ? day(l.starts_on) : `${day(l.starts_on)} to ${day(l.ends_on)}`}${l.reason ? ` (${str(l.reason)})` : ""}`);
       for (const l of del) out.push(`Removed ${str(l.initials)}'s leave from ${day(l.starts_on)}`);
       break;
+    case "faculty_aliases":
+      for (const a of [...ins, ...upd.map((u) => u.new!)]) out.push(`Merged ${str(a.alias)} into ${str(a.initials)}; the timetable now reads ${str(a.alias)} as ${str(a.initials)}`);
+      for (const a of del) out.push(`Stopped reading ${str(a.alias)} as ${str(a.initials)}`);
+      break;
     case "rooms":
       for (const r of ins) out.push(`Added room ${str(r.id)}`);
       for (const u of upd) out.push(`Changed details of room ${str(u.new?.id)}`);
@@ -160,6 +166,12 @@ function describe(tbl: string, rows: LogRow[]): string[] {
       for (const n of ins) out.push(`Notice “${str(n.message).slice(0, 80)}”, ${day(n.starts_on)} to ${day(n.ends_on)}`);
       for (const n of del) out.push(`Removed the notice “${str(n.message).slice(0, 80)}”`);
       break;
+    case "timetable_pdfs": {
+      const what = (k: unknown) => (k === "ALL" ? "all classes" : k === "FACULTY" ? "all faculty" : String(k).length === 1 ? `semester ${str(k)}` : `class ${str(k)}`);
+      for (const x of [...ins, ...upd.map((u) => u.new!)]) out.push(`Uploaded the timetable PDF for ${what(x.key)} (${str(x.file_name)})`);
+      for (const x of del) out.push(`Removed the timetable PDF for ${what(x.key)}`);
+      break;
+    }
     case "supplies":
       for (const x of ins) out.push(`Added ${str(x.name)} to stock (${str(x.stock)} ${str(x.unit)})`);
       for (const u of upd) {

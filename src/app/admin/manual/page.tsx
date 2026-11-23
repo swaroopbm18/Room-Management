@@ -24,10 +24,10 @@ const PARTS: ManualPart[] = [
         steps: [
           "Home: today at a glance.",
           "Requests: Room requests and Class cover (exchanges and substitutes).",
-          "Rooms: Allot / free rooms, Bulk allot / CIE (with Seating plan, Skill lab and Affected classes), Room details & QR, Equipment & supplies, Calendar & notices.",
-          "Timetables: Room & class timetables (with the Health check), Semester end and New semester.",
-          "Faculty: Faculty profiles (with availability), Leave & substitutes, Subjects, and Sign-in list & names.",
-          "Records: Report, Room usage, Workload and Activity log.",
+          "Rooms: Allot / free rooms, Bulk allot / CIE (with Seating plan, Skill lab and Affected classes), Room details, Calendar & notices.",
+          "Timetables: Room & class timetables (with the Health check) and Semester (End a semester's classes, Start a new semester).",
+          "Faculty: Faculty profiles (with availability, and the Sign-in list & names tab), Leave & substitutes and Subjects.",
+          "Records: Report, Usage (Rooms and Faculty workload) and Activity log.",
           "Help: this manual and the faculty manual.",
         ],
         tips: [
@@ -210,28 +210,14 @@ const PARTS: ManualPart[] = [
       },
       {
         id: "room-details",
-        title: "Room details and QR posters",
-        where: "Admin → Rooms → Room details & QR",
+        title: "Room details",
+        where: "Admin → Rooms → Room details",
         href: "/admin/rooms",
         intro: "Each room's name, seats, kind (classroom, lab or seminar hall), projector and notes. Faculty filter by these on Free slots, and the planners use them to pick suitable rooms.",
         steps: [
           "Change a room's details and press Save. The room's code stays the same when you rename it.",
           "Under Add a room, type its code, seats, kind and notes, and press Add room.",
           "Archive a room you no longer use: it leaves the schedule but keeps its history. A room with no classes or bookings yet can be deleted.",
-          "Press QR posters, then Print all posters. Stick each on its room's door: scanning it opens that room's week.",
-        ],
-      },
-      {
-        id: "equipment",
-        title: "Equipment and supplies",
-        where: "Admin → Rooms → Equipment & supplies",
-        href: "/admin/resources",
-        intro: "Two tabs. Supply requests: what faculty ask for, and the stock. Equipment bookings: the projectors, mics and kits faculty book themselves.",
-        steps: [
-          "Under To decide, add a note if you like (for example \"Collect from the office\") and press Approve or Decline.",
-          "Under Supplies in stock, change an item's count or unit and press Save, or add a new item. Items at a low count show under Running low.",
-          "On Equipment bookings, use Manage equipment to add an item, rename it or set it to Retired. Retiring an item hides it and cancels its future bookings; an item never booked can be deleted.",
-          "Everyone's bookings for the day are listed there too, and you can cancel any of them.",
         ],
       },
       {
@@ -247,7 +233,7 @@ const PARTS: ManualPart[] = [
           "Holidays: pick a date from tomorrow on, type its name, and press Add holiday. Press Edit to change a holiday, or Remove to delete it.",
         ],
         warning: "Adding a holiday removes that day's classes for everyone. Holidays can only be added from tomorrow on; past holidays stay as they were.",
-        tips: ["Copy last year's holidays from New semester, then fix festivals that move each year here."],
+        tips: ["Copy last year's holidays from Semester → Start a new semester, then fix festivals that move each year here."],
       },
     ],
   },
@@ -282,6 +268,22 @@ const PARTS: ManualPart[] = [
         tips: ["Initials that are not in the faculty list are marked, so typos stand out."],
       },
       {
+        id: "timetable-pdfs",
+        title: "Timetable PDFs",
+        where: "Admin → Timetables → Room & class timetables → Timetable PDFs",
+        href: "/admin/timetable-pdfs",
+        intro: "Keep the timetable office's PDFs on the site: one for each semester or section, one of all classes and one of every faculty member's timetable. Students open their class's PDF from Class timetables, and faculty open the faculty PDF from their dashboard.",
+        steps: [
+          "To upload one PDF: find the semester or section in the list and press Upload PDF (or Replace, when it has one).",
+          "To upload many at once: press Choose PDFs under Upload many PDFs at once and pick every file. Check what each one is for (it is guessed from the file name, such as 3A.pdf, Sem 5.pdf, CLASS_TT… or INDIV_TT…), then press Upload.",
+          "Press Remove to take a PDF down.",
+        ],
+        tips: [
+          "A class shows its section's PDF; if there is none, its semester's; and if there is none, the PDF of all classes.",
+          "The PDFs are shown as they are. The room timetable the site runs on still comes from the Word upload under Room timetable.",
+        ],
+      },
+      {
         id: "health",
         title: "Health check",
         where: "Admin → Timetables → Room & class timetables → Health check",
@@ -293,7 +295,7 @@ const PARTS: ManualPart[] = [
       {
         id: "semester-end",
         title: "Ending a semester's classes",
-        where: "Admin → Timetables → Semester end",
+        where: "Admin → Timetables → Semester → End a semester's classes",
         href: "/admin/semester-end",
         intro: "When a semester's classes end, release its rooms. From the day after its last day, the timetable no longer shows that semester's classes, so its rooms are free and faculty can request them. Bookings stay, and past days keep their timetable.",
         steps: ["Pick the semester and its Last day of classes.", "Press End classes and release rooms, and confirm.", "To undo, press Bring classes back on its row below."],
@@ -302,7 +304,7 @@ const PARTS: ManualPart[] = [
       {
         id: "rollover",
         title: "Starting a new semester",
-        where: "Admin → Timetables → New semester",
+        where: "Admin → Timetables → Semester → Start a new semester",
         href: "/admin/rollover",
         intro: "Everything to start a new semester, in six steps. The old timetable and every booking stay in the history.",
         steps: [
@@ -324,7 +326,7 @@ const PARTS: ManualPart[] = [
       {
         id: "people",
         title: "Who can sign in",
-        where: "Admin → Faculty → Sign-in list & names",
+        where: "Admin → Faculty → Faculty profiles → Sign-in list & names",
         href: "/admin/people",
         intro: "Only people on this list can sign in. Initials link each person to their classes in the timetable.",
         steps: [
@@ -333,7 +335,10 @@ const PARTS: ManualPart[] = [
           "To add many people, use Import a list: upload a CSV or paste rows of email, full name, initials, title, role, and press Import. Existing people are updated. Download a template shows the layout.",
           "Faculty names and initials lists every set of initials in the timetable with the name shown for it. Add a name where only initials show.",
         ],
-        tips: ["A person marked \"Not in the timetable\" has no classes matched. Check their initials."],
+        tips: [
+          "A person marked \"Not in the timetable\" has no classes matched. Check their initials.",
+          "Typos fixed by merging are listed under Faculty names and initials. Press Forget to stop reading one as the other.",
+        ],
       },
       {
         id: "profiles",
@@ -346,6 +351,7 @@ const PARTS: ManualPart[] = [
           "To add another duty (proctoring, a committee, lab in-charge), pick the day and slots, type the duty and save. Leave the duty empty to clear those slots, or press Clear all duties.",
           "To load duties for many people at once, use Upload faculty timetables: one slot per line, initials, day, start time, duty (for example \"AKN, Mon, 8:00, Proctoring\").",
           "Put each faculty member in Cluster A or Cluster B and press Save clusters. The free and busy cards and the meeting finder use these groups.",
+          "To remove a faculty record, even one the timetable still uses, open their profile and go to Delete or merge. If the initials are a typo (for example LKB for LBK), type the right initials under Give their classes and duties to and press Merge: their classes from tomorrow, duties, cluster, leave and sign-in move to that person, and a later timetable upload that still has the typo is read the right way. Leave it empty and press Delete to take them off their classes and remove them.",
         ],
         tips: ["The Faculty availability button opens who is free by day or by week, and Find a meeting time. The Week tab is only for admins."],
       },
@@ -395,13 +401,13 @@ const PARTS: ManualPart[] = [
       },
       {
         id: "usage",
-        title: "Room usage and workload",
-        where: "Admin → Records → Room usage, Workload",
+        title: "Usage: rooms and faculty workload",
+        where: "Admin → Records → Usage",
         href: "/admin/usage",
-        intro: "Room usage shows how full each room is in a week, the busiest and most idle rooms, and a busy-hours chart. Workload shows each faculty member's regular week: classes and other duties.",
+        intro: "The Rooms tab shows how full each room is in a week, the busiest and most idle rooms, and a busy-hours chart. The Faculty workload tab shows each faculty member's regular week: classes and other duties.",
         steps: [
-          "On Room usage, move between weeks with the arrows. Darker cells in Busy hours are busier.",
-          "On Workload, pick the whole department or a cluster. Blue in the load bar is classes, amber is other duties. Press Download Excel for a copy.",
+          "On the Rooms tab, move between weeks with the arrows. Darker cells in Busy hours are busier.",
+          "On the Faculty workload tab, pick the whole department or a cluster. Blue in the load bar is classes, amber is other duties. Press Download Excel for a copy.",
         ],
       },
       {

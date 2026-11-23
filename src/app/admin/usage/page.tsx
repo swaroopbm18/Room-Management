@@ -6,6 +6,7 @@ import { kindLabel, roomSummary } from "@/lib/rooms";
 import { getAllRooms } from "@/lib/data";
 import { addDays, DATE_RE, formatDate, mondayOf, todayIST } from "@/lib/time";
 import { getWeekUsage, pct } from "@/lib/usage";
+import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,7 @@ export default async function RoomUsage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="space-y-6">
+      <AreaTabs area="usage" current="/admin/usage" />
       <PageHeader title="Room usage" subtitle="How full each room is in a week: classes, bookings and CIEs or events, out of the slots the room is open. Saturday after 2 PM and holidays don't count unless something was booked." />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
