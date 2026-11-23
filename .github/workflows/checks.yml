@@ -1,0 +1,22 @@
+name: Checks
+
+# Lint, type check and tests on every pull request and push to main, so a change that breaks
+# the skill lab planner, affected classes or the date helpers is caught before it ships.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
