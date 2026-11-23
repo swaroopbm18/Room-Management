@@ -1228,3 +1228,13 @@ export async function adminEditRecord(form: FormData) {
   }
   redirect(withParam(to, "msg", data === 1 ? "Record updated." : `Record updated for ${data} slots.`));
 }
+
+/** Remove a semester's or section's timetable PDF, and its file. */
+export async function deleteTimetablePdf(form: FormData) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_delete_timetable_pdf", { p_key: s(form, "key") });
+  if (!error && data) await supabase.storage.from("timetables").remove([String(data)]);
+  revalidatePath("/", "layout");
+  const to = back(form, "/admin/timetable-pdfs");
+  redirect(withParam(to, error ? "error" : "msg", error ? error.message : "Timetable PDF removed."));
+}

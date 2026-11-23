@@ -28,6 +28,7 @@ const AREA_OF: Record<string, Area> = {
   allotments: "bookings",
   timetable_changes: "timetable",
   timetable_versions: "timetable",
+  timetable_pdfs: "timetable",
   people: "faculty",
   faculty_directory: "faculty",
   faculty_clusters: "faculty",
@@ -160,6 +161,12 @@ function describe(tbl: string, rows: LogRow[]): string[] {
       for (const n of ins) out.push(`Notice “${str(n.message).slice(0, 80)}”, ${day(n.starts_on)} to ${day(n.ends_on)}`);
       for (const n of del) out.push(`Removed the notice “${str(n.message).slice(0, 80)}”`);
       break;
+    case "timetable_pdfs": {
+      const what = (k: unknown) => (k === "ALL" ? "all classes" : k === "FACULTY" ? "all faculty" : String(k).length === 1 ? `semester ${str(k)}` : `class ${str(k)}`);
+      for (const x of [...ins, ...upd.map((u) => u.new!)]) out.push(`Uploaded the timetable PDF for ${what(x.key)} (${str(x.file_name)})`);
+      for (const x of del) out.push(`Removed the timetable PDF for ${what(x.key)}`);
+      break;
+    }
     case "supplies":
       for (const x of ins) out.push(`Added ${str(x.name)} to stock (${str(x.stock)} ${str(x.unit)})`);
       for (const u of upd) {
