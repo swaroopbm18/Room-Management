@@ -2,7 +2,6 @@
 
 // Admin bookings: allot or free rooms, bulk allot (CIE, SEE, events, skill labs), and edits to past records.
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getHolidays, getSlots } from "@/lib/data";
 import { addDays, DATE_RE, formatDate, isClosedSunday, todayIST, weekdayOf } from "@/lib/time";
@@ -11,7 +10,7 @@ import { mergeRuns } from "@/lib/bookings";
 import type { AllotmentRow, Slot } from "@/lib/types";
 import { skillLabTitle } from "@/lib/skillLab";
 import { classesHit, type Release } from "../admin/affected/data";
-import { back, withParam, s, slotRange, lines } from "./shared";
+import { back, withParam, s, slotRange, lines, refreshPages } from "./shared";
 
 const BOOKED_KINDS = ["class_request", "event_request", "cie", "event"];
 
@@ -106,7 +105,7 @@ export async function adminOverride(form: FormData) {
       error = { message: "Allotting several rooms at once needs database update 0034. Run it in the Supabase SQL Editor." };
     }
   }
-  revalidatePath("/", "layout");
+  refreshPages();
   if (error) redirect(withParam(to, "error", error.message));
   const total = places.reduce((n, p) => n + p.slots.length, 0);
   const n = total === 1 ? "" : ` for ${total} slots`;
@@ -133,7 +132,7 @@ export async function adminFree(form: FormData) {
     p_slots: await slotRange(form),
     p_reason: s(form, "reason"),
   });
-  revalidatePath("/", "layout");
+  refreshPages();
   const to = back(form, "/admin/allot");
   redirect(error ? withParam(to, "error", error.message) : withParam(to, "msg", data === 1 ? "Room freed for 1 slot." : `Room freed for ${data} slots.`));
 }
@@ -147,7 +146,7 @@ export async function adminEditBooking(form: FormData) {
   const { error } = changed
     ? await supabase.rpc("admin_edit_booking", { ...args, p_reason: reason })
     : await supabase.rpc("admin_rename_booking", args);
-  revalidatePath("/", "layout");
+  refreshPages();
   const to = back(form, "/admin/allot");
   if (error) {
     redirect(withParam(to, "error", error.message));
@@ -164,7 +163,7 @@ export async function adminRestoreSlots(form: FormData) {
     ({ error } = await supabase.rpc("admin_restore", { p_room: s(form, "room"), p_date: s(form, "date"), p_slot: slot, p_reason: s(form, "reason") }));
     if (error) break;
   }
-  revalidatePath("/", "layout");
+  refreshPages();
   const to = back(form, "/admin/allot");
   redirect(withParam(to, error ? "error" : "msg", error ? error.message : slots.length === 1 ? "Slot restored to the timetable." : `${slots.length} slots restored to the timetable.`));
 }
@@ -323,7 +322,7 @@ export async function adminBulkAllot(form: FormData) {
             p_faculty: faculty,
             p_semesters: semesters.length ? semesters : null,
           });
-  revalidatePath("/", "layout");
+  refreshPages();
   if (error) {
     const missing = error.code === "PGRST202" || error.message.includes(rpc);
     const update = rpc === "admin_skill_lab" ? "0037" : rpc === "admin_bulk_allot" ? "0035" : "0042";
@@ -356,7 +355,7 @@ export async function adminDeleteRecord(form: FormData) {
     p_slots: s(form, "slots").split(",").map(Number).filter(Boolean),
     p_reason: s(form, "reason") || null,
   });
-  revalidatePath("/", "layout");
+  refreshPages();
   const to = back(form, "/admin/report");
   if (error) {
     const missing = error.code === "PGRST202" || /admin_delete_record/.test(error.message);
@@ -375,7 +374,7 @@ export async function adminEditRecord(form: FormData) {
     p_reason: s(form, "reason"),
     p_faculty: s(form, "faculty") || null,
   });
-  revalidatePath("/", "layout");
+  refreshPages();
   const to = back(form, "/admin/report");
   if (error) {
     const missing = error.code === "PGRST202" || /admin_edit_record/.test(error.message);

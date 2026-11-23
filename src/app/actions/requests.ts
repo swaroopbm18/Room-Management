@@ -2,7 +2,6 @@
 
 // Room requests: faculty withdraw, edit or drop; admins approve, reject, move or undo.
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { back, withParam, UNDO_RPC, type UndoKind, undoToken, refreshPages, run, s, run25 } from "./shared";
@@ -42,7 +41,7 @@ export async function dropClass(form: FormData) {
       ({ error } = await supabase.rpc("drop_class", { p_room: s(form, "room"), p_date: s(form, "date"), p_slot, p_reason: s(form, "reason") }));
       if (error) break;
     }
-    revalidatePath("/", "layout");
+    refreshPages();
     redirect(withParam(back(form, "/faculty"), error ? "error" : "msg", error ? error.message : `Class dropped in all ${many.length} slots. The room is now free for others to request.`));
   }
   const slot = { p_room: s(form, "room"), p_date: s(form, "date"), p_slot: Number(s(form, "slot") || many[0]) };
@@ -93,7 +92,7 @@ export async function bulkDecide(form: FormData) {
     if (error) failed.push(error.message);
     else done++;
   }
-  revalidatePath("/", "layout");
+  refreshPages();
   const verb = approve ? "approved" : "rejected";
   const msg = `${done} ${done === 1 ? "request" : "requests"} ${verb}.`;
   redirect(failed.length ? withParam(to, "error", `${msg} ${failed.length} could not be ${verb}: ${[...new Set(failed)].join("; ")}`) : withParam(to, "msg", msg));

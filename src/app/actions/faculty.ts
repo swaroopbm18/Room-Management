@@ -2,12 +2,11 @@
 
 // Faculty: profiles, sign-in list, subjects, duties, clusters, leave and substitutes.
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSlots } from "@/lib/data";
 import { addDays, formatDate, todayIST } from "@/lib/time";
 import { createClient } from "@/lib/supabase/server";
-import { back, withParam, undoToken, run, s, slotRange, run25 } from "./shared";
+import { back, withParam, undoToken, run, s, slotRange, run25, refreshPages } from "./shared";
 
 export async function saveFaculty(form: FormData) {
   const old = s(form, "old_initials");
@@ -46,7 +45,7 @@ export async function saveFacultyProfile(form: FormData) {
     });
     if (error) redirect(withParam(to, "error", error.message));
   }
-  revalidatePath("/", "layout");
+  refreshPages();
   redirect(withParam(to, "msg", "Profile saved."));
 }
 
@@ -63,7 +62,7 @@ export async function deleteFaculty(form: FormData) {
   const supabase = await createClient();
   const initials = (s(form, "delete_initials") || s(form, "initials")).toUpperCase();
   const { data, error } = await supabase.rpc("admin_delete_faculty", { p_initials: initials });
-  revalidatePath("/", "layout");
+  refreshPages();
   if (error) {
     redirect(withParam(back(form, "/admin/faculty"), "error", error.message));
   }
@@ -81,7 +80,7 @@ export async function purgeFaculty(form: FormData) {
   const initials = s(form, "initials").toUpperCase();
   const into = s(form, "into").toUpperCase();
   const { data, error } = await supabase.rpc("admin_purge_faculty", { p_initials: initials, p_into: into || null });
-  revalidatePath("/", "layout");
+  refreshPages();
   if (error) redirect(withParam(back(form, "/admin/faculty"), "error", error.message));
   const r = (data ?? {}) as { slots?: number; account?: string | null };
   const n = r.slots ?? 0;
@@ -165,7 +164,7 @@ export async function importPeople(form: FormData) {
       }),
     );
   }
-  revalidatePath("/", "layout");
+  refreshPages();
   const to = back(form, "/admin/people");
   redirect(
     failed.length
@@ -186,7 +185,7 @@ export async function removeSubject(form: FormData) {
 export async function subjectsFromTimetable(form: FormData) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_subjects_from_timetable");
-  revalidatePath("/", "layout");
+  refreshPages();
   const to = back(form, "/admin/subjects");
   redirect(
     error
@@ -245,7 +244,7 @@ export async function importFacultyDuties(form: FormData) {
   if (bad.length) redirect(withParam(to, "error", `Could not read ${bad.length} ${bad.length === 1 ? "line" : "lines"}: ${bad.slice(0, 3).join(" | ")}${bad.length > 3 ? "…" : ""}`));
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_replace_faculty_duties", { p_initials: [...new Set(entries.map((e) => e.initials))], p_entries: entries });
-  revalidatePath("/", "layout");
+  refreshPages();
   redirect(error ? withParam(to, "error", error.message) : withParam(to, "msg", `Saved ${data} duty ${data === 1 ? "slot" : "slots"} for ${new Set(entries.map((e) => e.initials)).size} faculty.`));
 }
 
@@ -256,7 +255,7 @@ export async function setFacultyClusters(form: FormData) {
     .map(([k, v]) => ({ initials: k.slice("cluster:".length), cluster: String(v) }));
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_set_faculty_clusters", { p_entries: entries });
-  revalidatePath("/", "layout");
+  refreshPages();
   const to = back(form, "/admin/faculty");
   redirect(error ? withParam(to, "error", error.message) : withParam(to, "msg", data ? `Clusters saved: ${data} ${data === 1 ? "change" : "changes"}.` : "No cluster changed."));
 }
@@ -267,7 +266,7 @@ export async function addLeave(form: FormData) {
   const from = s(form, "from");
   const to = s(form, "to") || from;
   const { error } = await supabase.rpc("admin_add_leave", { p_initials: s(form, "initials"), p_from: from || null, p_to: to || null, p_reason: s(form, "reason") });
-  revalidatePath("/", "layout");
+  refreshPages();
   const days = from === to ? formatDate(from, { weekday: "long" }) : `${formatDate(from)} to ${formatDate(to)}`;
   redirect(withParam(back(form, "/admin/leave"), error ? "error" : "msg", error ? error.message : `${s(form, "initials").toUpperCase()} is on leave ${days}.`));
 }
