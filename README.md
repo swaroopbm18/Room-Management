@@ -53,7 +53,7 @@ Classroom allotment for the Department of Machine Learning, BMSCE. Students see 
 
 ### For admins
 
-The admin pages are in six groups: **Requests** (room requests, class cover), **Rooms** (allot or free, CIE, skill lab, affected classes, room details, equipment and supplies, calendar), **Timetables** (room and class timetables with the health check, new semester), **Faculty** (profiles, leave and substitutes, subjects, sign-in list), **Records** (report, room usage, workload, activity log) and **Help** (the admin and faculty manuals). A page with several views, such as CIE (book rooms, then plan seating), shows them as tabs at the top.
+The admin pages are in six groups: **Requests** (room requests, class cover), **Rooms** (allot or free, CIE, skill lab, affected classes, room details, calendar), **Timetables** (room and class timetables with the health check, new semester), **Faculty** (profiles, leave and substitutes, subjects, sign-in list), **Records** (report, room usage, workload, activity log) and **Help** (the admin and faculty manuals). A page with several views, such as CIE (book rooms, then plan seating), shows them as tabs at the top.
 
 
 - **Requests:** approve or reject in priority order, with a warning when the faculty member or the section already has a class in that slot. Approving a request declines the others for the same slots. Event requests sent without a permission letter are marked so you can reject them.

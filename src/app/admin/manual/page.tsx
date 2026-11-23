@@ -24,7 +24,7 @@ const PARTS: ManualPart[] = [
         steps: [
           "Home: today at a glance.",
           "Requests: Room requests and Class cover (exchanges and substitutes).",
-          "Rooms: Allot / free rooms, Bulk allot / CIE (with Seating plan, Skill lab and Affected classes), Room details & QR, Equipment & supplies, Calendar & notices.",
+          "Rooms: Allot / free rooms, Bulk allot / CIE (with Seating plan, Skill lab and Affected classes), Room details, Calendar & notices.",
           "Timetables: Room & class timetables (with the Health check), Semester end and New semester.",
           "Faculty: Faculty profiles (with availability), Leave & substitutes, Subjects, and Sign-in list & names.",
           "Records: Report, Room usage, Workload and Activity log.",
@@ -214,28 +214,14 @@ const PARTS: ManualPart[] = [
       },
       {
         id: "room-details",
-        title: "Room details and QR posters",
-        where: "Admin → Rooms → Room details & QR",
+        title: "Room details",
+        where: "Admin → Rooms → Room details",
         href: "/admin/rooms",
         intro: "Each room's name, seats, kind (classroom, lab or seminar hall), projector and notes. Faculty filter by these on Free slots, and the planners use them to pick suitable rooms.",
         steps: [
           "Change a room's details and press Save. The room's code stays the same when you rename it.",
           "Under Add a room, type its code, seats, kind and notes, and press Add room.",
           "Archive a room you no longer use: it leaves the schedule but keeps its history. A room with no classes or bookings yet can be deleted.",
-          "Press QR posters, then Print all posters. Stick each on its room's door: scanning it opens that room's week.",
-        ],
-      },
-      {
-        id: "equipment",
-        title: "Equipment and supplies",
-        where: "Admin → Rooms → Equipment & supplies",
-        href: "/admin/resources",
-        intro: "Two tabs. Supply requests: what faculty ask for, and the stock. Equipment bookings: the projectors, mics and kits faculty book themselves.",
-        steps: [
-          "Under To decide, add a note if you like (for example \"Collect from the office\") and press Approve or Decline.",
-          "Under Supplies in stock, change an item's count or unit and press Save, or add a new item. Items at a low count show under Running low.",
-          "On Equipment bookings, use Manage equipment to add an item, rename it or set it to Retired. Retiring an item hides it and cancels its future bookings; an item never booked can be deleted.",
-          "Everyone's bookings for the day are listed there too, and you can cancel any of them.",
         ],
       },
       {

@@ -7,6 +7,7 @@ import { displayName } from "@/lib/auth";
 import type { Person } from "@/lib/types";
 import { deletePerson, importPeople, upsertPerson } from "../../actions";
 import FacultyNames, { type DirectoryEntry } from "./FacultyNames";
+import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -139,6 +140,7 @@ export default async function People() {
 
   return (
     <div className="space-y-8">
+      <AreaTabs area="faculty" current="/admin/people" />
       <PageHeader
         title="Sign-in list & names"
         subtitle={`${people.filter((p) => p.active).length} people can sign in. Initials link each person to their classes in the timetable. To change one person's details, cluster or subjects, open their Faculty profile.`}

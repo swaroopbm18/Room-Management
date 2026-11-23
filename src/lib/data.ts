@@ -97,15 +97,34 @@ export async function getFacultyStatus(date: string): Promise<FacultySlotStatus[
 export type Holiday = { date: string; name: string };
 
 /**
- * Holidays from a week ago on (small list, read fresh so new holidays show at once). Also loads
- * the make-up Sundays into lib/time, so isClosedSunday(), workingDay() and the date lists treat
- * them as working days on every page that reads holidays. Read once per request.
+ * The calendar (holidays and day swaps) is read on nearly every page but changes a few times a
+ * term, so it is cached across requests. Every admin change that can touch it clears the
+ * "calendar" tag (see run() in actions.ts); the 5-minute expiry covers edits made straight in
+ * the database. The start date is part of the cache key, so the window moves each day.
+ */
+const CALENDAR = { revalidate: 300, tags: ["calendar"] };
+
+const cachedHolidays = unstable_cache(async (from: string): Promise<Holiday[]> => {
+  const { data, error } = await publicClient().from("holidays").select("date, name").gte("date", from);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Holiday[];
+}, ["holidays"], CALENDAR);
+
+const cachedDayOrders = unstable_cache(async (from: string): Promise<DayOrder[]> => {
+  const { data, error } = await publicClient().from("day_orders").select("date, follows, note").gte("date", from);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as DayOrder[];
+}, ["day-orders"], CALENDAR);
+
+/**
+ * Holidays from two weeks ago on. Also loads the make-up Sundays into lib/time, so
+ * isClosedSunday(), workingDay() and the date lists treat them as working days on every page
+ * that reads holidays. Read once per request, from the cache above.
  */
 export const getHolidays = cache(async (): Promise<Map<string, string>> => {
-  const supabase = publicClient();
-  const [{ data }, orders] = await Promise.all([supabase.from("holidays").select("date, name").gte("date", recent()), getDayOrders()]);
+  const [holidays, orders] = await Promise.all([cachedHolidays(recent()).catch(() => [] as Holiday[]), getDayOrders()]);
   setMakeupSundays([...orders.values()].map((o) => [o.date, o.follows]));
-  return new Map(((data ?? []) as Holiday[]).map((h) => [h.date, h.name]));
+  return new Map(holidays.map((h) => [h.date, h.name]));
 });
 
 /** Two weeks back, so last week's holidays and swaps still show. */
@@ -113,11 +132,10 @@ const recent = () => new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10
 
 export type DayOrder = { date: string; follows: number; note: string };
 
-/** Days that run another weekday's timetable, from a week ago on Read once per request. */
+/** Days that run another weekday's timetable, from two weeks ago on. Read once per request, from the cache. */
 export const getDayOrders = cache(async (): Promise<Map<string, DayOrder>> => {
-  const supabase = publicClient();
-  const { data } = await supabase.from("day_orders").select("date, follows, note").gte("date", recent());
-  return new Map(((data ?? []) as DayOrder[]).map((o) => [o.date, o]));
+  const orders = await cachedDayOrders(recent()).catch(() => [] as DayOrder[]);
+  return new Map(orders.map((o) => [o.date, o]));
 });
 
 export type Notice = { id: number; message: string; starts_on: string; ends_on: string };

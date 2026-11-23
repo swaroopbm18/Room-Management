@@ -5,6 +5,7 @@ import { classesOf, ordinal } from "@/lib/classTimetable";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDate, formatDateTime, isoDate, istNow, todayIST } from "@/lib/time";
 import { endSemester, undoSemesterEnd } from "../../actions";
+import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,7 @@ export default async function SemesterEnd() {
 
   return (
     <div className="space-y-6">
+      <AreaTabs area="semester" current="/admin/semester-end" />
       <PageHeader
         title="Semester end"
         subtitle="When a semester's classes end, release its rooms. From the day after its last day, the timetable no longer shows that semester's classes, so its rooms are free and faculty can request them. Bookings made by faculty or admins stay. Past days keep the timetable they had."

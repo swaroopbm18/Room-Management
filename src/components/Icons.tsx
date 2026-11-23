@@ -263,15 +263,6 @@ export const IconPrinter = (p: P) => (
   </Svg>
 );
 
-export const IconQr = (p: P) => (
-  <Svg {...p}>
-    <rect x="3" y="3" width="7" height="7" rx="1" />
-    <rect x="14" y="3" width="7" height="7" rx="1" />
-    <rect x="3" y="14" width="7" height="7" rx="1" />
-    <path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3" />
-  </Svg>
-);
-
 export const IconDownload = (p: P) => (
   <Svg {...p}>
     <path d="M12 3v12M7 10l5 5 5-5" />
@@ -309,12 +300,6 @@ export const IconLeave = (p: P) => (
   <Svg {...p}>
     <rect x="3" y="4.5" width="18" height="16.5" rx="2" />
     <path d="M3 9.5h18M8 3v3M16 3v3M9.5 13.5l5 5M14.5 13.5l-5 5" />
-  </Svg>
-);
-
-export const IconPlug = (p: P) => (
-  <Svg {...p}>
-    <path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0V8ZM12 17v4" />
   </Svg>
 );
 

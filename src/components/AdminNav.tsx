@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { IconActivity, IconDashboard, IconArchive, IconPlug, IconCalendar, IconChart, IconLeave, IconCalendarCheck, IconClock, IconDoor, IconFile, IconFlag, IconInbox, IconMegaphone, IconTag, IconSwap, IconUser, IconUsers, IconBook } from "./Icons";
+import { IconActivity, IconDashboard, IconArchive, IconCalendar, IconChart, IconLeave, IconCalendarCheck, IconDoor, IconFile, IconFlag, IconInbox, IconMegaphone, IconTag, IconSwap, IconUser, IconUsers, IconBook } from "./Icons";
 import PendingLink from "./PendingLink";
 
 /** `also`: other pages that are views of this tab, reached from tabs inside the page. */
@@ -27,8 +27,7 @@ const GROUPS: Group[] = [
     tabs: [
       { href: "/admin/allot", label: "Allot / free rooms", icon: <IconFlag className={i} /> },
       { href: "/admin/cie", label: "Bulk allot / CIE", icon: <IconCalendarCheck className={i} />, also: ["/admin/seating", "/admin/skill-lab", "/admin/affected"] },
-      { href: "/admin/rooms", label: "Room details & QR", icon: <IconDoor className={i} /> },
-      { href: "/admin/resources", label: "Equipment & supplies", icon: <IconPlug className={i} /> },
+      { href: "/admin/rooms", label: "Room details", icon: <IconDoor className={i} /> },
       { href: "/admin/holidays", label: "Calendar & notices", icon: <IconMegaphone className={i} /> },
     ],
   },
@@ -37,18 +36,16 @@ const GROUPS: Group[] = [
     icon: <IconCalendar className={i} />,
     tabs: [
       { href: "/admin/timetable", label: "Room & class timetables", icon: <IconCalendar className={i} />, also: ["/admin/class-timetable", "/admin/health"] },
-      { href: "/admin/semester-end", label: "Semester end", icon: <IconCalendarCheck className={i} /> },
-      { href: "/admin/rollover", label: "New semester", icon: <IconArchive className={i} /> },
+      { href: "/admin/semester-end", label: "Semester", icon: <IconArchive className={i} />, also: ["/admin/rollover"] },
     ],
   },
   {
     label: "Faculty",
     icon: <IconUsers className={i} />,
     tabs: [
-      { href: "/admin/faculty", label: "Faculty profiles", icon: <IconUser className={i} />, also: ["/admin/free-time"] },
+      { href: "/admin/faculty", label: "Faculty profiles", icon: <IconUser className={i} />, also: ["/admin/free-time", "/admin/people"] },
       { href: "/admin/leave", label: "Leave & substitutes", icon: <IconLeave className={i} /> },
       { href: "/admin/subjects", label: "Subjects", icon: <IconTag className={i} /> },
-      { href: "/admin/people", label: "Sign-in list & names", icon: <IconUsers className={i} /> },
     ],
   },
   {
@@ -56,8 +53,7 @@ const GROUPS: Group[] = [
     icon: <IconFile className={i} />,
     tabs: [
       { href: "/admin/report", label: "Report", icon: <IconFile className={i} /> },
-      { href: "/admin/usage", label: "Room usage", icon: <IconChart className={i} /> },
-      { href: "/admin/workload", label: "Workload", icon: <IconClock className={i} /> },
+      { href: "/admin/usage", label: "Usage", icon: <IconChart className={i} />, also: ["/admin/workload"] },
       { href: "/admin/activity", label: "Activity log", icon: <IconActivity className={i} />, also: ["/admin/history"] },
     ],
   },

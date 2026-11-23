@@ -5,6 +5,7 @@ import SubmitButton from "@/components/SubmitButton";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDate, todayIST } from "@/lib/time";
 import { copyHolidays, semesterRollover, subjectsFromTimetable } from "../../actions";
+import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ export default async function Rollover() {
 
   return (
     <div className="space-y-6">
+      <AreaTabs area="semester" current="/admin/rollover" />
       <PageHeader
         title="New semester"
         subtitle="Everything to start a new semester, in order. The old timetable and every booking stay in the history: past days always show the timetable they had."

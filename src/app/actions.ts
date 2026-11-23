@@ -55,11 +55,17 @@ function undoToken(kind: UndoKind, args: Record<string, unknown>) {
 }
 
 /** Runs an RPC and redirects back with a success or error message (and an Undo, when given). */
+/** Re-renders every page and clears the cached holidays and day swaps (lib/data.ts) after a change. */
+function refreshPages() {
+  revalidateTag("calendar");
+  revalidatePath("/", "layout");
+}
+
 async function run(form: FormData, fallback: string, fn: string, args: Record<string, unknown>, ok: string, undo?: string) {
   const supabase = await createClient();
   const { error } = await supabase.rpc(fn, args);
   const to = back(form, fallback);
-  revalidatePath("/", "layout");
+  refreshPages();
   redirect(withParam(to, error ? "error" : "msg", error ? error.message : ok, undo));
 }
 
@@ -80,7 +86,7 @@ export async function undoLast(form: FormData) {
   if (!kind) redirect(withParam(to, "error", "That can no longer be undone."));
   const supabase = await createClient();
   const { error } = await supabase.rpc(UNDO_RPC[kind], args);
-  revalidatePath("/", "layout");
+  refreshPages();
   redirect(withParam(to, error ? "error" : "msg", error ? `Couldn't undo: ${error.message}` : "Undone."));
 }
 
@@ -898,38 +904,6 @@ export async function removeLeave(form: FormData) {
   await run(form, "/admin/leave", "admin_remove_leave", { p_id: Number(s(form, "id")) }, "Leave removed.", undo);
 }
 
-/** Add equipment, or rename or retire it (retiring cancels its future bookings). */
-export async function saveEquipment(form: FormData) {
-  const supabase = await createClient();
-  const id = Number(s(form, "id")) || null;
-  const { error } = await supabase.rpc("admin_save_equipment", { p_id: id, p_name: s(form, "name"), p_notes: s(form, "notes"), p_active: s(form, "active") !== "false" });
-  revalidatePath("/equipment");
-  redirect(withParam(back(form, "/equipment"), error ? "error" : "msg", error ? error.message : id ? "Equipment saved." : `${s(form, "name")} added.`));
-}
-
-/** Book an item for a run of slots on one day. */
-export async function bookEquipment(form: FormData) {
-  const supabase = await createClient();
-  const to = back(form, "/equipment");
-  const slots = await slotRange(form, to);
-  const { error } = await supabase.rpc("book_equipment", {
-    p_equipment: Number(s(form, "equipment")),
-    p_date: s(form, "date"),
-    p_slots: slots,
-    p_room: s(form, "room"),
-    p_purpose: s(form, "purpose"),
-  });
-  revalidatePath("/equipment");
-  redirect(withParam(to, error ? "error" : "msg", error ? error.message : `Booked for ${slots.length} slot${slots.length === 1 ? "" : "s"} on ${formatDate(s(form, "date"), { year: undefined })}.`));
-}
-
-export async function cancelEquipment(form: FormData) {
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("cancel_equipment", { p_id: Number(s(form, "id")) });
-  revalidatePath("/equipment");
-  redirect(withParam(back(form, "/equipment"), error ? "error" : "msg", error ? error.message : "Booking cancelled."));
-}
-
 /** Clears the last semester's duties, subjects and leave, as ticked. */
 export async function semesterRollover(form: FormData) {
   const supabase = await createClient();
@@ -946,7 +920,7 @@ export async function semesterRollover(form: FormData) {
 export async function copyHolidays(form: FormData) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_copy_holidays", { p_from: s(form, "from_date"), p_to: s(form, "to_date"), p_years: Number(s(form, "years")) || 1 });
-  revalidatePath("/", "layout");
+  refreshPages();
   redirect(withParam(back(form, "/admin/rollover"), error ? "error" : "msg", error ? error.message : `${data} holiday${data === 1 ? "" : "s"} copied. Check festivals whose date moves each year.`));
 }
 
@@ -959,7 +933,7 @@ async function run25(form: FormData, fallback: string, fn: string, args: Record<
   const supabase = await createClient();
   const { data, error } = await supabase.rpc(fn, args);
   if (tag) revalidateTag(tag);
-  revalidatePath("/", "layout");
+  refreshPages();
   const to = back(form, fallback);
   redirect(withParam(to, error ? "error" : "msg", error ? error.message : typeof ok === "function" ? ok(data) : ok));
 }
@@ -1011,14 +985,6 @@ export async function bulkDecide(form: FormData) {
   redirect(failed.length ? withParam(to, "error", `${msg} ${failed.length} could not be ${verb}: ${[...new Set(failed)].join("; ")}`) : withParam(to, "msg", msg));
 }
 
-export async function editEquipmentBooking(form: FormData) {
-  await run25(form, "/equipment", "edit_equipment_booking", { p_id: Number(s(form, "id")), p_room: s(form, "room"), p_purpose: s(form, "purpose") }, "Booking updated.");
-}
-
-export async function deleteEquipment(form: FormData) {
-  await run25(form, "/equipment", "admin_delete_equipment", { p_id: Number(s(form, "id")) }, `${s(form, "name") || "Equipment"} deleted.`);
-}
-
 /** Removes someone from the sign-in list; anyone with requests on record keeps a row without access. */
 export async function deletePerson(form: FormData) {
   await run25(form, "/admin/people", "admin_delete_person", { p_email: s(form, "email") }, (r) =>
@@ -1050,7 +1016,7 @@ export async function clearFacultyDuties(form: FormData) {
 }
 
 // ---------------------------------------------------------------------------
-// Calendar sync, substitutes and resource requests
+// Calendar sync and substitutes
 // ---------------------------------------------------------------------------
 
 /** A new calendar link for the signed-in faculty member; the old one stops working. */
@@ -1081,44 +1047,6 @@ export async function assignSubstitute(form: FormData) {
       p_faculty: sub,
     },
     `${name} will take ${s(form, "subject") || "the class"} on ${formatDate(s(form, "date"), { year: undefined })}.`,
-  );
-}
-
-export async function requestResource(form: FormData) {
-  const supply = Number(s(form, "supply")) || null;
-  await run(
-    form,
-    "/equipment",
-    "request_resource",
-    { p_supply: supply, p_item: s(form, "item"), p_qty: Number(s(form, "qty")) || 1, p_date: s(form, "date"), p_room: s(form, "room"), p_purpose: s(form, "purpose") },
-    "Request sent. An admin will approve or decline it, and you'll see the answer here.",
-  );
-}
-
-export async function cancelResourceRequest(form: FormData) {
-  await run(form, "/equipment", "cancel_resource_request", { p_id: Number(s(form, "id")) }, "Request withdrawn.");
-}
-
-async function decideResource(form: FormData, approve: boolean) {
-  await run(form, "/admin/resources", "admin_decide_resource", { p_id: Number(s(form, "id")), p_approve: approve, p_note: s(form, "note") }, approve ? "Approved." : "Declined.");
-}
-
-export async function approveResource(form: FormData) {
-  await decideResource(form, true);
-}
-
-export async function declineResource(form: FormData) {
-  await decideResource(form, false);
-}
-
-export async function saveSupply(form: FormData) {
-  const id = Number(s(form, "id")) || null;
-  await run(
-    form,
-    "/admin/resources",
-    "admin_save_supply",
-    { p_id: id, p_name: s(form, "name"), p_unit: s(form, "unit"), p_stock: Number(s(form, "stock")), p_active: s(form, "active") !== "off" },
-    id ? "Item saved." : "Item added.",
   );
 }
 
