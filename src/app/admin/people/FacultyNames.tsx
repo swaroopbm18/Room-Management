@@ -1,7 +1,7 @@
 import Link from "next/link";
 import SubmitButton from "@/components/SubmitButton";
 import { IconAlert, IconPlus, IconTrash } from "@/components/Icons";
-import { deleteFaculty, removeFacultyAlias, saveFaculty } from "../../actions";
+import { deleteFaculty, removeFacultyAlias, saveFaculty } from "../../actions/faculty";
 
 export type DirectoryEntry = { initials: string; title: string; full_name: string };
 export type FacultyAlias = { alias: string; initials: string };

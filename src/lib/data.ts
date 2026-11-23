@@ -100,7 +100,7 @@ export type Holiday = { date: string; name: string };
 /**
  * The calendar (holidays and day swaps) is read on nearly every page but changes a few times a
  * term, so it is cached across requests. Every admin change that can touch it clears the
- * "calendar" tag (see run() in actions.ts); the 5-minute expiry covers edits made straight in
+ * "calendar" tag (see refreshPages() in app/actions/shared.ts); the 5-minute expiry covers edits made straight in
  * the database. The start date is part of the cache key, so the window moves each day.
  */
 const CALENDAR = { revalidate: 300, tags: ["calendar"] };

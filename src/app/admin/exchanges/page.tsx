@@ -11,7 +11,7 @@ import { stageOf, type ExchangeRow, exchangeTime } from "@/lib/exchanges";
 import { createClient } from "@/lib/supabase/server";
 import type { AllotmentRow } from "@/lib/types";
 import { addDays, formatDate, formatDateTime, slotStarted, todayIST } from "@/lib/time";
-import { approveExchange, rejectExchange, undoExchange } from "../../actions";
+import { approveExchange, rejectExchange, undoExchange } from "../../actions/exchanges";
 
 export const dynamic = "force-dynamic";
 

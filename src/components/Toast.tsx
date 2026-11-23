@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { undoLast } from "@/app/actions";
+import { undoLast } from "@/app/actions/requests";
 import { IconAlert, IconArrowRight, IconCheck, IconRestore, IconX } from "./Icons";
 import SubmitButton from "./SubmitButton";
 

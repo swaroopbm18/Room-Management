@@ -1,7 +1,7 @@
 import { IconPencil } from "@/components/Icons";
 import SubmitButton from "@/components/SubmitButton";
 import type { ReportEdit } from "@/lib/report";
-import { adminEditRecord } from "../../actions";
+import { adminEditRecord } from "../../actions/bookings";
 
 /**
  * Admin-only, on screen only: change a report row's name, description and faculty. The change

@@ -3,7 +3,7 @@ import SubmitButton from "@/components/SubmitButton";
 import type { DayOrder } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDate, weekdayOf, WEEKDAY_NAMES } from "@/lib/time";
-import { makeUpHoliday } from "../../actions";
+import { makeUpHoliday } from "../../actions/calendar";
 
 /** How many Sundays after each holiday are offered, and how many holidays are planned at once. */
 const SUNDAYS = 3;

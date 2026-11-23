@@ -10,7 +10,7 @@ import { getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { Person } from "@/lib/types";
 import { cellKey, CLUSTERS, DAY_NAMES, DAY_SLOTS, DAYS, getFacultyWeeks, isFree, isOpen, type Busy, type ClusterKey, type FacultyMember } from "@/lib/faculty";
-import { addSubject, clearFacultyDuties, deleteFaculty, importFacultyDuties, removeSubject, renameSubject, saveFacultyProfile, setFacultyClusters, setFacultyDuty, upsertPerson } from "../../actions";
+import { addSubject, clearFacultyDuties, deleteFaculty, importFacultyDuties, removeSubject, renameSubject, saveFacultyProfile, setFacultyClusters, setFacultyDuty, upsertPerson } from "../../actions/faculty";
 import WeekTable from "@/components/WeekTable";
 import SlotRange from "../allot/SlotRange";
 import AreaTabs from "../AreaTabs";

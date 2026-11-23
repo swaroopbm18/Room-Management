@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import LoadingOverlay from "@/components/LoadingOverlay";
-import { adminOverride, allotClashes } from "../../actions";
+import { adminOverride, allotClashes } from "../../actions/bookings";
 
 /**
  * The allot form. Before it saves, it checks whether any of the chosen slots is already booked

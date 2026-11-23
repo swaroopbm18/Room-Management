@@ -9,7 +9,7 @@ import { findSubstitutes } from "@/lib/substitutes";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDate, isClosedSunday, todayIST } from "@/lib/time";
 import type { ScheduleRow } from "@/lib/types";
-import { addLeave, removeLeave, updateLeave } from "../../actions";
+import { addLeave, removeLeave, updateLeave } from "../../actions/faculty";
 
 export const dynamic = "force-dynamic";
 

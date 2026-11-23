@@ -8,7 +8,7 @@ import { getDayOrders, getHolidays, getNotices, type DayOrder } from "@/lib/data
 import { createClient } from "@/lib/supabase/server";
 import MakeupPlanner from "./MakeupPlanner";
 import { addDays, formatDate, isSunday, todayIST, weekdayOf, WEEKDAY_NAMES } from "@/lib/time";
-import { addHoliday, addNotice, makeUpHoliday, removeHoliday, removeNotice, setDayOrder, updateHoliday, updateNotice } from "../../actions";
+import { addHoliday, addNotice, makeUpHoliday, removeHoliday, removeNotice, setDayOrder, updateHoliday, updateNotice } from "../../actions/calendar";
 
 export const dynamic = "force-dynamic";
 

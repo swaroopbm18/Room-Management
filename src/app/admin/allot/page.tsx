@@ -13,7 +13,7 @@ import { getDaySchedule, getHolidays, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { AllotmentRow } from "@/lib/types";
 import { addDays, bookableDates, DATE_RE, dateOption, formatDate, formatDateTime, isClosedSunday, slotEnded, todayIST, workingDay, makeupSundayList } from "@/lib/time";
-import { adminFree, adminRestoreSlots } from "../../actions";
+import { adminFree, adminRestoreSlots } from "../../actions/bookings";
 import AllotForm from "./AllotForm";
 import SlotRange from "./SlotRange";
 import AllotReason from "./AllotReason";

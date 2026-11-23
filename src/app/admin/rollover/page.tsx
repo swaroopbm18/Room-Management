@@ -4,7 +4,9 @@ import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDate, todayIST } from "@/lib/time";
-import { copyHolidays, semesterRollover, subjectsFromTimetable } from "../../actions";
+import { copyHolidays } from "../../actions/calendar";
+import { semesterRollover } from "../../actions/timetable";
+import { subjectsFromTimetable } from "../../actions/faculty";
 import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";

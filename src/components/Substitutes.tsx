@@ -1,5 +1,5 @@
 import type { Substitute } from "@/lib/substitutes";
-import { assignSubstitute } from "@/app/actions";
+import { assignSubstitute } from "@/app/actions/faculty";
 import SubmitButton from "./SubmitButton";
 
 /** The class a substitute would take, for the one-click Assign buttons (admins only). */

@@ -9,7 +9,7 @@ import { kindLabel } from "@/lib/rooms";
 import { parseGroups, planSeating } from "@/lib/seating";
 import { DATE_RE, formatDate, todayIST, workingDay, makeupSundayList } from "@/lib/time";
 import SlotRange from "../allot/SlotRange";
-import { blockCieWeek } from "../../actions";
+import { blockCieWeek } from "../../actions/bookings";
 import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";

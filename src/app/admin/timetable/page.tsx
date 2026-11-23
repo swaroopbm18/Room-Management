@@ -7,7 +7,7 @@ import { getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { ScheduleRow } from "@/lib/types";
 import { addDays, formatDate, formatDateTime, slotOpen, todayIST } from "@/lib/time";
-import { adminEditTimetable } from "../../actions";
+import { adminEditTimetable } from "../../actions/timetable";
 import FacultyFinder, { type FinderClass } from "@/components/FacultyFinder";
 import TimetableUpload from "./TimetableUpload";
 import SlotRange from "../allot/SlotRange";

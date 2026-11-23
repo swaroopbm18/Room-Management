@@ -7,7 +7,7 @@ import Spinner from "@/components/Spinner";
 import SubmitButton from "@/components/SubmitButton";
 import { parseTimetableDocx } from "@/lib/timetableDocx";
 import type { Slot } from "@/lib/types";
-import { applyTimetableUpload, previewTimetableUpload, type UploadPreview } from "../../actions";
+import { applyTimetableUpload, previewTimetableUpload, type UploadPreview } from "../../actions/timetable";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 

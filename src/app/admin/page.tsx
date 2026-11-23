@@ -9,7 +9,7 @@ import { groupRequests, slotCount } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
 import type { RequestRow } from "@/lib/types";
 import { formatDate, formatDateTime, slotEnded, todayIST } from "@/lib/time";
-import { approveRequest, bulkDecide, moveRequest, rejectRequest, undoDecision } from "../actions";
+import { approveRequest, bulkDecide, moveRequest, rejectRequest, undoDecision } from "../actions/requests";
 
 export const dynamic = "force-dynamic";
 

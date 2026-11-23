@@ -13,7 +13,8 @@ import Substitutes from "@/components/Substitutes";
 import WeekTable from "@/components/WeekTable";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDate, slotStarted, todayIST, workingDay } from "@/lib/time";
-import { dropClass, resetCalendarLink, undoDrop } from "../actions";
+import { dropClass, undoDrop } from "../actions/requests";
+import { resetCalendarLink } from "../actions/faculty";
 
 /** The dashboard's first tab: KPIs, my classes (drop or exchange), dropped classes, calendar link and my week. */
 export default async function Overview({ person, pending, waitingOnMe, sent }: { person: Person; pending: number; waitingOnMe: number; sent: ExchangeRow[] }) {

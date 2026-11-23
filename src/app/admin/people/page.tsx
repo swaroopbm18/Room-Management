@@ -5,7 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { createClient } from "@/lib/supabase/server";
 import { displayName } from "@/lib/auth";
 import type { Person } from "@/lib/types";
-import { deletePerson, importPeople, upsertPerson } from "../../actions";
+import { deletePerson, importPeople, upsertPerson } from "../../actions/faculty";
 import FacultyNames, { type DirectoryEntry, type FacultyAlias } from "./FacultyNames";
 import AreaTabs from "../AreaTabs";
 
