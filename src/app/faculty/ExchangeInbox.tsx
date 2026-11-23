@@ -5,7 +5,7 @@ import { IconCheck, IconSwap, IconX } from "@/components/Icons";
 import { stageOf, type ExchangeRow, exchangeTime } from "@/lib/exchanges";
 import type { Slot } from "@/lib/types";
 import { formatDate } from "@/lib/time";
-import { acceptExchange, declineExchange } from "../actions";
+import { acceptExchange, declineExchange } from "../actions/exchanges";
 
 /** Classes colleagues asked me to take: answer the new ones, and see where the rest stand. */
 export default function ExchangeInbox({ received, slots, ready }: { received: ExchangeRow[]; slots: Slot[]; ready: boolean }) {

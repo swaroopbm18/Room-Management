@@ -9,7 +9,8 @@ import { isOpenStage, stageOf, type ExchangeRow, exchangeTime } from "@/lib/exch
 import { slotCount } from "@/lib/requests";
 import type { RequestGroup, Slot } from "@/lib/types";
 import { formatDate, formatDateTime } from "@/lib/time";
-import { editRequest, withdrawExchange, withdrawRequest } from "../actions";
+import { editRequest, withdrawRequest } from "../actions/requests";
+import { withdrawExchange } from "../actions/exchanges";
 
 /** Everything I asked for and where it stands: class exchanges first, then room requests. */
 export default function MyRequests({

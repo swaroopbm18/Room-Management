@@ -3,7 +3,7 @@
 import { useState } from "react";
 import SubmitButton from "@/components/SubmitButton";
 import { IconTrash } from "@/components/Icons";
-import { purgeFaculty } from "../../actions";
+import { purgeFaculty } from "../../actions/faculty";
 
 type Member = { initials: string; name: string };
 

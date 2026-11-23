@@ -7,7 +7,7 @@ import { requireStaff } from "@/lib/auth";
 import { getHolidays, getMySchedule, getSlots } from "@/lib/data";
 import { exchangeCandidates, getMyExchanges, isOpenStage, slotRange, slotsOf, stageOf } from "@/lib/exchanges";
 import { DATE_RE, formatDate, slotStarted } from "@/lib/time";
-import { requestExchange } from "../../actions";
+import { requestExchange } from "../../actions/exchanges";
 import ExchangePicker from "./ExchangePicker";
 
 export const dynamic = "force-dynamic";

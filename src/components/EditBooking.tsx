@@ -1,4 +1,4 @@
-import { adminEditBooking } from "@/app/actions";
+import { adminEditBooking } from "@/app/actions/bookings";
 import { IconPencil } from "./Icons";
 import SubmitButton from "./SubmitButton";
 

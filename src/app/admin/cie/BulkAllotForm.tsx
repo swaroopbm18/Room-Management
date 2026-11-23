@@ -6,7 +6,7 @@ import { IconFlag, IconPlus, IconSearch, IconX } from "@/components/Icons";
 import LoadingOverlay from "@/components/LoadingOverlay";
 import SubmitButton from "@/components/SubmitButton";
 import type { Slot } from "@/lib/types";
-import { adminBulkAllot, bulkAllotPreview, type BulkPreview } from "../../actions";
+import { adminBulkAllot, bulkAllotPreview, type BulkPreview } from "../../actions/bookings";
 import SlotRange from "../allot/SlotRange";
 
 export type Kind = "cie" | "see" | "event" | "skill_lab" | "class_request";

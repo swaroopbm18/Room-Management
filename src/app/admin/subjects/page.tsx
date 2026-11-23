@@ -6,7 +6,7 @@ import SubmitButton from "@/components/SubmitButton";
 import { displayName } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Person } from "@/lib/types";
-import { addSubject, removeSubject, renameSubject, subjectsFromTimetable } from "../../actions";
+import { addSubject, removeSubject, renameSubject, subjectsFromTimetable } from "../../actions/faculty";
 
 export const dynamic = "force-dynamic";
 

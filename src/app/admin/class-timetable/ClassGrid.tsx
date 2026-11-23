@@ -6,7 +6,7 @@ import { IconAlert, IconCheck, IconPencil, IconPlus, IconX } from "@/components/
 import SubmitButton from "@/components/SubmitButton";
 import type { Slot } from "@/lib/types";
 import type { ClassEntry, Span } from "@/lib/classTimetable";
-import { deleteClassEntry, saveClassEntry } from "../../actions";
+import { deleteClassEntry, saveClassEntry } from "../../actions/timetable";
 
 const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 

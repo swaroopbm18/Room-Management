@@ -4,7 +4,7 @@ import SubmitButton from "@/components/SubmitButton";
 import { getClassSemesters, getTimetablePdfs } from "@/lib/data";
 import { formatDateTime, todayIST } from "@/lib/time";
 import { pdfLabel, pdfUrl, sizeLabel, type TimetablePdf } from "@/lib/timetablePdfs";
-import { deleteTimetablePdf } from "../../actions";
+import { deleteTimetablePdf } from "../../actions/timetable";
 import AreaTabs from "../AreaTabs";
 import { BulkPdfUpload, PdfSlotUpload } from "./PdfUpload";
 

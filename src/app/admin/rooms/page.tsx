@@ -4,7 +4,7 @@ import SubmitButton from "@/components/SubmitButton";
 import { getAllRooms } from "@/lib/data";
 import { ROOM_KINDS } from "@/lib/rooms";
 import { createClient } from "@/lib/supabase/server";
-import { addRoom, archiveRoom, deleteRoom, updateRoom } from "../../actions";
+import { addRoom, archiveRoom, deleteRoom, updateRoom } from "../../actions/rooms";
 
 export const dynamic = "force-dynamic";
 

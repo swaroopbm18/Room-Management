@@ -1,7 +1,7 @@
 import { IconTrash } from "@/components/Icons";
 import SubmitButton from "@/components/SubmitButton";
 import type { ReportDelete } from "@/lib/report";
-import { adminDeleteRecord } from "../../actions";
+import { adminDeleteRecord } from "../../actions/bookings";
 
 /**
  * Admin-only, on screen only: delete a wrong row, past ones included. Its slots go back to the

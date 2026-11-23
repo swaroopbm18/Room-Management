@@ -4,7 +4,7 @@ import SubmitButton from "@/components/SubmitButton";
 import { classesOf, ordinal } from "@/lib/classTimetable";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDate, formatDateTime, isoDate, istNow, todayIST } from "@/lib/time";
-import { endSemester, undoSemesterEnd } from "../../actions";
+import { endSemester, undoSemesterEnd } from "../../actions/timetable";
 import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";

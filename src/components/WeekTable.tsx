@@ -1,6 +1,6 @@
 import { cellKey, DAY_NAMES, DAY_SLOTS, DAYS, isOpen, type Busy } from "@/lib/faculty";
 import type { Slot } from "@/lib/types";
-import { setFacultyDuty } from "@/app/actions";
+import { setFacultyDuty } from "@/app/actions/faculty";
 import { IconX } from "./Icons";
 import SubmitButton from "./SubmitButton";
 
