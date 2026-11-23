@@ -5,7 +5,9 @@ import PrintButton from "@/components/PrintButton";
 import PendingLink from "@/components/PendingLink";
 import { buildClassTimetable, ordinal, OTHER, type Cell } from "@/lib/classTimetable";
 import { getPerson } from "@/lib/auth";
-import { getFacultyStatus, getRooms, getSlots } from "@/lib/data";
+import { getFacultyStatus, getRooms, getSlots, getTimetablePdfs } from "@/lib/data";
+import { pdfForClass, pdfUrl } from "@/lib/timetablePdfs";
+import { IconFile } from "@/components/Icons";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, todayIST } from "@/lib/time";
 import ClassTabs from "@/components/ClassTabs";
@@ -29,13 +31,14 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
   const admin = person?.role === "admin";
   // Timetable edits apply from tomorrow, so that is the week an admin edits
   const date = admin ? addDays(today, 1) : today;
-  const [slots, ttRes, status, rooms, dirRes, peopleRes] = await Promise.all([
+  const [slots, ttRes, status, rooms, dirRes, peopleRes, pdfs] = await Promise.all([
     getSlots(),
     supabase.rpc("get_timetable_all", { p_date: date }),
     getFacultyStatus(today),
     admin ? getRooms() : Promise.resolve([]),
     admin ? supabase.from("faculty_directory").select("initials, title, full_name") : Promise.resolve({ data: [] }),
     admin ? supabase.from("people").select("initials, title, full_name").not("initials", "is", null) : Promise.resolve({ data: [] }),
+    getTimetablePdfs(),
   ]);
   const cells = (ttRes.data ?? []) as Cell[];
   const names: Record<string, string> = {};
@@ -49,6 +52,8 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
   for (const p of [...(dirRes.data ?? []), ...(peopleRes.data ?? [])] as { initials: string; title: string | null; full_name: string }[]) {
     if (p.full_name.trim()) named[p.initials] = `${p.title ? p.title + " " : ""}${p.full_name}`;
   }
+  // The timetable office's PDF for this class (its section's, semester's or every class's)
+  const pdf = pdfForClass(pdfs, chosen);
   const chip = (k: string, text: string) => (
     <PendingLink
       key={k}
@@ -74,6 +79,11 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
               : "Pick your class to see its regular week: the subject, faculty member and room in every slot. Today and Changes show it as it actually runs."
           }
         >
+          {pdf && (
+            <a href={pdfUrl(pdf.path)} target="_blank" rel="noopener" className="btn-secondary">
+              <IconFile className="h-4 w-4" /> Official PDF
+            </a>
+          )}
           {chosen && chosen !== OTHER && (
             <PendingLink href={`/today?class=${encodeURIComponent(chosen)}`} className="btn-secondary">
               Today for {chosen}

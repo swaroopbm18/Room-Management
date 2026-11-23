@@ -36,7 +36,7 @@ const GROUPS: Group[] = [
     label: "Timetables",
     icon: <IconCalendar className={i} />,
     tabs: [
-      { href: "/admin/timetable", label: "Room & class timetables", icon: <IconCalendar className={i} />, also: ["/admin/class-timetable", "/admin/health"] },
+      { href: "/admin/timetable", label: "Room & class timetables", icon: <IconCalendar className={i} />, also: ["/admin/class-timetable", "/admin/timetable-pdfs", "/admin/health"] },
       { href: "/admin/semester-end", label: "Semester end", icon: <IconCalendarCheck className={i} /> },
       { href: "/admin/rollover", label: "New semester", icon: <IconArchive className={i} /> },
     ],

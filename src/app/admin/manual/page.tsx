@@ -286,6 +286,22 @@ const PARTS: ManualPart[] = [
         tips: ["Initials that are not in the faculty list are marked, so typos stand out."],
       },
       {
+        id: "timetable-pdfs",
+        title: "Timetable PDFs",
+        where: "Admin → Timetables → Room & class timetables → Timetable PDFs",
+        href: "/admin/timetable-pdfs",
+        intro: "Keep the timetable office's PDFs on the site: one for each semester or section, one of all classes and one of every faculty member's timetable. Students open their class's PDF from Class timetables, and faculty open the faculty PDF from their dashboard.",
+        steps: [
+          "To upload one PDF: find the semester or section in the list and press Upload PDF (or Replace, when it has one).",
+          "To upload many at once: press Choose PDFs under Upload many PDFs at once and pick every file. Check what each one is for (it is guessed from the file name, such as 3A.pdf, Sem 5.pdf, CLASS_TT… or INDIV_TT…), then press Upload.",
+          "Press Remove to take a PDF down.",
+        ],
+        tips: [
+          "A class shows its section's PDF; if there is none, its semester's; and if there is none, the PDF of all classes.",
+          "The PDFs are shown as they are. The room timetable the site runs on still comes from the Word upload under Room timetable.",
+        ],
+      },
+      {
         id: "health",
         title: "Health check",
         where: "Admin → Timetables → Room & class timetables → Health check",
