@@ -14,6 +14,13 @@ export async function workingDays(start: string, span: number): Promise<string[]
   return out;
 }
 
+/** The working days from `start` to `end`, both included. */
+export async function workingDaysBetween(start: string, end: string): Promise<string[]> {
+  let span = 0;
+  for (let d = start; d <= end; d = addDays(d, 1)) span++;
+  return workingDays(start, span);
+}
+
 export async function loadDays(dates: string[]): Promise<{ days: Day[]; semesterSections: Record<string, string[]> }> {
   const supabase = await createClient();
   let semesterSections: Record<string, string[]> = {};
