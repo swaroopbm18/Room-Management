@@ -615,6 +615,24 @@ end $$;
 
 
 --
+-- Name: admin_delete_timetable_pdf(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.admin_delete_timetable_pdf(p_key text) RETURNS text
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $$
+declare v_old text;
+begin
+  if not public.is_admin() then
+    raise exception 'Only admins can remove timetables' using errcode = '42501';
+  end if;
+  delete from public.timetable_pdfs where key = upper(btrim(coalesce(p_key, ''))) returning path into v_old;
+  return v_old;
+end $$;
+
+
+--
 -- Name: admin_edit_booking(text, date, integer, text, text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1630,6 +1648,41 @@ begin
 exception when unique_violation then
   raise exception 'There is already an item called %', btrim(p_name) using errcode = 'P0001';
 end $$;
+
+
+--
+-- Name: admin_save_timetable_pdf(text, text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.admin_save_timetable_pdf(p_key text, p_path text, p_file_name text) RETURNS text
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO 'public'
+    AS $_$
+declare
+  v_key text := upper(btrim(coalesce(p_key, '')));
+  v_size bigint;
+  v_old text;
+begin
+  if not public.is_admin() then
+    raise exception 'Only admins can upload timetables' using errcode = '42501';
+  end if;
+  if v_key !~ '^([1-8][A-Z]?|ALL|FACULTY)$' then
+    raise exception 'Pick the semester or section this timetable is for' using errcode = 'P0001';
+  end if;
+  select (o.metadata ->> 'size')::bigint into v_size
+    from storage.objects o where o.bucket_id = 'timetables' and o.name = p_path;
+  if v_size is null then
+    raise exception 'The PDF was not uploaded. Please try again.' using errcode = 'P0001';
+  end if;
+
+  select path into v_old from public.timetable_pdfs where key = v_key;
+  insert into public.timetable_pdfs (key, path, file_name, size_bytes, uploaded_by, uploaded_at)
+  values (v_key, p_path, left(btrim(coalesce(p_file_name, '')), 200), v_size, coalesce(public.current_email(), ''), now())
+  on conflict (key) do update
+    set path = excluded.path, file_name = excluded.file_name, size_bytes = excluded.size_bytes,
+        uploaded_by = excluded.uploaded_by, uploaded_at = excluded.uploaded_at;
+  return nullif(v_old, p_path);
+end $_$;
 
 
 --
@@ -4482,6 +4535,21 @@ ALTER SEQUENCE public.timetable_entries_id_seq OWNED BY public.timetable_entries
 
 
 --
+-- Name: timetable_pdfs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.timetable_pdfs (
+    key text NOT NULL,
+    path text NOT NULL,
+    file_name text DEFAULT ''::text NOT NULL,
+    size_bytes bigint DEFAULT 0 NOT NULL,
+    uploaded_by text DEFAULT ''::text NOT NULL,
+    uploaded_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT timetable_pdfs_key_check CHECK ((key ~ '^([1-8][A-Z]?|ALL|FACULTY)$'::text))
+);
+
+
+--
 -- Name: timetable_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
@@ -4818,6 +4886,14 @@ ALTER TABLE ONLY public.timetable_entries
 
 
 --
+-- Name: timetable_pdfs timetable_pdfs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.timetable_pdfs
+    ADD CONSTRAINT timetable_pdfs_pkey PRIMARY KEY (key);
+
+
+--
 -- Name: timetable_versions timetable_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -5117,6 +5193,13 @@ CREATE TRIGGER log_activity AFTER INSERT OR DELETE OR UPDATE ON public.supplies 
 --
 
 CREATE TRIGGER log_activity AFTER INSERT OR DELETE OR UPDATE ON public.timetable_changes FOR EACH ROW EXECUTE FUNCTION public.log_activity();
+
+
+--
+-- Name: timetable_pdfs log_activity; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER log_activity AFTER INSERT OR DELETE OR UPDATE ON public.timetable_pdfs FOR EACH ROW EXECUTE FUNCTION public.log_activity();
 
 
 --
@@ -5498,6 +5581,13 @@ ALTER TABLE public.equipment ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.equipment_bookings ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: timetable_pdfs everyone reads timetable pdfs; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "everyone reads timetable pdfs" ON public.timetable_pdfs FOR SELECT USING (true);
+
+
+--
 -- Name: faculty_duties faculty read own duties; Type: POLICY; Schema: public; Owner: -
 --
 
@@ -5672,6 +5762,12 @@ ALTER TABLE public.timetable_changes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.timetable_entries ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: timetable_pdfs; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.timetable_pdfs ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: timetable_versions; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -5811,6 +5907,13 @@ GRANT ALL ON FUNCTION public.admin_delete_record(p_room text, p_date date, p_slo
 
 REVOKE ALL ON FUNCTION public.admin_delete_room(p_room text) FROM PUBLIC;
 GRANT ALL ON FUNCTION public.admin_delete_room(p_room text) TO authenticated;
+
+
+--
+-- Name: FUNCTION admin_delete_timetable_pdf(p_key text); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.admin_delete_timetable_pdf(p_key text) TO authenticated;
 
 
 --
@@ -6026,6 +6129,13 @@ GRANT ALL ON FUNCTION public.admin_save_faculty(p_old_initials text, p_initials 
 
 REVOKE ALL ON FUNCTION public.admin_save_supply(p_id integer, p_name text, p_unit text, p_stock integer, p_active boolean) FROM PUBLIC;
 GRANT ALL ON FUNCTION public.admin_save_supply(p_id integer, p_name text, p_unit text, p_stock integer, p_active boolean) TO authenticated;
+
+
+--
+-- Name: FUNCTION admin_save_timetable_pdf(p_key text, p_path text, p_file_name text); Type: ACL; Schema: public; Owner: -
+--
+
+GRANT ALL ON FUNCTION public.admin_save_timetable_pdf(p_key text, p_path text, p_file_name text) TO authenticated;
 
 
 --
@@ -6817,6 +6927,14 @@ GRANT SELECT ON TABLE public.timetable_entries TO authenticated;
 
 
 --
+-- Name: TABLE timetable_pdfs; Type: ACL; Schema: public; Owner: -
+--
+
+GRANT SELECT ON TABLE public.timetable_pdfs TO anon;
+GRANT SELECT ON TABLE public.timetable_pdfs TO authenticated;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -6902,3 +7020,20 @@ create policy "staff upload own letters" on storage.objects for insert to authen
 create policy "own letters or admin" on storage.objects for select to authenticated
   using (bucket_id = 'letters'
          and ((storage.foldername(name))[1] = public.current_email() or public.is_admin()));
+
+-- ---------------------------------------------------------------------------
+-- Storage: public bucket for timetable PDFs (at most 20 MB); only admins upload or delete
+-- ---------------------------------------------------------------------------
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('timetables', 'timetables', true, 20971520, array['application/pdf'])
+on conflict (id) do nothing;
+
+create policy "admins upload timetable pdfs" on storage.objects for insert to authenticated
+  with check (bucket_id = 'timetables' and public.is_admin());
+
+create policy "admins read timetable pdfs" on storage.objects for select to authenticated
+  using (bucket_id = 'timetables' and public.is_admin());
+
+create policy "admins delete timetable pdfs" on storage.objects for delete to authenticated
+  using (bucket_id = 'timetables' and public.is_admin());
