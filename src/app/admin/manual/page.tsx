@@ -337,7 +337,10 @@ const PARTS: ManualPart[] = [
           "To add many people, use Import a list: upload a CSV or paste rows of email, full name, initials, title, role, and press Import. Existing people are updated. Download a template shows the layout.",
           "Faculty names and initials lists every set of initials in the timetable with the name shown for it. Add a name where only initials show.",
         ],
-        tips: ["A person marked \"Not in the timetable\" has no classes matched. Check their initials."],
+        tips: [
+          "A person marked \"Not in the timetable\" has no classes matched. Check their initials.",
+          "Typos fixed by merging are listed under Faculty names and initials. Press Forget to stop reading one as the other.",
+        ],
       },
       {
         id: "profiles",
@@ -350,6 +353,7 @@ const PARTS: ManualPart[] = [
           "To add another duty (proctoring, a committee, lab in-charge), pick the day and slots, type the duty and save. Leave the duty empty to clear those slots, or press Clear all duties.",
           "To load duties for many people at once, use Upload faculty timetables: one slot per line, initials, day, start time, duty (for example \"AKN, Mon, 8:00, Proctoring\").",
           "Put each faculty member in Cluster A or Cluster B and press Save clusters. The free and busy cards and the meeting finder use these groups.",
+          "To remove a faculty record, even one the timetable still uses, open their profile and go to Delete or merge. If the initials are a typo (for example LKB for LBK), type the right initials under Give their classes and duties to and press Merge: their classes from tomorrow, duties, cluster, leave and sign-in move to that person, and a later timetable upload that still has the typo is read the right way. Leave it empty and press Delete to take them off their classes and remove them.",
         ],
         tips: ["The Faculty availability button opens who is free by day or by week, and Find a meeting time. The Week tab is only for admins."],
       },

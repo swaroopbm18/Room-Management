@@ -14,6 +14,30 @@ export type ParsedEntry = {
   is_department: boolean;
 };
 
+/**
+ * Reads remembered typos (e.g. LKB for LBK) as the right initials, keeping each cell's order and
+ * label and naming nobody twice. The database applies the same list when a cell is saved.
+ */
+export function applyFacultyAliases(entries: ParsedEntry[], aliases: { alias: string; initials: string }[]): ParsedEntry[] {
+  if (!aliases.length) return entries;
+  const to = new Map(aliases.map((a) => [a.alias, a.initials]));
+  return entries.map((e) => {
+    if (!e.faculty_initials.some((i) => to.has(i))) return e;
+    const labels = e.faculty_label.split(", ");
+    const seen = new Set<string>();
+    const initials: string[] = [];
+    const label: string[] = [];
+    e.faculty_initials.forEach((ini, i) => {
+      const next = to.get(ini) ?? ini;
+      if (seen.has(next)) return;
+      seen.add(next);
+      initials.push(next);
+      label.push(next === ini ? labels[i] || ini : (labels[i] || ini).replace(ini, next));
+    });
+    return { ...e, faculty_initials: initials, faculty_label: label.join(", ") };
+  });
+}
+
 export type ParsedTimetable = { rooms: string[]; entries: ParsedEntry[]; warnings: string[] };
 
 const DAYS: Record<string, number> = { MON: 1, TUE: 2, WED: 3, THU: 4, THUR: 4, FRI: 5, SAT: 6 };

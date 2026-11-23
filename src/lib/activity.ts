@@ -34,6 +34,7 @@ const AREA_OF: Record<string, Area> = {
   faculty_duties: "faculty",
   faculty_subjects: "faculty",
   faculty_leave: "faculty",
+  faculty_aliases: "faculty",
   rooms: "rooms",
   holidays: "calendar",
   day_orders: "calendar",
@@ -142,6 +143,10 @@ function describe(tbl: string, rows: LogRow[]): string[] {
     case "faculty_leave":
       for (const l of ins) out.push(`${str(l.initials)} on leave ${l.starts_on === l.ends_on ? day(l.starts_on) : `${day(l.starts_on)} to ${day(l.ends_on)}`}${l.reason ? ` (${str(l.reason)})` : ""}`);
       for (const l of del) out.push(`Removed ${str(l.initials)}'s leave from ${day(l.starts_on)}`);
+      break;
+    case "faculty_aliases":
+      for (const a of [...ins, ...upd.map((u) => u.new!)]) out.push(`Merged ${str(a.alias)} into ${str(a.initials)}; the timetable now reads ${str(a.alias)} as ${str(a.initials)}`);
+      for (const a of del) out.push(`Stopped reading ${str(a.alias)} as ${str(a.initials)}`);
       break;
     case "rooms":
       for (const r of ins) out.push(`Added room ${str(r.id)}`);
