@@ -1,4 +1,4 @@
--- 0039: Bulk allotment, Classes affected and Upcoming events work as one.
+-- 0042: Bulk allotment, Classes affected and Upcoming events work as one.
 -- 1. Bulk allotment books an event (or a skill lab) for some sections in one go: their own classes
 --    at its times are released ("3B, 3D at Skill Lab"), so their rooms are free and those classes
 --    are not listed as affected. The website works out the releases; this saves them, all or none.

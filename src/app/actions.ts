@@ -844,7 +844,7 @@ export async function adminBulkAllot(form: FormData) {
   revalidatePath("/", "layout");
   if (error) {
     const missing = error.code === "PGRST202" || error.message.includes(rpc);
-    const update = rpc === "admin_skill_lab" ? "0037" : rpc === "admin_bulk_allot" ? "0035" : "0039";
+    const update = rpc === "admin_skill_lab" ? "0037" : rpc === "admin_bulk_allot" ? "0035" : "0042";
     redirect(withParam(to, "error", missing ? `This needs database update ${update}. Run it in the Supabase SQL Editor.` : `Nothing was allotted: ${error.message}`));
   }
   const r = (data ?? {}) as { slots?: number; booked?: number; cancelled?: number; released?: number };

@@ -24,7 +24,7 @@ function goTo(form: FormData) {
   };
 }
 
-const needs0039 = (e: { code?: string; message: string }) => e.code === "PGRST202" || e.message.includes("admin_change_event");
+const needs0042 = (e: { code?: string; message: string }) => e.code === "PGRST202" || e.message.includes("admin_change_event");
 
 /** The event's days from the form, and every slot it changed on them (and classes moved for it in the two weeks after). */
 async function placesOf(form: FormData, go: (k: "msg" | "error", v: string) => never) {
@@ -53,7 +53,7 @@ export async function editEvent(form: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.rpc("admin_change_event", { p_places: places, p_title: title, p_new_title: newTitle, p_reason: reason, p_cancel: false });
   revalidatePath("/", "layout");
-  if (error) go("error", needs0039(error) ? "Editing events needs database update 0039. Run it in the Supabase SQL Editor." : error.message);
+  if (error) go("error", needs0042(error) ? "Editing events needs database update 0042. Run it in the Supabase SQL Editor." : error.message);
   go("msg", newTitle === title ? `${title} updated.` : `Renamed "${title}" to "${newTitle}" everywhere.`);
 }
 
@@ -73,7 +73,7 @@ export async function cancelEvent(form: FormData) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_change_event", { p_places: picked, p_title: title, p_new_title: null, p_reason: null, p_cancel: true });
   revalidatePath("/", "layout");
-  if (error) go("error", needs0039(error) ? "Cancelling events needs database update 0039. Run it in the Supabase SQL Editor." : error.message);
+  if (error) go("error", needs0042(error) ? "Cancelling events needs database update 0042. Run it in the Supabase SQL Editor." : error.message);
   const n = Number(data ?? 0);
   go("msg", `Cancelled ${eventLabel(title)}${only ? ` on ${shortDay(only)}` : ""}: ${n} ${n === 1 ? "slot is" : "slots are"} back as ${n === 1 ? "it was" : "they were"} before.`);
 }

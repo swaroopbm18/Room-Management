@@ -1,6 +1,6 @@
 -- The whole database in one file, for a new install: run this, then seed.sql.
 --
--- It is the same as running every file in migrations/ in order (0001 to 0039), generated with
+-- It is the same as running every file in migrations/ in order (0001 to 0042), generated with
 -- pg_dump from a database built that way. An existing site keeps running each new migration
 -- as before; regenerate this file after adding one (see README, "Database schema").
 
