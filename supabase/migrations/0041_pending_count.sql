@@ -1,4 +1,4 @@
--- 0039: Count what waits for an admin in the database.
+-- 0041: Count what waits for an admin in the database.
 -- The Admin link and the admin menu show how many room requests (one per request, however many
 -- slots it covers) and accepted class exchanges wait for a decision. The website used to download
 -- every pending row to count them; this returns the number in one call.

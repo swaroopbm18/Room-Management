@@ -5,7 +5,7 @@ import { todayIST } from "./time";
 /**
  * Pending room requests and accepted class exchanges from today on, for the count on the Admin
  * link and the admin menu. Admins only. Read once per request (both the navbar and the admin
- * layout ask for it), counted in the database (migration 0039), with the old way as a fallback
+ * layout ask for it), counted in the database (migration 0041), with the old way as a fallback
  * until that migration has been run.
  */
 export const pendingRequestCount = cache(async (): Promise<number> => {
