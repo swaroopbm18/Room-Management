@@ -4,6 +4,7 @@ import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
 import { DAYS } from "@/lib/faculty";
 import { clusterLabel, getWorkload } from "@/lib/workload";
+import AreaTabs from "../AreaTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,7 @@ export default async function Workload({ searchParams }: { searchParams: Promise
 
   return (
     <div className="space-y-6">
+      <AreaTabs area="usage" current="/admin/workload" />
       <PageHeader title="Workload" subtitle="Each faculty member's regular week from the room timetable and the duties you've added, Monday to Saturday (Saturday until 2 PM).">
         <a href="/admin/workload/export" download className="btn-primary">
           <IconDownload className="h-4 w-4" /> Download Excel

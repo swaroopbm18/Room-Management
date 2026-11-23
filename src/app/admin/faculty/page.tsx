@@ -13,6 +13,7 @@ import { cellKey, CLUSTERS, DAY_NAMES, DAY_SLOTS, DAYS, getFacultyWeeks, isFree,
 import { addSubject, clearFacultyDuties, deleteFaculty, importFacultyDuties, removeSubject, renameSubject, saveFacultyProfile, setFacultyClusters, setFacultyDuty, upsertPerson } from "../../actions";
 import WeekTable from "@/components/WeekTable";
 import SlotRange from "../allot/SlotRange";
+import AreaTabs from "../AreaTabs";
 import DeleteFaculty from "./DeleteFaculty";
 
 export const dynamic = "force-dynamic";
@@ -87,6 +88,7 @@ export default async function FacultyTimetables({ searchParams }: { searchParams
 
   return (
     <div className="space-y-8">
+      <AreaTabs area="faculty" current="/admin/faculty" />
       <PageHeader
         title="Faculty profiles"
         subtitle="Click anyone to open their profile: name and initials, sign-in, cluster, subjects, other duties and their weekly timetable, all in one place."

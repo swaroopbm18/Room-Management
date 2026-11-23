@@ -1,6 +1,5 @@
-import { IconArchive, IconCheck, IconPlus, IconQr, IconTrash } from "@/components/Icons";
+import { IconArchive, IconCheck, IconPlus, IconTrash } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
-import PendingLink from "@/components/PendingLink";
 import SubmitButton from "@/components/SubmitButton";
 import { getAllRooms } from "@/lib/data";
 import { ROOM_KINDS } from "@/lib/rooms";
@@ -18,11 +17,7 @@ export default async function RoomDetails() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Room details" subtitle="Seats, kind of room and projector for each room. Anyone looking for a free room can filter by them on the Free slots page.">
-        <PendingLink href="/admin/rooms/posters" className="btn-secondary">
-          <IconQr className="h-4 w-4" /> QR posters
-        </PendingLink>
-      </PageHeader>
+      <PageHeader title="Room details" subtitle="Seats, kind of room and projector for each room. Anyone looking for a free room can filter by them on the Free slots page." />
       <AddRoom />
 
       <div className="card divide-y divide-brand-100 dark:divide-brand-900">

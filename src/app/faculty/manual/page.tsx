@@ -20,7 +20,7 @@ const PARTS: ManualPart[] = [
         id: "about",
         title: "What the site does",
         intro:
-          "The site shows which room is used by whom in every slot of the day, for the Department of Machine Learning. Students can look without signing in. Faculty sign in to request free rooms, hand a class to a colleague, drop a class and book equipment. The HoD and the Time Table Officers (the admins) approve requests, allot rooms for CIEs and events and keep the timetable up to date.",
+          "The site shows which room is used by whom in every slot of the day, for the Department of Machine Learning. Students can look without signing in. Faculty sign in to request free rooms, hand a class to a colleague and drop a class. The HoD and the Time Table Officers (the admins) approve requests, allot rooms for CIEs and events and keep the timetable up to date.",
         tips: ["Everything you see is live: when an admin approves a request or changes the timetable, the home page, the room weeks and the class timetables change at once."],
       },
       {
@@ -43,13 +43,12 @@ const PARTS: ManualPart[] = [
       {
         id: "around",
         title: "Finding your way around",
-        intro: "The bar at the top of every page has the main pages. Once you sign in you also get My dashboard, Equipment and Help.",
+        intro: "The bar at the top of every page has the main pages. Once you sign in you also get My dashboard and Help.",
         steps: [
           "Home: every room in the chosen slot, free and busy faculty, notices and what is coming up.",
           "Free slots: every free room for each slot of a day, with filters for seats, kind of room and projector.",
           "Class timetables: each class's regular week, today as it runs, and the changes coming up.",
           "My dashboard: your classes, your requests, and colleagues' requests to you.",
-          "Equipment: book a projector, mic or kit, and ask for supplies.",
           "Help: this manual.",
         ],
         tips: [
@@ -110,7 +109,6 @@ const PARTS: ManualPart[] = [
           "Use Prev, This week and Next to move between weeks.",
           "Press any cell to open that slot: what is there, who has requested it, and a Request this slot button when it is free.",
         ],
-        tips: ["Each room's door may have a QR code poster. Scanning it opens this page on a phone."],
       },
       {
         id: "slot-page",
@@ -234,7 +232,7 @@ const PARTS: ManualPart[] = [
   },
   {
     id: "rooms",
-    title: "Rooms, equipment and supplies",
+    title: "Rooms and meetings",
     sections: [
       {
         id: "free-slots",
@@ -282,31 +280,6 @@ const PARTS: ManualPart[] = [
           "Read the three best times (Option 1 is the best), then every other time when all of them are free. Each option says how many can attend.",
         ],
       },
-      {
-        id: "equipment",
-        title: "Booking equipment",
-        where: "Equipment",
-        href: "/equipment",
-        intro: "Book a portable projector, mic, speaker or kit for a class or event, first come first served. No approval is needed.",
-        steps: [
-          "Pick the day from the row of dates. The grid shows each item and who has it in each slot.",
-          "In the form, pick the Equipment, the Start time and End time, the Room (optional) and What for, then press Book for (the day).",
-          "Your bookings lists what you have booked. Press Edit to change the room or purpose, or Cancel to give it back.",
-        ],
-      },
-      {
-        id: "supplies",
-        title: "Asking for supplies or other resources",
-        where: "Equipment → Request supplies or other resources",
-        href: "/equipment#resources",
-        intro: "For anything that needs an admin's OK: supplies from the department stock, a lab, an AV setup or anything else.",
-        steps: [
-          "Pick an item From stock, or describe it.",
-          "Fill in How many, Needed on, the Room (optional) and What it's for.",
-          "Press Send request. Your requests are listed below with their status: Waiting for approval, Approved, Declined or Withdrawn, and the admin's note.",
-          "Press Withdraw to take back a request still waiting.",
-        ],
-      },
     ],
   },
 ];
@@ -345,7 +318,7 @@ export default async function FacultyManual() {
   return (
     <Manual
       title="Faculty manual"
-      subtitle="Everything a faculty member can do on the site: read the timetable, request a room, hand over or drop a class, answer a colleague, keep your classes in your calendar, and book equipment."
+      subtitle="Everything a faculty member can do on the site: read the timetable, request a room, hand over or drop a class, answer a colleague, and keep your classes in your calendar."
       quickStart={QUICK_START}
       parts={PARTS}
       faq={FAQ}

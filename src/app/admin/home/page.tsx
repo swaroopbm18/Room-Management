@@ -38,7 +38,7 @@ function Panel({ title, icon, href, linkText, children }: { title: string; icon:
 export default async function AdminHome() {
   const today = todayIST();
   const supabase = await createClient();
-  const [pendingRes, leaveRes, dirRes, peopleRes, scheduleRes, timetableRes, holidays, orders, notices, health, resourceRes] = await Promise.all([
+  const [pendingRes, leaveRes, dirRes, peopleRes, scheduleRes, timetableRes, holidays, orders, notices, health] = await Promise.all([
     supabase.from("requests").select("*").eq("status", "pending").gte("date", today).order("created_at"),
     supabase.from("faculty_leave").select("id, initials, starts_on, ends_on, reason").lte("starts_on", today).gte("ends_on", today),
     supabase.from("faculty_directory").select("initials, title, full_name"),
@@ -49,10 +49,7 @@ export default async function AdminHome() {
     getDayOrders(),
     getNotices(today),
     loadHealth(),
-    // Resource requests waiting
-    supabase.from("resource_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
   ]);
-  const resourcesWaiting = resourceRes.count ?? 0;
   const { slots, problems } = health;
   const slotById = new Map(slots.map((s) => [s.id, s]));
   const label = (id: number) => slotById.get(id)?.label ?? "";
@@ -126,11 +123,6 @@ export default async function AdminHome() {
               ))}
               {pending.length > 5 && <li className="muted pt-2 text-xs">and {pending.length - 5} more</li>}
             </ul>
-          )}
-          {resourcesWaiting > 0 && (
-            <Link href="/admin/resources" className="mt-3 block rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 hover:underline dark:bg-amber-900/30 dark:text-amber-200">
-              {resourcesWaiting} resource request{resourcesWaiting === 1 ? "" : "s"} waiting too →
-            </Link>
           )}
         </Panel>
 
