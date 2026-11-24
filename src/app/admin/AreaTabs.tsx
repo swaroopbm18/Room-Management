@@ -38,6 +38,7 @@ const AREAS = {
     tabs: [
       { label: "1. End a semester's classes", href: "/admin/semester-end" },
       { label: "2. Start a new semester", href: "/admin/rollover" },
+      { label: "Active semesters", href: "/admin/semesters" },
     ],
   },
   usage: {

@@ -1,6 +1,6 @@
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
-import { getRooms, getSlots } from "@/lib/data";
+import { getEditorTimetable, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDate, todayIST } from "@/lib/time";
 import ClassGrid from "./ClassGrid";
@@ -18,7 +18,7 @@ export default async function ClassTimetable({ searchParams }: { searchParams: P
   const [rooms, slots, ttRes, nameMap] = await Promise.all([
     getRooms(),
     getSlots(),
-    supabase.rpc("get_timetable_all", { p_date: tomorrow }),
+    getEditorTimetable<Cell>(supabase, "get_timetable_all", tomorrow),
     getFacultyNames(),
   ]);
   const cells = (ttRes.data ?? []) as Cell[];
