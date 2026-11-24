@@ -16,7 +16,7 @@ import { addDays, formatDate, slotStarted, todayIST, workingDay } from "@/lib/ti
 import { dropClass, undoDrop } from "../actions/requests";
 import { resetCalendarLink } from "../actions/faculty";
 
-/** The dashboard's first tab: KPIs, my classes (drop or exchange), dropped classes, calendar link and my week. */
+/** The dashboard's first tab: KPIs, my classes (drop or exchange), dropped classes, my week, then the calendar link. */
 export default async function Overview({ person, pending, waitingOnMe, sent }: { person: Person; pending: number; waitingOnMe: number; sent: ExchangeRow[] }) {
   const supabase = await createClient();
   const today = todayIST();
@@ -67,29 +67,6 @@ export default async function Overview({ person, pending, waitingOnMe, sent }: {
           <KpiCard label="My pending requests" value={pending} href="/faculty?tab=requests" linkText="See my requests" tone="ink" icon={<IconInbox />} />
         )}
       </section>
-
-      {calUrl && (
-        <section className="card space-y-3 p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="inline-flex items-center gap-2 font-semibold">
-                <IconCalendar className="h-5 w-5 text-brand-500" /> Your classes in your own calendar
-              </h2>
-              <p className="muted text-sm">
-                Add this link once and your classes, room bookings, substitute classes and make-up Sundays show in Google Calendar, Outlook or your phone, and stay up to date by
-                themselves. Keep the link to yourself: anyone with it can see your classes.
-              </p>
-            </div>
-            <form action={resetCalendarLink}>
-              <input type="hidden" name="back" value="/faculty" />
-              <SubmitButton className="btn-secondary py-1 text-xs" pendingText="Making a new link…" message="Making a new calendar link…" confirm="Make a new link? The old one stops working, so you'll need to add the new one to your calendar.">
-                New link
-              </SubmitButton>
-            </form>
-          </div>
-          <CalendarLink url={calUrl} />
-        </section>
-      )}
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">My upcoming classes</h2>
@@ -207,6 +184,28 @@ export default async function Overview({ person, pending, waitingOnMe, sent }: {
         )}
       </section>
 
+      {calUrl && (
+        <section className="card space-y-3 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="inline-flex items-center gap-2 font-semibold">
+                <IconCalendar className="h-5 w-5 text-brand-500" /> Your classes in your own calendar
+              </h2>
+              <p className="muted text-sm">
+                Add this link once and your classes, room bookings, substitute classes and make-up Sundays show in Google Calendar, Outlook or your phone, and stay up to date by
+                themselves. Keep the link to yourself: anyone with it can see your classes.
+              </p>
+            </div>
+            <form action={resetCalendarLink}>
+              <input type="hidden" name="back" value="/faculty" />
+              <SubmitButton className="btn-secondary py-1 text-xs" pendingText="Making a new link…" message="Making a new calendar link…" confirm="Make a new link? The old one stops working, so you'll need to add the new one to your calendar.">
+                New link
+              </SubmitButton>
+            </form>
+          </div>
+          <CalendarLink url={calUrl} />
+        </section>
+      )}
     </div>
   );
 }

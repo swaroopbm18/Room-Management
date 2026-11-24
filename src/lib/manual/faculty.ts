@@ -154,7 +154,7 @@ export const PARTS: ManualPart[] = [
         title: "The Overview tab",
         where: "My dashboard → Overview",
         href: "/faculty",
-        intro: "Your day at a glance: free slots today, your classes in the next seven days, classes you dropped, your calendar link and your regular week.",
+        intro: "Your day at a glance: free slots today, your classes in the next seven days, classes you dropped, your regular week, and at the bottom your calendar link.",
         steps: [
           "The cards at the top count free slots today, your classes in the next seven days, and your pending requests (or exchange requests waiting on you).",
           "My upcoming classes lists every class of yours in the next seven days, with Exchange and Drop buttons. A lab or a double class over back-to-back slots is one line.",
