@@ -1,3 +1,4 @@
+import AutoRefresh from "@/components/AutoRefresh";
 import ClosedDay from "@/components/ClosedDay";
 import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
@@ -39,6 +40,7 @@ export default async function Today({ searchParams }: { searchParams: Promise<{ 
 
   return (
     <div className="space-y-6">
+      <AutoRefresh every={120} />
       <ClassTabs view="today" cls={chosen} />
       <PageHeader title="Class timetables" subtitle="Your class's day as it actually runs: classes on, cancelled or moved, and extra classes booked for you. Bookmark it for your class." />
 

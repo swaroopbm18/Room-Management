@@ -1,3 +1,4 @@
+import AutoRefresh from "@/components/AutoRefresh";
 import { expandInitials, getFacultyNames } from "@/lib/facultyNames";
 import AutoSubmitSelect from "@/components/AutoSubmitSelect";
 import { IconArrowRight, IconCalendar, IconCalendarCheck, IconClock, IconSearch } from "@/components/Icons";
@@ -140,6 +141,8 @@ export default async function Home({
 
   return (
     <div className="space-y-6">
+      {/* Every 2 minutes, so a screen left open follows the current slot */}
+      <AutoRefresh every={120} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

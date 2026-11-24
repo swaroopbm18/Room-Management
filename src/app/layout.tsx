@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 import SmoothNavigation from "@/components/SmoothNavigation";
+import AutoRefresh from "@/components/AutoRefresh";
+import NavigationProgress from "@/components/NavigationProgress";
 import type { Metadata } from "next";
 import { Rubik } from "next/font/google";
 import DeveloperCredit from "@/components/DeveloperCredit";
@@ -54,6 +56,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body className={`${rubik.variable} flex min-h-screen flex-col font-sans`}>
         <Suspense fallback={null}>
           <SmoothNavigation />
+          <NavigationProgress />
         </Suspense>
         <a
           href="#main"
@@ -72,6 +75,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           </div>
         </div>
         <Toast />
+        <AutoRefresh />
       </body>
     </html>
   );
