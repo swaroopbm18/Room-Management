@@ -58,7 +58,7 @@ export const ADMIN: NavSection[] = [
     admin: true,
     items: [
       { href: "/admin/timetable", label: "Room & class timetables", icon: "calendar", also: ["/admin/class-timetable", "/admin/timetable-pdfs", "/admin/health"] },
-      { href: "/admin/semester-end", label: "Semester", icon: "archive", also: ["/admin/rollover"] },
+      { href: "/admin/semester-end", label: "Semester", icon: "archive", also: ["/admin/rollover", "/admin/semesters"] },
     ],
   },
   {

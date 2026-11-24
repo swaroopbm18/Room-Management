@@ -3,7 +3,7 @@ import { ScheduleGrid, type GridRow } from "@/components/DayGrid";
 import { IconCheck } from "@/components/Icons";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
-import { getRooms, getSlots } from "@/lib/data";
+import { getEditorTimetable, getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import type { ScheduleRow } from "@/lib/types";
 import { addDays, formatDate, formatDateTime, slotOpen, todayIST } from "@/lib/time";
@@ -33,7 +33,7 @@ export default async function EditTimetable({ searchParams }: { searchParams: Pr
   const [rooms, slots, ttRes, changesRes, dirRes, peopleRes] = await Promise.all([
     getRooms(),
     getSlots(),
-    supabase.rpc("get_timetable", { p_date: showDate }),
+    getEditorTimetable<Entry>(supabase, "get_timetable", showDate),
     supabase.from("timetable_changes").select("*").order("id", { ascending: false }).limit(30),
     supabase.from("faculty_directory").select("initials, title, full_name").order("initials"),
     supabase.from("people").select("initials, title, full_name").not("initials", "is", null),
@@ -48,7 +48,7 @@ export default async function EditTimetable({ searchParams }: { searchParams: Pr
 
   // Every weekday's timetable from tomorrow on, for finding one person's week
   const weekDates = [1, 2, 3, 4, 5, 6].map((d) => addDays(tomorrow, (d - isoDay(tomorrow) + 7) % 7));
-  const weekRes = await Promise.all(weekDates.map((d, i) => (i + 1 === day ? Promise.resolve(ttRes) : supabase.rpc("get_timetable", { p_date: d }))));
+  const weekRes = await Promise.all(weekDates.map((d, i) => (i + 1 === day ? Promise.resolve(ttRes) : getEditorTimetable<Entry>(supabase, "get_timetable", d))));
   const finderClasses: FinderClass[] = weekRes.flatMap((res, i) =>
     ((res.data ?? []) as Entry[])
       .filter((e) => !e.is_department && e.faculty_initials.length)

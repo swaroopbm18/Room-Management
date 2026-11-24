@@ -17,8 +17,9 @@ export const dynamic = "force-dynamic";
 export default async function TimetablePdfs() {
   const [semesters, pdfs] = await Promise.all([getClassSemesters(todayIST()), getTimetablePdfs()]);
   const byKey = new Map(pdfs.map((p) => [p.key, p]));
-  // Every semester in the timetable, with its sections, plus any semester only a PDF names
-  const groups = new Map<string, string[]>(semesters.map((s) => [s.sem, s.classes.filter((c) => c.length > 1)]));
+  // Semesters 3 to 8, each with its sections in the timetable, plus any semester only a PDF names
+  const groups = new Map<string, string[]>(["3", "4", "5", "6", "7", "8"].map((sem) => [sem, []]));
+  for (const s of semesters) groups.set(s.sem, s.classes.filter((c) => c.length > 1));
   for (const p of pdfs) {
     if (!/^[1-8]/.test(p.key)) continue;
     const list = groups.get(p.key[0]) ?? [];

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ListSearch from "./ListSearch";
+import ManualScroll from "./ManualScroll";
 import PrintButton from "./PrintButton";
 
 export type ManualSection = {
@@ -46,7 +47,8 @@ export default function Manual({
 }) {
   const extras = [...(faq.length ? [{ id: "questions", title: "Common questions" }] : []), ...(glossary.length ? [{ id: "glossary", title: "Words used on the site" }] : [])];
   return (
-    <div className="space-y-6">
+    <div id="manual" className="space-y-6">
+      <ManualScroll root="manual" />
       <header className="rounded-2xl bg-gradient-to-br from-brand-700 via-brand-800 to-brand-950 p-6 text-white shadow-lg shadow-brand-900/20 print:bg-none print:p-0 print:text-black print:shadow-none">
         <div className="text-xs font-semibold tracking-wider text-brand-200 uppercase print:text-black">User manual</div>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>

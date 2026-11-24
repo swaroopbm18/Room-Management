@@ -158,6 +158,7 @@ export const PARTS: ManualPart[] = [
         steps: [
           "The cards at the top count free slots today, your classes in the next seven days, and your pending requests (or exchange requests waiting on you).",
           "My upcoming classes lists every class of yours in the next seven days, with Exchange and Drop buttons. A lab or a double class over back-to-back slots is one line.",
+          "Your classes come only from the timetable, plus rooms you requested yourself that were approved. Rooms an admin allots or approves for someone else are never listed as yours. If you have no classes, it says you have no classes or labs.",
           "Classes I dropped lists drops you can still undo.",
           "My week is your regular timetable from tomorrow, Monday to Saturday, with classes and other duties.",
         ],

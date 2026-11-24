@@ -27,6 +27,17 @@ export const getAllRooms = unstable_cache(async (): Promise<Room[]> => {
   return data ?? [];
 }, ["rooms"], { revalidate: 3600, tags: ["rooms"] });
 
+type Db = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * The timetable for the admin editors and the backup: every class, the semesters switched off
+ * included (admins only). Before database update 0044 it is the plain timetable.
+ */
+export async function getEditorTimetable<T>(supabase: Db, fn: "get_timetable" | "get_timetable_all", date: string): Promise<{ data: T[] | null; error: { message: string } | null }> {
+  const res = await supabase.rpc(fn, { p_date: date, p_all: true });
+  return (res.error ? await supabase.rpc(fn, { p_date: date }) : res) as { data: T[] | null; error: { message: string } | null };
+}
+
 /**
  * The semesters and their classes (3rd: 3A 3B 3C) in the timetable on a date, for the class
  * pickers on the home page, CIE week and Class changes. Cached for 10 minutes, since timetable
@@ -36,7 +47,7 @@ export const getClassSemesters = unstable_cache(async (date: string) => {
   const { data, error } = await publicClient().rpc("get_timetable_all", { p_date: date });
   if (error) throw new Error(error.message);
   return semestersOf([...new Set(((data ?? []) as Cell[]).filter((c) => !c.is_department).map((c) => c.subject))]).semesters;
-}, ["class-semesters"], { revalidate: 600 });
+}, ["class-semesters"], { revalidate: 600, tags: ["public-data"] });
 
 /** The rooms in use: archived rooms are left out of booking and schedule pages. */
 export async function getRooms(): Promise<Room[]> {

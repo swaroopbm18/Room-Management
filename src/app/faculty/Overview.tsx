@@ -94,8 +94,9 @@ export default async function Overview({ person, pending, waitingOnMe, sent }: {
         <h2 className="mb-3 text-lg font-semibold">My upcoming classes</h2>
         {mine.length === 0 ? (
           <div className="card muted p-6 text-sm">
-            No classes in the next 7 days.
-            {!person.initials && " Your timetable initials are not set yet, so regular classes can't be matched to you. Ask an admin to add them."}
+            {person.initials ? "You have no classes or labs in the next 7 days." : "You have no classes or labs: none in the timetable are under your name."}{" "}
+            Your classes come only from the timetable (and rooms you requested yourself), so rooms you allot or approve for others are not listed here.
+            {!person.initials && " If you do teach, ask an admin to set your timetable initials so your classes are matched to you."}
           </div>
         ) : (
           <div className="card overflow-x-auto">
@@ -194,12 +195,14 @@ export default async function Overview({ person, pending, waitingOnMe, sent }: {
       <section>
         <h2 className="text-lg font-semibold">My week</h2>
         <p className="muted mb-3 text-sm">Your regular timetable from tomorrow, Monday to Saturday. One-off bookings and dropped classes are in the list above.</p>
-        {week ? (
+        {week && week.size === 0 ? (
+          <div className="card muted p-6 text-sm">You have no classes or labs in the timetable.</div>
+        ) : week ? (
           <div className="card overflow-hidden">
             <WeekTable week={week} slots={slots} />
           </div>
         ) : (
-          <div className="card muted p-6 text-sm">Your timetable initials are not set yet, so your timetable can&apos;t be shown. Ask an admin to add them.</div>
+          <div className="card muted p-6 text-sm">You have no classes or labs in the timetable. If you do teach, ask an admin to set your timetable initials so your week is shown.</div>
         )}
       </section>
 
