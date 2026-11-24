@@ -41,6 +41,7 @@ export const UNDO_RPC = {
   holiday: "admin_add_holiday",
   notice: "admin_add_notice",
   swap: "admin_set_day_order",
+  makeup: "admin_set_holiday_makeup",
   leave: "admin_add_leave",
   subject: "admin_add_subject",
   duty: "admin_set_faculty_duty",
