@@ -316,3 +316,16 @@ export const IconBook = (p: P) => (
     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H19M8 7h7M8 11h5" />
   </Svg>
 );
+
+export const IconMenu = (p: P) => (
+  <Svg {...p}>
+    <path d="M4 6h16M4 12h16M4 18h16" />
+  </Svg>
+);
+
+export const IconSidebar = (p: P) => (
+  <Svg {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M9 4v16" />
+  </Svg>
+);

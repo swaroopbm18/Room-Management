@@ -42,16 +42,19 @@ export const PARTS: ManualPart[] = [
       {
         id: "around",
         title: "Finding your way around",
-        intro: "The bar at the top of every page has the main pages. Once you sign in you also get My dashboard and Help.",
+        intro: "Once you sign in, the menu on the left of every page has all the pages: Rooms & classes for everyone, and My work for your own. On a phone or tablet, press the ☰ button at the top left to open it. Before you sign in, the main pages are in the bar at the top.",
         steps: [
           "Home: every room in the chosen slot, free and busy faculty, notices and what is coming up.",
           "Free slots: every free room for each slot of a day, with filters for seats, kind of room and projector.",
           "Class timetables: each class's regular week, today as it runs, and the changes coming up.",
+          "Faculty availability: who is free or busy in each slot, and the best times for a meeting.",
           "My dashboard: your classes, your requests, and colleagues' requests to you.",
+          "Request a room: ask for a free room for a class or an event.",
           "Help: this manual.",
         ],
         tips: [
           "The palette button at the top right changes the colour theme, and the sun or moon button switches between light and dark.",
+          "The button at the foot of the side menu narrows it to icons, to give wide timetables more room; press it again to widen it. The site remembers your choice on that device.",
           "The site works on phones. Tables turn into cards and the menus scroll sideways.",
           "After many actions a short message appears at the bottom of the screen. Some, such as dropping a class, have an Undo button there.",
         ],
@@ -124,7 +127,7 @@ export const PARTS: ManualPart[] = [
         href: "/classes",
         intro: "Each class (3A, 3B, 5A and so on) has three views: Week (its regular week), Today (today as it actually runs) and Changes (the next seven days).",
         steps: [
-          "Open Class timetables from the top bar, or press a class under Class timetables on the home page.",
+          "Open Class timetables from the side menu (or the top bar before you sign in), or press a class under Class timetables on the home page.",
           "Pick the class. Week shows the subject, faculty member and room in every slot, with a Subjects and faculty list below.",
           "Press Today for the day as it runs: classes on, cancelled or moved, and extra classes booked for the class.",
           "Press Changes, or All class changes on the home page, for what is altered over the next seven days: cancelled, moved, taken by another faculty member, or replaced by an event or CIE. A day with nothing changed reads Classes as usual.",
