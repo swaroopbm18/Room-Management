@@ -23,6 +23,7 @@ export async function updateSession(request: NextRequest) {
       },
     },
   );
-  await supabase.auth.getUser();
+  // Refreshes an expired session and checks the token locally (see getPerson in lib/auth.ts)
+  await supabase.auth.getClaims();
   return response;
 }

@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { cache } from "react";
+import { cookies } from "next/headers";
 import { createClient as createPlainClient } from "@supabase/supabase-js";
 import { createClient } from "./supabase/server";
 import { semestersOf, type Cell } from "./classTimetable";
@@ -42,7 +43,31 @@ export async function getRooms(): Promise<Room[]> {
   return (await getAllRooms()).filter((r) => !r.archived);
 }
 
+/**
+ * Students (not signed in) all see the same day, so for them the day's rooms, the upcoming events
+ * and free/busy faculty are cached for a minute and shared, instead of read on every visit. Every
+ * admin change clears the cache at once (refreshPages() in app/actions/shared.ts). Signed-in
+ * faculty and admins always read live, since their view marks their own classes.
+ */
+const PUBLIC = { revalidate: 60, tags: ["public-data"] };
+
+async function signedOut(): Promise<boolean> {
+  const store = await cookies();
+  return !store.getAll().some((c) => c.name.startsWith("sb-") && c.name.includes("-auth-token"));
+}
+
+async function publicRpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
+  const { data, error } = await publicClient().rpc(fn, args);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as T;
+}
+
+const cachedDaySchedule = unstable_cache((date: string) => publicRpc<ScheduleRow[]>("get_day_schedule", { p_date: date }), ["public-day-schedule"], PUBLIC);
+const cachedUpcoming = unstable_cache((days: number) => publicRpc<UpcomingRow[]>("upcoming_bookings", { p_days: days }), ["public-upcoming"], PUBLIC);
+const cachedFacultyStatus = unstable_cache((date: string) => publicRpc<FacultySlotStatus[]>("faculty_status", { p_date: date }), ["public-faculty-status"], PUBLIC);
+
 export async function getDaySchedule(date: string): Promise<ScheduleRow[]> {
+  if (await signedOut()) return cachedDaySchedule(date);
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_day_schedule", { p_date: date });
   if (error) throw new Error(error.message);
@@ -63,6 +88,7 @@ export async function getMySchedule(from: string, to: string): Promise<MyClass[]
 
 /** Upcoming events and bookings, or null if they can't be read. */
 export async function getUpcomingBookings(days: number): Promise<UpcomingRow[] | null> {
+  if (await signedOut()) return cachedUpcoming(days).catch(() => null);
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("upcoming_bookings", { p_days: days });
   return error ? null : ((data ?? []) as UpcomingRow[]);
@@ -90,6 +116,7 @@ export type FacultySlotStatus = {
 
 /** Every faculty member, free or busy, in every slot of a date. Null if it can't be read. */
 export async function getFacultyStatus(date: string): Promise<FacultySlotStatus[] | null> {
+  if (await signedOut()) return cachedFacultyStatus(date).catch(() => null);
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("faculty_status", { p_date: date });
   return error ? null : ((data ?? []) as FacultySlotStatus[]);

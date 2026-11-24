@@ -11,6 +11,7 @@ import { IconFile } from "@/components/Icons";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, todayIST } from "@/lib/time";
 import ClassTabs from "@/components/ClassTabs";
+import { getFacultyNames } from "@/lib/facultyNames";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -31,13 +32,12 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
   const admin = person?.role === "admin";
   // Timetable edits apply from tomorrow, so that is the week an admin edits
   const date = admin ? addDays(today, 1) : today;
-  const [slots, ttRes, status, rooms, dirRes, peopleRes, pdfs] = await Promise.all([
+  const [slots, ttRes, status, rooms, nameMap, pdfs] = await Promise.all([
     getSlots(),
     supabase.rpc("get_timetable_all", { p_date: date }),
     getFacultyStatus(today),
     admin ? getRooms() : Promise.resolve([]),
-    admin ? supabase.from("faculty_directory").select("initials, title, full_name") : Promise.resolve({ data: [] }),
-    admin ? supabase.from("people").select("initials, title, full_name").not("initials", "is", null) : Promise.resolve({ data: [] }),
+    admin ? getFacultyNames() : Promise.resolve(new Map<string, string>()),
     getTimetablePdfs(),
   ]);
   const cells = (ttRes.data ?? []) as Cell[];
@@ -48,10 +48,7 @@ export default async function Classes({ searchParams }: { searchParams: Promise<
   const busy: Record<string, Record<string, string>> = {};
   if (admin) for (const c of cells) (busy[`${c.weekday}|${c.slot_id}`] ??= {})[c.room_id] = c.subject;
   // The editor suggests every named faculty member and flags initials with no name ("Check")
-  const named: Record<string, string> = {};
-  for (const p of [...(dirRes.data ?? []), ...(peopleRes.data ?? [])] as { initials: string; title: string | null; full_name: string }[]) {
-    if (p.full_name.trim()) named[p.initials] = `${p.title ? p.title + " " : ""}${p.full_name}`;
-  }
+  const named: Record<string, string> = Object.fromEntries(nameMap);
   // The timetable office's PDF for this class (its section's, semester's or every class's)
   const pdf = pdfForClass(pdfs, chosen);
   const chip = (k: string, text: string) => (

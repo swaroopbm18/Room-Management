@@ -2,12 +2,11 @@
 
 // The room and class timetables: cell edits, Word upload, timetable PDFs and the semester end and new semester steps.
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { addDays, DATE_RE, formatDate, todayIST } from "@/lib/time";
 import { createClient } from "@/lib/supabase/server";
 import { applyFacultyAliases, type ParsedEntry } from "@/lib/timetableDocx";
-import { back, withParam, run, s, slotRange } from "./shared";
+import { back, withParam, run, s, slotRange, refreshPages } from "./shared";
 
 export async function adminEditTimetable(form: FormData) {
   const supabase = await createClient();
@@ -19,7 +18,7 @@ export async function adminEditTimetable(form: FormData) {
     p_initials: s(form, "initials").split(/[,\s]+/).filter(Boolean),
     p_is_department: form.get("department") === "on",
   });
-  revalidatePath("/", "layout");
+  refreshPages();
   const to = back(form, "/admin/timetable");
   redirect(
     error
@@ -57,11 +56,11 @@ export async function saveClassEntry(form: FormData) {
   if (!error && oldRoom && room !== oldRoom) {
     const moved = await edit(oldRoom, "", []);
     if (moved.error) {
-      revalidatePath("/", "layout");
+      refreshPages();
       redirect(withParam(to, "error", `The class was added to ${room} but is still in ${oldRoom} too: ${moved.error.message}. Delete it from ${oldRoom}.`));
     }
   }
-  revalidatePath("/", "layout");
+  refreshPages();
   redirect(
     error
       ? withParam(to, "error", error.message)
@@ -80,7 +79,7 @@ export async function deleteClassEntry(form: FormData) {
     p_initials: [],
     p_is_department: false,
   });
-  revalidatePath("/", "layout");
+  refreshPages();
   const to = back(form, "/admin/class-timetable");
   redirect(
     error
@@ -134,7 +133,7 @@ export async function applyTimetableUpload(form: FormData) {
   const { rooms, entries } = JSON.parse(s(form, "payload") || "{}") as { rooms?: string[]; entries?: unknown[] };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_replace_timetable", { p_rooms: rooms ?? [], p_entries: entries ?? [] });
-  revalidatePath("/", "layout");
+  refreshPages();
   redirect(
     error
       ? withParam("/admin/timetable", "error", error.message)
@@ -151,7 +150,7 @@ export async function semesterRollover(form: FormData) {
     p_subjects: subjects === "all" || subjects === "timetable" ? subjects : "none",
     p_leave: form.get("leave") === "on",
   });
-  revalidatePath("/", "layout");
+  refreshPages();
   redirect(withParam(back(form, "/admin/rollover"), error ? "error" : "msg", error ? error.message : `Done: ${data}.`));
 }
 
@@ -179,7 +178,7 @@ export async function deleteTimetablePdf(form: FormData) {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_delete_timetable_pdf", { p_key: s(form, "key") });
   if (!error && data) await supabase.storage.from("timetables").remove([String(data)]);
-  revalidatePath("/", "layout");
+  refreshPages();
   const to = back(form, "/admin/timetable-pdfs");
   redirect(withParam(to, error ? "error" : "msg", error ? error.message : "Timetable PDF removed."));
 }

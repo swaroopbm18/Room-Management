@@ -2,16 +2,15 @@
 
 // Class exchanges between faculty: request, answer, approve and undo.
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { back, withParam, s } from "./shared";
+import { back, withParam, s, refreshPages } from "./shared";
 
 async function run29(form: FormData, fallback: string, fn: string, args: Record<string, unknown>, ok: string, okTo?: string) {
   const supabase = await createClient();
   const { error } = await supabase.rpc(fn, args);
   const to = !error && okTo ? okTo : back(form, fallback);
-  revalidatePath("/", "layout");
+  refreshPages();
   redirect(withParam(to, error ? "error" : "msg", error ? error.message : ok));
 }
 

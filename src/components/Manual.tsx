@@ -36,7 +36,6 @@ export default function Manual({
   parts,
   faq = [],
   glossary = [],
-  other,
 }: {
   title: string;
   subtitle: string;
@@ -44,7 +43,6 @@ export default function Manual({
   parts: ManualPart[];
   faq?: ManualQuestion[];
   glossary?: ManualTerm[];
-  other?: { href: string; label: string };
 }) {
   const extras = [...(faq.length ? [{ id: "questions", title: "Common questions" }] : []), ...(glossary.length ? [{ id: "glossary", title: "Words used on the site" }] : [])];
   return (
@@ -55,11 +53,6 @@ export default function Manual({
         <p className="mt-2 max-w-3xl text-sm text-brand-100 print:text-black">{subtitle}</p>
         <div className="mt-4 flex flex-wrap gap-2 print:hidden">
           <PrintButton label="Print or save as PDF" className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-sm font-medium text-brand-950 hover:bg-brand-100" />
-          {other && (
-            <Link href={other.href} className="inline-flex items-center gap-1.5 rounded-lg border border-white/30 px-3 py-1.5 text-sm font-medium hover:bg-white/10">
-              {other.label}
-            </Link>
-          )}
         </div>
       </header>
 

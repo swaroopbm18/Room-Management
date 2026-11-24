@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { bySection, makeSectionsOf, releasesFor, shortDay, takersOn } from "@/lib/affected";
 import { getSlots } from "@/lib/data";
@@ -9,6 +8,7 @@ import { skillLabTitle } from "@/lib/skillLab";
 import { createClient } from "@/lib/supabase/server";
 import { DATE_RE, slotStarted } from "@/lib/time";
 import { loadDays, workingDays } from "../affected/data";
+import { refreshPages } from "../../actions/shared";
 
 const s = (form: FormData, k: string) => String(form.get(k) ?? "").trim();
 
@@ -52,7 +52,7 @@ export async function editEvent(form: FormData) {
   const newTitle = sections.length ? skillLabTitle(label, sections) : label;
   const supabase = await createClient();
   const { error } = await supabase.rpc("admin_change_event", { p_places: places, p_title: title, p_new_title: newTitle, p_reason: reason, p_cancel: false });
-  revalidatePath("/", "layout");
+  refreshPages();
   if (error) go("error", needs0042(error) ? "Editing events needs database update 0042. Run it in the Supabase SQL Editor." : error.message);
   go("msg", newTitle === title ? `${title} updated.` : `Renamed "${title}" to "${newTitle}" everywhere.`);
 }
@@ -72,7 +72,7 @@ export async function cancelEvent(form: FormData) {
   const picked = only ? places.filter((p) => p.date === only || (p.date > only && !dates.includes(p.date))) : places;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_change_event", { p_places: picked, p_title: title, p_new_title: null, p_reason: null, p_cancel: true });
-  revalidatePath("/", "layout");
+  refreshPages();
   if (error) go("error", needs0042(error) ? "Cancelling events needs database update 0042. Run it in the Supabase SQL Editor." : error.message);
   const n = Number(data ?? 0);
   go("msg", `Cancelled ${eventLabel(title)}${only ? ` on ${shortDay(only)}` : ""}: ${n} ${n === 1 ? "slot is" : "slots are"} back as ${n === 1 ? "it was" : "they were"} before.`);
@@ -107,12 +107,12 @@ export async function addSectionsToEvent(form: FormData) {
     const releases = releasesFor(day, t, attending, newSecs, sectionsOf).filter((r) => !slotStarted(day.date, slots.find((x) => x.id === r.slot) ?? { starts: "00:00" }));
     const { data, error } = await supabase.rpc("admin_add_sections", { p_date: day.date, p_slots: t.slots, p_title: title, p_new_title: newTitle, p_releases: releases });
     if (error) {
-      revalidatePath("/", "layout");
+      refreshPages();
       go("error", error.code === "PGRST202" || error.message.includes("admin_add_sections") ? "Adding sections needs database update 0038. Run it in the Supabase SQL Editor." : `${shortDay(day.date)}: ${error.message}`);
     }
     released += (data as { released?: number } | null)?.released ?? 0;
   }
-  revalidatePath("/", "layout");
+  refreshPages();
   if (newTitle === title) go("error", "Those sections are already in it.");
   go("msg", `Added ${added.join(", ")}: now "${newTitle}". Released ${released} ${released === 1 ? "class slot" : "class slots"} of theirs, so those rooms are free.`);
 }
