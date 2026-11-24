@@ -9,6 +9,7 @@ import { groupRequests, slotCount } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
 import type { RequestRow } from "@/lib/types";
 import { formatDate, formatDateTime, slotEnded, todayIST } from "@/lib/time";
+import BulkTick from "./BulkTick";
 import { approveRequest, bulkDecide, moveRequest, rejectRequest, undoDecision } from "../actions/requests";
 
 export const dynamic = "force-dynamic";
@@ -114,7 +115,7 @@ export default async function AdminRequests() {
         <div className="space-y-4">
           {pending.length > 1 && (
             <form id="bulk" action={bulkDecide} className="card flex flex-wrap items-center gap-2 p-3 text-sm">
-              <span className="muted mr-auto">Tick requests below to approve or reject several at once.</span>
+              <BulkTick form="bulk" />
               <SubmitButton name="decision" value="approve" className="btn-primary py-1.5" pendingText="Approving…" message="Approving the ticked requests…">
                 <IconCheck className="h-4 w-4" /> Approve ticked
               </SubmitButton>

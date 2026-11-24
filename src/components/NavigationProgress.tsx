@@ -42,10 +42,11 @@ export default function NavigationProgress() {
       if (/\.(pdf|xlsx|csv|ics)$|\/(backup|export)$|^\/cal\//.test(to.pathname)) return;
       start();
     };
-    document.addEventListener("click", onClick);
+    // Capture: a Next link cancels the browser's own navigation before the click bubbles up
+    document.addEventListener("click", onClick, true);
     window.addEventListener("popstate", start);
     return () => {
-      document.removeEventListener("click", onClick);
+      document.removeEventListener("click", onClick, true);
       window.removeEventListener("popstate", start);
       timers.current.forEach(clearTimeout);
     };
