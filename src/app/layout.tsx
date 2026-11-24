@@ -4,6 +4,9 @@ import type { Metadata } from "next";
 import { Rubik } from "next/font/google";
 import DeveloperCredit from "@/components/DeveloperCredit";
 import Navbar from "@/components/Navbar";
+import SideNav from "@/components/SideNav";
+import { getPerson } from "@/lib/auth";
+import { pendingRequestCount } from "@/lib/pending";
 import Toast from "@/components/Toast";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
@@ -38,9 +41,11 @@ export const metadata: Metadata = {
 };
 
 // Applies the saved theme and colour before first paint, so neither flashes.
-const themeScript = `try{var d=document.documentElement,t=localStorage.getItem('theme'),c=localStorage.getItem('color');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches))d.classList.add('dark');if(['violet','red','amber','emerald','slate'].indexOf(c)>=0)d.dataset.color=c}catch(e){}`;
+const themeScript = `try{var d=document.documentElement,t=localStorage.getItem('theme'),c=localStorage.getItem('color');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches))d.classList.add('dark');if(localStorage.getItem('nav')==='rail')d.dataset.nav='rail';if(['violet','red','amber','emerald','slate'].indexOf(c)>=0)d.dataset.color=c}catch(e){}`;
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const person = await getPerson().catch(() => null);
+  const pending = person?.role === "admin" ? await pendingRequestCount().catch(() => 0) : 0;
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
@@ -56,9 +61,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         >
           Skip to content
         </a>
-        <Navbar />
-        <main id="main" tabIndex={-1} className="outline-none mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-8 print:max-w-none print:p-0">{children}</main>
-        <DeveloperCredit />
+        <Navbar person={person} />
+        <div className="flex flex-1">
+          {person && <SideNav admin={person.role === "admin"} pending={pending} />}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <main id="main" tabIndex={-1} className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 outline-none sm:px-6 sm:py-8 print:max-w-none print:p-0">
+              {children}
+            </main>
+            <DeveloperCredit />
+          </div>
+        </div>
         <Toast />
       </body>
     </html>

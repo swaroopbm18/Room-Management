@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
+/* The side navigation narrowed to icons (SideNav), remembered on this device */
+@custom-variant rail (&:where([data-nav="rail"], [data-nav="rail"] *));
 
 @theme {
   --font-sans: var(--font-rubik), ui-sans-serif, system-ui, sans-serif;

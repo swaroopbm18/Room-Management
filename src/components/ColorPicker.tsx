@@ -6,7 +6,7 @@ import { IconCheck, IconPalette } from "./Icons";
 
 // Navbar button that recolours the whole site. The choice is saved in localStorage and
 // applied before first paint by the script in layout.tsx.
-export default function ColorPicker() {
+export default function ColorPicker({ className = "rounded-lg p-2 text-brand-100 hover:bg-white/10" }: { className?: string }) {
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState<string>(DEFAULT_COLOR);
   const ref = useRef<HTMLDivElement>(null);
@@ -50,7 +50,7 @@ export default function ColorPicker() {
         title="Change colour theme"
         aria-expanded={open}
         aria-haspopup="true"
-        className="rounded-lg p-2 text-brand-100 hover:bg-white/10"
+        className={className}
       >
         <IconPalette className="h-5 w-5" />
       </button>
