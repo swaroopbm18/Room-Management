@@ -27,7 +27,7 @@ export default async function Overview({ person, pending, waitingOnMe, sent }: {
     getMySchedule(today, addDays(today, 6)),
     getDaySchedule(workingDay(today)),
     person.initials ? getWeekFor(person.initials) : null,
-    supabase.from("allotments").select("id, room_id, date, slot_id, reason").eq("kind", "drop").eq("created_by", person.email).gte("date", today),
+    supabase.from("allotments").select("id, room_id, date, slot_id, reason").eq("kind", "drop").eq("created_by", person.email).eq("faculty_email", person.email).gte("date", today),
     supabase.rpc("my_calendar_token"),
     headers(),
   ]);
@@ -38,6 +38,7 @@ export default async function Overview({ person, pending, waitingOnMe, sent }: {
   const slotById = new Map(slots.map((s) => [s.id, s]));
   const mine = schedule.filter((r) => !r.ended);
   // Classes I dropped that can still be brought back: nothing has happened in the slot since, and it hasn't started
+  // Only my own classes I dropped (faculty_email is mine): rooms I freed as an admin are not my classes
   type Drop = { id: number; room_id: string; date: string; slot_id: number; reason: string };
   const drops = (dropData ?? []) as Drop[];
   const latestRes = drops.length
