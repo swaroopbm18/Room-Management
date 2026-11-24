@@ -64,7 +64,7 @@ export default async function FacultyDashboard({ searchParams }: { searchParams:
         <Link href="/faculty-status/meetings" className="btn-secondary">
           <IconClock className="h-4 w-4" /> Find a meeting time
         </Link>
-        <Link href="/faculty/manual" className="btn-secondary">
+        <Link href="/help" className="btn-secondary">
           <IconBook className="h-4 w-4" /> User manual
         </Link>
         <Link href="/free" className="btn-primary">

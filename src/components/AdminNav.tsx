@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { IconActivity, IconDashboard, IconArchive, IconCalendar, IconChart, IconLeave, IconCalendarCheck, IconDoor, IconFile, IconFlag, IconInbox, IconMegaphone, IconTag, IconSwap, IconUser, IconUsers, IconBook } from "./Icons";
+import { IconActivity, IconDashboard, IconArchive, IconCalendar, IconChart, IconLeave, IconCalendarCheck, IconDoor, IconFile, IconFlag, IconInbox, IconMegaphone, IconTag, IconSwap, IconUser, IconUsers } from "./Icons";
 import PendingLink from "./PendingLink";
 
 /** `also`: other pages that are views of this tab, reached from tabs inside the page. */
@@ -26,7 +26,7 @@ const GROUPS: Group[] = [
     icon: <IconFlag className={i} />,
     tabs: [
       { href: "/admin/allot", label: "Allot / free rooms", icon: <IconFlag className={i} /> },
-      { href: "/admin/cie", label: "Bulk allot & events", icon: <IconCalendarCheck className={i} />, also: ["/admin/seating", "/admin/skill-lab", "/admin/affected", "/admin/events"] },
+      { href: "/admin/cie", label: "Bulk allot & events", icon: <IconCalendarCheck className={i} />, also: ["/admin/skill-lab", "/admin/affected", "/admin/events"] },
       { href: "/admin/rooms", label: "Room details", icon: <IconDoor className={i} /> },
       { href: "/admin/holidays", label: "Calendar & notices", icon: <IconMegaphone className={i} /> },
     ],
@@ -55,14 +55,6 @@ const GROUPS: Group[] = [
       { href: "/admin/report", label: "Report", icon: <IconFile className={i} /> },
       { href: "/admin/usage", label: "Usage", icon: <IconChart className={i} />, also: ["/admin/workload"] },
       { href: "/admin/activity", label: "Activity log", icon: <IconActivity className={i} />, also: ["/admin/history"] },
-    ],
-  },
-  {
-    label: "Help",
-    icon: <IconBook className={i} />,
-    tabs: [
-      { href: "/admin/manual", label: "Admin manual", icon: <IconBook className={i} /> },
-      { href: "/faculty/manual", label: "Faculty manual", icon: <IconUser className={i} /> },
     ],
   },
 ];

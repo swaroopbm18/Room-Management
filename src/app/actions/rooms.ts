@@ -2,10 +2,10 @@
 
 // Room details: add, edit, archive or delete a room.
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { back, withParam, s, run25 } from "./shared";
+import { back, withParam, s, run25, refreshPages } from "./shared";
 
 export async function updateRoom(form: FormData) {
   const supabase = await createClient();
@@ -23,7 +23,7 @@ export async function updateRoom(form: FormData) {
     p_notes: s(form, "notes"),
   });
   revalidateTag("rooms");
-  revalidatePath("/", "layout");
+  refreshPages();
   redirect(withParam(back(form, "/admin/rooms"), error ? "error" : "msg", error ? error.message : `Room ${s(form, "room")} saved.`));
 }
 
@@ -39,7 +39,7 @@ export async function addRoom(form: FormData) {
     p_notes: s(form, "notes"),
   });
   revalidateTag("rooms");
-  revalidatePath("/", "layout");
+  refreshPages();
   redirect(withParam(back(form, "/admin/rooms"), error ? "error" : "msg", error ? error.message : `Room ${data} added.`));
 }
 
@@ -48,7 +48,7 @@ export async function deleteRoom(form: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.rpc("admin_delete_room", { p_room: s(form, "room") });
   revalidateTag("rooms");
-  revalidatePath("/", "layout");
+  refreshPages();
   redirect(withParam(back(form, "/admin/rooms"), error ? "error" : "msg", error ? error.message : `Room ${s(form, "room")} deleted.`));
 }
 

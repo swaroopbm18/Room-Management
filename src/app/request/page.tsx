@@ -39,10 +39,18 @@ export default async function RequestPage({
       </div>
     );
   }
-  const holidays = await getHolidays();
-  const day = date && !holidays.has(date) ? await getDaySchedule(date) : [];
+  // Everything the page needs, read at once rather than one after another
+  const supabase = await createClient();
+  const [holidays, daySchedule, rooms, { data: subjectRows }, status] = await Promise.all([
+    getHolidays(),
+    date ? getDaySchedule(date) : Promise.resolve([]),
+    getRooms(),
+    supabase.from("faculty_subjects").select("subject").eq("email", person.email).order("subject"),
+    // What the requester is doing in each slot that day, for clash warnings
+    person.initials && date ? getFacultyStatus(date) : Promise.resolve(null),
+  ]);
+  const day = holidays.has(date) ? [] : daySchedule;
   const row = day.find((r) => r.room_id === sp.room && String(r.slot_id) === sp.slot);
-  const rooms = await getRooms();
   // Free rooms like the one asked for, at the same time
   const isFree = (roomId: string, slotId: number) => day.some((r) => r.room_id === roomId && r.slot_id === slotId && r.status === "free" && !r.ended);
   const like = rooms.find((r) => r.id === sp.room);
@@ -70,14 +78,10 @@ export default async function RequestPage({
     .filter((r) => r.room_id === row.room_id)
     .map((r) => ({ id: r.slot_id, label: r.slot_label, status: r.status, ended: r.ended, subject: r.subject }));
 
-  const supabase = await createClient();
-  const { data: subjectRows } = await supabase.from("faculty_subjects").select("subject").eq("email", person.email).order("subject");
   const subjects = (subjectRows ?? []).map((r) => r.subject as string);
   // The same weekday in the following weeks, while bookings are open (holidays are refused when sent)
   const open = bookableDates();
   const weeks = [1, 2, 3].map((k) => addDays(date, 7 * k)).filter((d) => open.includes(d) && !holidays.has(d)).map((d) => ({ date: d, label: formatDate(d) }));
-  // What the requester is doing in each slot that day, for clash warnings
-  const status = person.initials ? await getFacultyStatus(date) : null;
   const busy = (status ?? []).filter((f) => f.initials === person.initials && f.busy).map((f) => ({ slot_id: f.slot_id, activity: f.activity, room_id: f.room_id }));
 
   return (

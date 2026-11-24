@@ -7,6 +7,7 @@ import ClassGrid from "./ClassGrid";
 import FacultyFinder, { type FinderClass } from "@/components/FacultyFinder";
 import { buildClassTimetable, classesOf, ordinal, OTHER, type Cell } from "@/lib/classTimetable";
 import AreaTabs from "../AreaTabs";
+import { getFacultyNames } from "@/lib/facultyNames";
 
 export const dynamic = "force-dynamic";
 
@@ -14,19 +15,15 @@ export default async function ClassTimetable({ searchParams }: { searchParams: P
   const sp = await searchParams;
   const tomorrow = addDays(todayIST(), 1);
   const supabase = await createClient();
-  const [rooms, slots, ttRes, dirRes, peopleRes] = await Promise.all([
+  const [rooms, slots, ttRes, nameMap] = await Promise.all([
     getRooms(),
     getSlots(),
     supabase.rpc("get_timetable_all", { p_date: tomorrow }),
-    supabase.from("faculty_directory").select("initials, title, full_name"),
-    supabase.from("people").select("initials, title, full_name").not("initials", "is", null),
+    getFacultyNames(),
   ]);
   const cells = (ttRes.data ?? []) as Cell[];
 
-  const names: Record<string, string> = {};
-  for (const p of [...(dirRes.data ?? []), ...(peopleRes.data ?? [])] as { initials: string; title: string | null; full_name: string }[]) {
-    if (p.full_name.trim()) names[p.initials] = `${p.title ? p.title + " " : ""}${p.full_name}`;
-  }
+  const names: Record<string, string> = Object.fromEntries(nameMap);
 
   const { semesters, hasOther, allClasses, chosen, label, days, wholeSemester, subjects } = buildClassTimetable(cells, slots, sp.class);
 

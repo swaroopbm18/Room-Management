@@ -1,12 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { clashes, DayState, fromText, makeSectionsOf, planBulk, rowKey, shortDay, slotRange, takerLabel, type Affected } from "@/lib/affected";
 import { getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { DATE_RE, slotStarted } from "@/lib/time";
 import { getAffected, loadDays, workingDaysBetween } from "./data";
+import { refreshPages } from "../../actions/shared";
 
 const s = (form: FormData, k: string) => String(form.get(k) ?? "").trim();
 
@@ -74,7 +74,7 @@ export async function moveAffected(form: FormData) {
     p_from: fromText(a, { date, slots: ids }, slots),
     p_why: why(a.takenBy),
   });
-  revalidatePath("/", "layout");
+  refreshPages();
   if (error) {
     const missing = error.code === "PGRST202" || /admin_move_class/.test(error.message);
     go("error", missing ? "Moving classes needs database update 0038. Run it in the Supabase SQL Editor." : `${a.subject} was not moved: ${error.message}`);
@@ -118,7 +118,7 @@ export async function bulkMoveAffected(form: FormData) {
     if (error) failed.push(`${a.subject} (${shortDay(a.date)}): ${error.message}`);
     else moved++;
   }
-  revalidatePath("/", "layout");
+  refreshPages();
   const text = `Moved ${moved} ${moved === 1 ? "class" : "classes"}.${failed.length ? ` Not moved: ${failed.join("; ")}.` : ""}`;
   go(moved ? "msg" : "error", text);
 }

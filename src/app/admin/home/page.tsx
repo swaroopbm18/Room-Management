@@ -13,6 +13,7 @@ import { findSubstitutes } from "@/lib/substitutes";
 import { createClient } from "@/lib/supabase/server";
 import type { RequestRow, ScheduleRow } from "@/lib/types";
 import { formatDate, formatDateTime, isClosedSunday, slotEnded, todayIST, WEEKDAY_NAMES } from "@/lib/time";
+import { getFacultyNames } from "@/lib/facultyNames";
 
 export const dynamic = "force-dynamic";
 
@@ -38,11 +39,10 @@ function Panel({ title, icon, href, linkText, children }: { title: string; icon:
 export default async function AdminHome() {
   const today = todayIST();
   const supabase = await createClient();
-  const [pendingRes, leaveRes, dirRes, peopleRes, scheduleRes, timetableRes, holidays, orders, notices, health] = await Promise.all([
+  const [pendingRes, leaveRes, names, scheduleRes, timetableRes, holidays, orders, notices, health] = await Promise.all([
     supabase.from("requests").select("*").eq("status", "pending").gte("date", today).order("created_at"),
     supabase.from("faculty_leave").select("id, initials, starts_on, ends_on, reason").lte("starts_on", today).gte("ends_on", today),
-    supabase.from("faculty_directory").select("initials, title, full_name"),
-    supabase.from("people").select("initials, title, full_name").not("initials", "is", null),
+    getFacultyNames(),
     supabase.rpc("get_day_schedule", { p_date: today }),
     supabase.rpc("get_timetable", { p_date: today }),
     getHolidays(),
@@ -58,10 +58,6 @@ export default async function AdminHome() {
   const pending = groupRequests((pendingRes.data ?? []) as RequestRow[], slotById).filter((g) => !slotEnded(g.first.date, slotById.get(g.first.slot_id)!));
 
   // Today's leave, with each class still to run and who is free to take it
-  const names = new Map<string, string>();
-  for (const p of [...(dirRes.data ?? []), ...(peopleRes.data ?? [])] as { initials: string; title: string | null; full_name: string }[]) {
-    names.set(p.initials, p.full_name.trim() ? `${p.title ? p.title + " " : ""}${p.full_name}` : (names.get(p.initials) ?? p.initials));
-  }
   const workingToday = !isClosedSunday(today) && !holidays.has(today);
   const leave = workingToday ? ((leaveRes.data ?? []) as Leave[]) : [];
   const held = new Set(((scheduleRes.data ?? []) as ScheduleRow[]).filter((r) => r.status === "class").map((r) => `${r.room_id}|${r.slot_id}`));
