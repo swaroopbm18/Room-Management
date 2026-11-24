@@ -3,16 +3,7 @@
 // Class exchanges between faculty: request, answer, approve and undo.
 
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { back, withParam, s, refreshPages } from "./shared";
-
-async function run29(form: FormData, fallback: string, fn: string, args: Record<string, unknown>, ok: string, okTo?: string) {
-  const supabase = await createClient();
-  const { error } = await supabase.rpc(fn, args);
-  const to = !error && okTo ? okTo : back(form, fallback);
-  refreshPages();
-  redirect(withParam(to, error ? "error" : "msg", error ? error.message : ok));
-}
+import { back, withParam, run, s } from "./shared";
 
 /** Ask a free colleague to take one of my classes. They accept, then an admin approves. */
 export async function requestExchange(form: FormData) {
@@ -23,31 +14,31 @@ export async function requestExchange(form: FormData) {
   const slots = (s(form, "slots") || s(form, "slot")).split(",").map(Number).filter((n) => n > 0);
   const common = { p_room: s(form, "room"), p_date: s(form, "date"), p_target: ini, p_note: s(form, "note"), p_new_subject: teaches || null };
   const sent = `Request sent to ${name || ini}${slots.length > 1 ? ` for all ${slots.length} slots` : ""}. Once they accept, an admin gives the final approval; you'll see each step here.`;
-  if (slots.length > 1) await run29(form, "/faculty?tab=requests", "request_exchange_slots", { ...common, p_slots: slots }, sent, "/faculty?tab=requests");
-  else await run29(form, "/faculty?tab=requests", "request_exchange", { ...common, p_slot: slots[0] }, sent, "/faculty?tab=requests");
+  if (slots.length > 1) await run(form, "/faculty?tab=requests", "request_exchange_slots", { ...common, p_slots: slots }, sent, undefined, { okTo: "/faculty?tab=requests" });
+  else await run(form, "/faculty?tab=requests", "request_exchange", { ...common, p_slot: slots[0] }, sent, undefined, { okTo: "/faculty?tab=requests" });
 }
 
 export async function acceptExchange(form: FormData) {
-  await run29(form, "/faculty?tab=exchange", "respond_exchange", { p_id: Number(s(form, "id")), p_accept: true, p_note: s(form, "note") }, "Accepted. It now waits for an admin's final approval.");
+  await run(form, "/faculty?tab=exchange", "respond_exchange", { p_id: Number(s(form, "id")), p_accept: true, p_note: s(form, "note") }, "Accepted. It now waits for an admin's final approval.");
 }
 
 export async function declineExchange(form: FormData) {
-  await run29(form, "/faculty?tab=exchange", "respond_exchange", { p_id: Number(s(form, "id")), p_accept: false, p_note: s(form, "note") }, "Declined. The faculty member can ask someone else.");
+  await run(form, "/faculty?tab=exchange", "respond_exchange", { p_id: Number(s(form, "id")), p_accept: false, p_note: s(form, "note") }, "Declined. The faculty member can ask someone else.");
 }
 
 export async function withdrawExchange(form: FormData) {
-  await run29(form, "/faculty?tab=requests", "withdraw_exchange", { p_id: Number(s(form, "id")) }, "Exchange request withdrawn.");
+  await run(form, "/faculty?tab=requests", "withdraw_exchange", { p_id: Number(s(form, "id")) }, "Exchange request withdrawn.");
 }
 
 export async function approveExchange(form: FormData) {
-  await run29(form, "/admin/exchanges", "admin_decide_exchange", { p_id: Number(s(form, "id")), p_approve: true, p_note: s(form, "note") }, "Approved. The class now shows as the new faculty member's everywhere.");
+  await run(form, "/admin/exchanges", "admin_decide_exchange", { p_id: Number(s(form, "id")), p_approve: true, p_note: s(form, "note") }, "Approved. The class now shows as the new faculty member's everywhere.");
 }
 
 export async function rejectExchange(form: FormData) {
-  await run29(form, "/admin/exchanges", "admin_decide_exchange", { p_id: Number(s(form, "id")), p_approve: false, p_note: s(form, "note") }, "Exchange denied. The original classes stay as they are.");
+  await run(form, "/admin/exchanges", "admin_decide_exchange", { p_id: Number(s(form, "id")), p_approve: false, p_note: s(form, "note") }, "Exchange denied. The original classes stay as they are.");
 }
 
 /** Take back an approved exchange before the class starts: the original faculty gets every slot back. */
 export async function undoExchange(form: FormData) {
-  await run29(form, "/admin/exchanges", "admin_undo_exchange", { p_id: Number(s(form, "id")), p_note: s(form, "note") }, "Approval taken back. The original classes are back on the timetable.");
+  await run(form, "/admin/exchanges", "admin_undo_exchange", { p_id: Number(s(form, "id")), p_note: s(form, "note") }, "Approval taken back. The original classes are back on the timetable.");
 }

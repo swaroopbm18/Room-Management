@@ -5,7 +5,7 @@
 import { revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { back, withParam, s, run25, refreshPages } from "./shared";
+import { back, withParam, s, run, refreshPages } from "./shared";
 
 export async function updateRoom(form: FormData) {
   const supabase = await createClient();
@@ -52,19 +52,16 @@ export async function deleteRoom(form: FormData) {
   redirect(withParam(back(form, "/admin/rooms"), error ? "error" : "msg", error ? error.message : `Room ${s(form, "room")} deleted.`));
 }
 
-/**
- * A CIE (or event) in the same slots of several rooms on several days, e.g. a CIE week.
- * Sundays and holidays are skipped; a day or room that can't be taken is reported, not fatal.
- */
 /** An archived room is hidden from the schedule and booking pages but keeps its history. */
 export async function archiveRoom(form: FormData) {
   const archived = s(form, "archived") === "true";
-  await run25(
+  await run(
     form,
     "/admin/rooms",
     "admin_archive_room",
     { p_room: s(form, "room"), p_archived: archived },
     archived ? `${s(form, "room")} archived. It no longer shows on the schedule.` : `${s(form, "room")} is back on the schedule.`,
-    "rooms",
+    undefined,
+    { tag: "rooms" },
   );
 }

@@ -31,11 +31,10 @@ type Db = Awaited<ReturnType<typeof createClient>>;
 
 /**
  * The timetable for the admin editors and the backup: every class, the semesters switched off
- * included (admins only). Before database update 0044 it is the plain timetable.
+ * included (admins only).
  */
 export async function getEditorTimetable<T>(supabase: Db, fn: "get_timetable" | "get_timetable_all", date: string): Promise<{ data: T[] | null; error: { message: string } | null }> {
-  const res = await supabase.rpc(fn, { p_date: date, p_all: true });
-  return (res.error ? await supabase.rpc(fn, { p_date: date }) : res) as { data: T[] | null; error: { message: string } | null };
+  return (await supabase.rpc(fn, { p_date: date, p_all: true })) as { data: T[] | null; error: { message: string } | null };
 }
 
 /**
@@ -179,15 +178,26 @@ export const getDayOrders = cache(async (): Promise<Map<string, DayOrder>> => {
 
 export type Notice = { id: number; message: string; starts_on: string; ends_on: string };
 
-/** Notices that haven't ended yet, soonest first. */
-export async function getNotices(from: string): Promise<Notice[]> {
-  const supabase = publicClient();
-  const { data } = await supabase.from("notices").select("id, message, starts_on, ends_on").gte("ends_on", from).order("starts_on");
+async function readNotices(from: string): Promise<Notice[]> {
+  const { data } = await publicClient().from("notices").select("id, message, starts_on, ends_on").gte("ends_on", from).order("starts_on");
   return (data ?? []) as Notice[];
 }
 
-/** The uploaded timetable PDFs (see timetablePdfs.ts). Empty until migration 0039 is run. */
-export async function getTimetablePdfs(): Promise<TimetablePdf[]> {
+async function readTimetablePdfs(): Promise<TimetablePdf[]> {
   const { data } = await publicClient().from("timetable_pdfs").select("*").order("key");
   return (data ?? []) as TimetablePdf[];
+}
+
+// Shared by everyone not signed in, like the day's rooms above; every save clears them
+const cachedNotices = unstable_cache(readNotices, ["public-notices"], PUBLIC);
+const cachedTimetablePdfs = unstable_cache(readTimetablePdfs, ["public-timetable-pdfs"], PUBLIC);
+
+/** Notices that haven't ended yet, soonest first. */
+export async function getNotices(from: string): Promise<Notice[]> {
+  return (await signedOut()) ? cachedNotices(from) : readNotices(from);
+}
+
+/** The uploaded timetable PDFs (see timetablePdfs.ts). */
+export async function getTimetablePdfs(): Promise<TimetablePdf[]> {
+  return (await signedOut()) ? cachedTimetablePdfs() : readTimetablePdfs();
 }

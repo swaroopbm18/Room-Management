@@ -61,13 +61,26 @@ export function refreshPages() {
   revalidatePath("/", "layout");
 }
 
-/** Runs an RPC and redirects back with a success or error message (and an Undo, when given). */
-export async function run(form: FormData, fallback: string, fn: string, args: Record<string, unknown>, ok: string, undo?: string) {
+/**
+ * Runs an RPC, refreshes every page and redirects back with a success or error message. The
+ * message can be read from the RPC's result; an Undo, a cache tag to clear and a different
+ * page to land on after success are optional.
+ */
+export async function run(
+  form: FormData,
+  fallback: string,
+  fn: string,
+  args: Record<string, unknown>,
+  ok: string | ((data: unknown) => string),
+  undo?: string,
+  opts: { tag?: string; okTo?: string } = {},
+) {
   const supabase = await createClient();
-  const { error } = await supabase.rpc(fn, args);
-  const to = back(form, fallback);
+  const { data, error } = await supabase.rpc(fn, args);
+  if (opts.tag) revalidateTag(opts.tag);
   refreshPages();
-  redirect(withParam(to, error ? "error" : "msg", error ? error.message : ok, undo));
+  const to = !error && opts.okTo ? opts.okTo : back(form, fallback);
+  redirect(withParam(to, error ? "error" : "msg", error ? error.message : typeof ok === "function" ? ok(data) : ok, error ? undefined : undo));
 }
 
 export const s = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
@@ -89,14 +102,4 @@ export function lines(rows: { date: string; room: string; slots: number[]; subje
     return a && b ? `${a.label.split(" – ")[0]} – ${b.label.split(" – ")[1]}` : "";
   };
   return rows.map((r) => `${many ? `${formatDate(r.date, { year: undefined })}, ` : ""}${r.section ? `${r.section}: ` : ""}${r.subject} in ${r.room}, ${label(r.slots)}`);
-}
-
-/** Like run(), but can pick the message from the RPC's result. */
-export async function run25(form: FormData, fallback: string, fn: string, args: Record<string, unknown>, ok: string | ((data: unknown) => string), tag?: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc(fn, args);
-  if (tag) revalidateTag(tag);
-  refreshPages();
-  const to = back(form, fallback);
-  redirect(withParam(to, error ? "error" : "msg", error ? error.message : typeof ok === "function" ? ok(data) : ok));
 }

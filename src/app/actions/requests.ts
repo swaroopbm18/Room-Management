@@ -4,7 +4,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { back, withParam, UNDO_RPC, type UndoKind, undoToken, refreshPages, run, s, run25 } from "./shared";
+import { back, withParam, UNDO_RPC, type UndoKind, undoToken, refreshPages, run, s } from "./shared";
 
 /** The Undo button on a message: puts back what was just removed. */
 export async function undoLast(form: FormData) {
@@ -66,12 +66,12 @@ export async function moveRequest(form: FormData) {
 
 /** A faculty member changes the description or subject of their own pending request. */
 export async function editRequest(form: FormData) {
-  await run25(form, "/faculty", "edit_request", { p_id: s(form, "id"), p_description: s(form, "description"), p_subject: s(form, "subject") }, "Request updated.");
+  await run(form, "/faculty", "edit_request", { p_id: s(form, "id"), p_description: s(form, "description"), p_subject: s(form, "subject") }, "Request updated.");
 }
 
 /** Puts an approved or rejected request back in the queue. */
 export async function undoDecision(form: FormData) {
-  await run25(form, "/admin", "admin_undo_decision", { p_id: s(form, "id") }, (was) =>
+  await run(form, "/admin", "admin_undo_decision", { p_id: s(form, "id") }, (was) =>
     was === "approved" ? "Approval undone. The room is free again and the request is back in the queue." : "Rejection undone. The request is back in the queue.",
   );
 }
