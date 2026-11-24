@@ -4,11 +4,15 @@ import PageHeader from "@/components/PageHeader";
 import PendingLink from "@/components/PendingLink";
 import SubmitButton from "@/components/SubmitButton";
 import { CAUSE_LABEL, rowKey, shortDay, slotRange, type Cause, type Suggestion } from "@/lib/affected";
+import { ALL_CLASSES } from "@/lib/classDay";
 import { addDays, DATE_RE, todayIST } from "@/lib/time";
 import type { Room, Slot } from "@/lib/types";
 import AreaTabs from "../AreaTabs";
 import { bulkMoveAffected, moveAffected } from "./actions";
-import { getAffected, workingDays, type AffectedRow } from "./data";
+import { ChangesTable, changeCount, loadChanges } from "./changes";
+import { getAffected, workingDaysBetween, type AffectedRow } from "./data";
+
+const MAX_DAYS = 31;
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Classes affected", robots: { index: false } };
@@ -26,19 +30,24 @@ const CAUSE_TONE: Record<Cause, string> = {
  * sections are at the event, a skill lab or an exam is not listed. Move a class to a suggestion in
  * one press, or pick a room and time by hand; then print the changes for faculty and students.
  */
-export default async function AffectedClasses({ searchParams }: { searchParams: Promise<{ start?: string; days?: string }> }) {
+export default async function AffectedClasses({ searchParams }: { searchParams: Promise<{ start?: string; end?: string; days?: string }> }) {
   const sp = await searchParams;
   const today = todayIST();
   const start = sp.start && DATE_RE.test(sp.start) && sp.start >= today ? sp.start : today;
-  const span = [7, 14].includes(Number(sp.days)) ? Number(sp.days) : 7;
-  const dates = await workingDays(start, span);
-  const { rows, rooms, slots, plan } = dates.length ? await getAffected(dates) : { rows: [], rooms: [], slots: [], plan: [] };
+  // From and To, both included, at most 31 days (an old link's "days=14" still works)
+  const asked = sp.end && DATE_RE.test(sp.end) && sp.end >= start ? sp.end : addDays(start, ([7, 14].includes(Number(sp.days)) ? Number(sp.days) : 7) - 1);
+  const end = asked > addDays(start, MAX_DAYS - 1) ? addDays(start, MAX_DAYS - 1) : asked;
+  const dates = await workingDaysBetween(start, end);
+  const [{ rows, rooms, slots, plan }, changes] = await Promise.all([
+    dates.length ? getAffected(dates) : { rows: [], rooms: [], slots: [], plan: [] },
+    loadChanges(start, end, ALL_CLASSES),
+  ]);
   const planned = new Map(plan.map((p) => [rowKey(p.a), p.to]));
   const placed = plan.filter((p) => p.to).length;
   const counts = { event: 0, exam: 0, booking: 0 } as Record<Cause, number>;
   for (const r of rows) counts[r.cause]++;
-  const end = addDays(start, span - 1);
-  const back = `/admin/affected?${new URLSearchParams({ start, days: String(span) }).toString()}`;
+  const back = `/admin/affected?${new URLSearchParams({ start, end }).toString()}`;
+  const nChanges = changeCount(changes.days);
   const byDay = dates.map((d) => ({ date: d, rows: rows.filter((r) => r.date === d) })).filter((d) => d.rows.length);
 
   return (
@@ -50,15 +59,12 @@ export default async function AffectedClasses({ searchParams }: { searchParams: 
       />
       <GetForm className="card flex flex-wrap items-end gap-3 p-4" message="Finding affected classes…">
         <div>
-          <label className="label" htmlFor="start">From</label>
+          <label className="label" htmlFor="start">From date</label>
           <input id="start" type="date" name="start" min={today} defaultValue={start} className="input" />
         </div>
         <div>
-          <label className="label" htmlFor="days">For</label>
-          <select id="days" name="days" defaultValue={String(span)} className="input">
-            <option value="7">7 days</option>
-            <option value="14">14 days</option>
-          </select>
+          <label className="label" htmlFor="end">To date</label>
+          <input id="end" type="date" name="end" min={today} defaultValue={end} className="input" />
         </div>
         <button className="btn-secondary">Show</button>
         <PendingLink href={`/admin/affected/print?${new URLSearchParams({ start, end }).toString()}`} className="btn-primary ml-auto">
@@ -85,7 +91,7 @@ export default async function AffectedClasses({ searchParams }: { searchParams: 
         <form id="bulk" action={bulkMoveAffected} className="card flex flex-wrap items-center gap-3 p-4">
           <input type="hidden" name="back" value={back} />
           <input type="hidden" name="start" value={start} />
-          <input type="hidden" name="days" value={String(span)} />
+          <input type="hidden" name="end" value={end} />
           <div className="min-w-0 flex-1 text-sm">
             <p className="font-medium">Move in bulk</p>
             <p className="muted">
@@ -133,6 +139,23 @@ export default async function AffectedClasses({ searchParams }: { searchParams: 
         ))
       )}
 
+      <section id="changes" className="card space-y-3 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="font-semibold">
+              Class changes to share <span className="muted text-sm font-normal">· {shortDay(start)} to {shortDay(end)} · {nChanges} {nChanges === 1 ? "change" : "changes"}</span>
+            </h2>
+            <p className="muted text-sm">
+              Every change to the classes in these days: moved to another room or time, extra classes, cancelled or released for an event, skill lab, CIE or
+              SEE, rooms taken and not moved yet, and faculty changes. It follows each move you make above.
+            </p>
+          </div>
+          <PendingLink href={`/admin/affected/print?${new URLSearchParams({ start, end }).toString()}`} className="btn-secondary py-2 text-sm">
+            <IconPrinter className="h-4 w-4" /> Print / PDF, or one class
+          </PendingLink>
+        </div>
+        <ChangesTable days={changes.days} slots={changes.slots} />
+      </section>
     </div>
   );
 }

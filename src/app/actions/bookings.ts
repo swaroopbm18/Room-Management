@@ -340,7 +340,7 @@ export async function adminBulkAllot(form: FormData) {
   if (lost.length) {
     msg += ` ${lost.length} ${lost.length === 1 ? "class" : "classes"} of other sections lost ${lost.length === 1 ? "its" : "their"} room: move ${lost.length === 1 ? "it" : "them"} below.`;
     const start = plan.days[0] < todayIST() ? todayIST() : plan.days[0];
-    redirect(withParam(`/admin/affected?${new URLSearchParams({ start, days: "14" }).toString()}`, "msg", msg));
+    redirect(withParam(`/admin/affected?${new URLSearchParams({ start, end: addDays(start, 13) }).toString()}`, "msg", msg));
   }
   redirect(withParam(to, "msg", msg));
 }

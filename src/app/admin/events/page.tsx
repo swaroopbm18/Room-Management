@@ -5,7 +5,7 @@ import SubmitButton from "@/components/SubmitButton";
 import { bySection, shortDay, slotRange } from "@/lib/affected";
 import { getClassSemesters, getSlots, getUpcomingBookings } from "@/lib/data";
 import { EVENT_KIND_LABEL, groupEvents, type EventKind, type UpcomingEvent } from "@/lib/events";
-import { todayIST } from "@/lib/time";
+import { addDays, todayIST } from "@/lib/time";
 import type { Slot } from "@/lib/types";
 import AreaTabs from "../AreaTabs";
 import { getAffected, workingDays } from "../affected/data";
@@ -124,7 +124,7 @@ function EventCard({ e, slots, affected, allSections, back }: { e: UpcomingEvent
             <span className="muted">No sections named</span>
           ))}
         <PendingLink
-          href={`/admin/affected?${new URLSearchParams({ start: dates[0] < todayIST() ? todayIST() : dates[0], days: "14" }).toString()}`}
+          href={`/admin/affected?${changesRange(dates).toString()}`}
           className={`ml-auto rounded-full px-2.5 py-1 text-xs font-semibold ${affected ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200" : "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"}`}
         >
           {affected ? `${affected} ${affected === 1 ? "class" : "classes"} affected →` : "No class affected"}
@@ -210,6 +210,15 @@ function EventCard({ e, slots, affected, allSections, back }: { e: UpcomingEvent
       </div>
     </article>
   );
+}
+
+/** Classes affected from the event's first day (today at the earliest) to its last, at least two weeks. */
+function changesRange(dates: string[]) {
+  const today = todayIST();
+  const start = dates[0] < today ? today : dates[0];
+  const last = dates[dates.length - 1];
+  const end = last > addDays(start, 13) ? (last > addDays(start, 30) ? addDays(start, 30) : last) : addDays(start, 13);
+  return new URLSearchParams({ start, end });
 }
 
 /** One day's rooms by time: "8:00 AM – 12:30 PM: MEL-LAB-01, MEL-LAB-02". */

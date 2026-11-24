@@ -5,7 +5,7 @@ import { clashes, DayState, fromText, makeSectionsOf, planBulk, rowKey, shortDay
 import { getRooms, getSlots } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { DATE_RE, slotStarted } from "@/lib/time";
-import { getAffected, loadDays, workingDays } from "./data";
+import { getAffected, loadDays, workingDaysBetween } from "./data";
 import { refreshPages } from "../../actions/shared";
 
 const s = (form: FormData, k: string) => String(form.get(k) ?? "").trim();
@@ -89,11 +89,11 @@ export async function moveAffected(form: FormData) {
 export async function bulkMoveAffected(form: FormData) {
   const go = goTo(form);
   const start = s(form, "start");
-  const span = Number(s(form, "days")) || 7;
+  const end = DATE_RE.test(s(form, "end")) ? s(form, "end") : start;
   const picked = new Set(form.getAll("pick").map(String));
   if (!DATE_RE.test(start)) go("error", "Something was missing; refresh the page and try again.");
   if (!picked.size) go("error", "Tick at least one class to move.");
-  const dates = await workingDays(start, span);
+  const dates = await workingDaysBetween(start, end);
   const { rows, rooms, slots, states, sectionsOf } = await getAffected(dates);
   const started = (date: string, id: number) => slotStarted(date, slots.find((x) => x.id === id) ?? { starts: "00:00" });
   const plan = planBulk(rows.filter((r) => picked.has(rowKey(r))), states, rooms, slots, sectionsOf, started);
