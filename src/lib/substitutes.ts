@@ -1,5 +1,5 @@
 import { sameStudents, sectionOf } from "./clashes";
-import { getFacultyStatus } from "./data";
+import { getFacultyStatuses, getTimetables } from "./data";
 import { createClient } from "./supabase/server";
 import { addDays, todayIST } from "./time";
 
@@ -21,8 +21,8 @@ export async function findSubstitutes(classes: { room_id: string; date: string; 
   const supabase = await createClient();
   const dates = [...new Set(classes.map((c) => c.date))];
   const [statuses, timetables, all] = await Promise.all([
-    Promise.all(dates.map((d) => getFacultyStatus(d))),
-    Promise.all(dates.map((d) => supabase.rpc("get_timetable", { p_date: d }))),
+    getFacultyStatuses(dates),
+    getTimetables(dates),
     supabase.rpc("get_timetable_all", { p_date: addDays(todayIST(), 1) }),
   ]);
   // Who teaches what in the regular week
@@ -39,7 +39,7 @@ export async function findSubstitutes(classes: { room_id: string; date: string; 
   });
   for (const c of classes) {
     const i = dates.indexOf(c.date);
-    const cell = ((timetables[i].data ?? []) as TimetableCell[]).find((t) => t.room_id === c.room_id && t.slot_id === c.slot_id);
+    const cell = timetables[i].find((t) => t.room_id === c.room_id && t.slot_id === c.slot_id);
     const subject = cell?.subject ?? null;
     const section = sectionOf(subject);
     const course = subject ? courseOf(subject) : null;

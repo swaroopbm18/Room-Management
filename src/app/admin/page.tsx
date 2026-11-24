@@ -3,7 +3,7 @@ import { IconAlert, IconCheck, IconChevronDown, IconChevronUp, IconClock, IconFi
 import PendingLink from "@/components/PendingLink";
 import KpiCard from "@/components/KpiCard";
 import PageHeader from "@/components/PageHeader";
-import { getDaySchedule, getFacultyStatus, getSlots } from "@/lib/data";
+import { getDaySchedules, getFacultyStatuses, getSlots } from "@/lib/data";
 import { clashText, findClashes, sectionRows } from "@/lib/clashes";
 import { groupRequests, slotCount } from "@/lib/requests";
 import { createClient } from "@/lib/supabase/server";
@@ -61,8 +61,8 @@ export default async function AdminRequests() {
   const dates = [...new Set(pending.map((g) => g.first.date))];
   const [peopleRes, statuses, days] = await Promise.all([
     supabase.from("people").select("email, initials"),
-    Promise.all(dates.map((d) => getFacultyStatus(d))),
-    Promise.all(dates.map((d) => getDaySchedule(d))),
+    getFacultyStatuses(dates),
+    getDaySchedules(dates),
   ]);
   const initialsOf = new Map(((peopleRes.data ?? []) as { email: string; initials: string | null }[]).map((p) => [p.email, p.initials]));
   const clashesFor = (g: (typeof pending)[number]) => {

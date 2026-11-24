@@ -132,6 +132,40 @@ export async function getFacultyStatus(date: string): Promise<FacultySlotStatus[
   return error ? null : ((data ?? []) as FacultySlotStatus[]);
 }
 
+/**
+ * Several dates in one database call (migration 0045), each date's rows in the order of `dates`.
+ * Null when one call a day is better: a single date, or a database without 0045 yet.
+ */
+async function manyDates<T>(fn: string, dates: string[]): Promise<T[][] | null> {
+  if (dates.length < 2) return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc(fn, { p_dates: dates });
+  if (error) return null;
+  const by = new Map<string, T[]>(dates.map((d) => [d, []]));
+  for (const r of (data ?? []) as (T & { on_date: string })[]) by.get(r.on_date)?.push(r);
+  return dates.map((d) => by.get(d)!);
+}
+
+/** The day's rooms on each date, in the order of `dates`. Students share the per-day cache instead. */
+export async function getDaySchedules(dates: string[]): Promise<ScheduleRow[][]> {
+  return ((await signedOut()) ? null : await manyDates<ScheduleRow>("get_day_schedule_many", dates)) ?? Promise.all(dates.map(getDaySchedule));
+}
+
+/** Free and busy faculty on each date, in the order of `dates` (null where it can't be read). Students share the per-day cache instead. */
+export async function getFacultyStatuses(dates: string[]): Promise<(FacultySlotStatus[] | null)[]> {
+  return ((await signedOut()) ? null : await manyDates<FacultySlotStatus>("faculty_status_many", dates)) ?? Promise.all(dates.map(getFacultyStatus));
+}
+
+export type TimetableCell = { room_id: string; slot_id: number; subject: string; faculty_initials: string[]; faculty_name: string; is_department: boolean };
+
+/** The timetable in force on each date (day swaps applied), in the order of `dates`. */
+export async function getTimetables(dates: string[]): Promise<TimetableCell[][]> {
+  const many = await manyDates<TimetableCell>("get_timetable_many", dates);
+  if (many) return many;
+  const supabase = await createClient();
+  return Promise.all(dates.map(async (d) => ((await supabase.rpc("get_timetable", { p_date: d })).data ?? []) as TimetableCell[]));
+}
+
 export type Holiday = { date: string; name: string };
 
 /**
