@@ -6,9 +6,10 @@ import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
 import { getDayOrders, getHolidays, getNotices, type DayOrder } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
+import HolidayUpload from "./HolidayUpload";
 import MakeupPlanner from "./MakeupPlanner";
 import { addDays, formatDate, isSunday, todayIST, weekdayOf, WEEKDAY_NAMES } from "@/lib/time";
-import { addHoliday, addNotice, makeUpHoliday, removeHoliday, removeNotice, setDayOrder, updateHoliday, updateNotice } from "../../actions/calendar";
+import { addHoliday, addNotice, makeUpHoliday, removeHoliday, removeNotice, setDayOrder, setHolidayMakeup, updateHoliday, updateNotice } from "../../actions/calendar";
 
 export const dynamic = "force-dynamic";
 
@@ -66,13 +67,16 @@ export default async function Calendar() {
   const today = todayIST();
   const tomorrow = addDays(today, 1);
   const supabase = await createClient();
-  const [holidays, orders, notices, pastRes] = await Promise.all([
+  const [holidays, orders, notices, pastRes, noMakeupRes] = await Promise.all([
     getHolidays(),
     getDayOrders(),
     getNotices(today),
     // Day swaps on past dates, kept for the records (the last semester or so)
     supabase.from("day_orders").select("date, follows, note").lt("date", today).gte("date", addDays(today, -180)).order("date", { ascending: false }),
+    // Holidays marked "No make-up day" (migration 0046; none until it is run)
+    supabase.from("holidays_without_makeup").select("holiday").gte("holiday", addDays(today, -30)),
   ]);
+  const noMakeup = new Set(((noMakeupRes.data ?? []) as { holiday: string }[]).map((r) => r.holiday));
   const pastSwaps = (pastRes.data ?? []) as DayOrder[];
   const holidayMap = Object.fromEntries(holidays);
   const otherHolidays = (d: string) => Object.fromEntries([...holidays].filter(([k]) => k !== d));
@@ -80,7 +84,7 @@ export default async function Calendar() {
   const swaps = [...orders.values()].filter((o) => o.date >= today).sort((a, b) => a.date.localeCompare(b.date));
   // Holidays that took a teaching day away, and the next Sunday after each as the suggested make-up day
   const toMakeUp = [...holidays.entries()]
-    .filter(([d]) => d >= addDays(today, -14) && !isSunday(d) && (orders.get(d)?.follows ?? weekdayOf(d)) <= 6)
+    .filter(([d]) => d >= addDays(today, -14) && !isSunday(d) && !noMakeup.has(d) && (orders.get(d)?.follows ?? weekdayOf(d)) <= 6)
     .sort(([a], [b]) => a.localeCompare(b));
   const nextSunday = (d: string) => addDays(d, 7 - weekdayOf(d));
   const firstSunday = (() => {
@@ -222,11 +226,11 @@ export default async function Calendar() {
               </SubmitButton>
             </div>
           ) : (
-            <p className="muted text-sm">No recent or upcoming holiday on a working day. Add the holiday below first.</p>
+            <p className="muted text-sm">No recent or upcoming holiday on a working day that still needs a make-up day. Add the holiday below first.</p>
           )}
         </form>
 
-        <MakeupPlanner holidays={holidays} orders={orders} today={today} back={BACK} />
+        <MakeupPlanner holidays={holidays} orders={orders} noMakeup={noMakeup} today={today} back={BACK} />
 
         <form action={setDayOrder} className="grid gap-3 sm:grid-cols-[auto_auto_1fr_auto] sm:items-end">
           <input type="hidden" name="back" value={BACK} />
@@ -281,6 +285,9 @@ export default async function Calendar() {
             <label className="label" htmlFor="h-name">Name</label>
             <input id="h-name" name="name" required maxLength={80} className="input" placeholder="e.g. Kannada Rajyotsava" />
           </div>
+          <label className="inline-flex items-center gap-2 pb-2.5 text-sm" title="Leave it out of the make-up suggestions; no Sunday runs its classes">
+            <input type="checkbox" name="no_makeup" value="1" className="h-4 w-4 accent-brand-600" /> No make-up day
+          </label>
           <SubmitButton pendingText="Adding…" message="Adding the holiday…">
             <IconPlus className="h-4 w-4" /> Add holiday
           </SubmitButton>
@@ -294,6 +301,7 @@ export default async function Calendar() {
                     <IconCalendar className="h-4 w-4 text-brand-500" />
                     <span className="font-medium">{formatDate(d, { weekday: "long" })}</span>
                     <span className="muted">· {name}</span>
+                    {noMakeup.has(d) && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">No make-up day</span>}
                   </span>
                   {d > today && (
                     <InlineEdit action={updateHoliday} back={BACK} title={`Edit the ${name} holiday`} message="Saving the holiday…" className="mt-1">
@@ -308,7 +316,20 @@ export default async function Calendar() {
                   )}
                 </span>
                 {d > today ? (
+                  <span className="flex flex-wrap items-center gap-2">
+                    {!isSunday(d) && (
+                      <form action={setHolidayMakeup}>
+                        <input type="hidden" name="date" value={d} />
+                        <input type="hidden" name="name" value={name} />
+                        <input type="hidden" name="needed" value={noMakeup.has(d) ? "1" : "0"} />
+                        <input type="hidden" name="back" value={BACK} />
+                        <SubmitButton className="btn-secondary py-1 text-xs" pendingText="Saving…" message="Saving…">
+                          {noMakeup.has(d) ? "Needs a make-up day" : "No make-up day"}
+                        </SubmitButton>
+                      </form>
+                    )}
                   <Remove action={removeHoliday} name="date" value={d} message="Removing the holiday…" confirm={`Remove the ${name} holiday? Classes run that day again.`} keep={{ name }} />
+                  </span>
                 ) : (
                   <span className="muted text-xs">Today</span>
                 )}
@@ -316,8 +337,9 @@ export default async function Calendar() {
             ))}
           </ul>
         ) : (
-          <EmptyState icon={<IconCalendar />} title="No upcoming holidays">Add them above, or copy last year&apos;s from New semester.</EmptyState>
+          <EmptyState icon={<IconCalendar />} title="No upcoming holidays">Add them above, upload the list as an Excel sheet below, or copy last year&apos;s from New semester.</EmptyState>
         )}
+        <HolidayUpload holidays={Object.fromEntries([...holidays].filter(([d]) => d > today))} tomorrow={tomorrow} back={BACK} />
       </Section>
     </div>
   );

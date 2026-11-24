@@ -153,6 +153,8 @@ A class request names one of the faculty member's subjects (e.g. `DBMS-3B`). Adm
 
 Admins add holidays under **Admin → Rooms → Calendar & notices**, from tomorrow on. A holiday shows no classes, is left out of every date dropdown, and shows as an empty row in a room's week view. Past holidays stay as they were.
 
+A whole list can be uploaded as an Excel sheet (.xlsx) or CSV with Date, Name and an optional Make-up day column; the page shows every row before anything is saved, and a template can be downloaded there. A holiday marked **No make-up day** (needs migration 0046) is left out of the make-up suggestions.
+
 ## Local development
 
 ```bash

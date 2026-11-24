@@ -1,9 +1,9 @@
-import { IconSwap } from "@/components/Icons";
+import { IconSwap, IconX } from "@/components/Icons";
 import SubmitButton from "@/components/SubmitButton";
 import type { DayOrder } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDate, weekdayOf, WEEKDAY_NAMES } from "@/lib/time";
-import { makeUpHoliday } from "../../actions/calendar";
+import { makeUpHoliday, setHolidayMakeup } from "../../actions/calendar";
 
 /** How many Sundays after each holiday are offered, and how many holidays are planned at once. */
 const SUNDAYS = 3;
@@ -15,18 +15,51 @@ type Candidate = { date: string; checks: Check[]; score: number };
 /**
  * Suggested make-up days for each upcoming holiday that hasn't been made up yet: the next few
  * Sundays, each checked for what would get in the way (CIEs and events already booked, faculty
- * on leave, another make-up day, a long weekend, the end of the semester), best first.
+ * on leave, another make-up day, a long weekend, the end of the semester), best first. A holiday
+ * marked "No make-up day" is left out, and listed below so it can be put back.
  */
-export default async function MakeupPlanner({ holidays, orders, today, back }: { holidays: Map<string, string>; orders: Map<string, DayOrder>; today: string; back: string }) {
+export default async function MakeupPlanner({
+  holidays,
+  orders,
+  noMakeup,
+  today,
+  back,
+}: {
+  holidays: Map<string, string>;
+  orders: Map<string, DayOrder>;
+  noMakeup: Set<string>;
+  today: string;
+  back: string;
+}) {
   const tomorrow = addDays(today, 1);
   // A holiday counts as made up once a day swap's note names it, as the make-up form writes it
   const madeUp = (d: string) => [...orders.values()].find((o) => o.note.includes(`(${formatDate(d, { year: undefined })})`));
-  const todo = [...holidays.entries()]
+  const pending = [...holidays.entries()]
     .filter(([d]) => d >= addDays(today, -7) && weekdayOf(d) !== 7 && (orders.get(d)?.follows ?? weekdayOf(d)) <= 6)
     .sort(([a], [b]) => a.localeCompare(b))
-    .filter(([d]) => !madeUp(d))
-    .slice(0, HOLIDAYS);
-  if (!todo.length) return null;
+    .filter(([d]) => !madeUp(d));
+  const skipped = pending.filter(([d]) => noMakeup.has(d));
+  const todo = pending.filter(([d]) => !noMakeup.has(d)).slice(0, HOLIDAYS);
+  const skippedList = skipped.length > 0 && (
+    <p className="muted flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+      <span>No make-up day:</span>
+      {skipped.map(([d, name]) => (
+        <form key={d} action={setHolidayMakeup} className="inline-flex items-center gap-1.5">
+          <input type="hidden" name="date" value={d} />
+          <input type="hidden" name="name" value={name} />
+          <input type="hidden" name="needed" value="1" />
+          <input type="hidden" name="back" value={back} />
+          <span className="font-medium">
+            {formatDate(d, { year: undefined })} · {name}
+          </span>
+          <SubmitButton className="btn-secondary px-2 py-0.5 text-xs" pendingText="Saving…" message="Saving…">
+            Needs one after all
+          </SubmitButton>
+        </form>
+      ))}
+    </p>
+  );
+  if (!todo.length) return skippedList || null;
 
   // The Sundays to weigh up for each holiday
   const sundaysAfter = (h: string) => {
@@ -96,17 +129,38 @@ export default async function MakeupPlanner({ holidays, orders, today, back }: {
     <div className="space-y-3">
       <div>
         <h3 className="font-semibold">Suggested make-up days</h3>
-        <p className="muted text-sm">The next Sundays after each holiday that hasn&apos;t been made up yet, checked for bookings, leave and long weekends. Best first.</p>
+        <p className="muted text-sm">
+          The next Sundays after each holiday that hasn&apos;t been made up yet, checked for bookings, leave and long weekends. Best first. Press No make-up day on a holiday that
+          won&apos;t be made up.
+        </p>
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
         {plan.map((p) => {
           const options = p.sundays.map(check).sort((a, b) => b.score - a.score || a.date.localeCompare(b.date));
           return (
             <article key={p.date} className="rounded-xl border border-brand-100 p-4 dark:border-brand-900">
-              <div className="font-medium">
-                {formatDate(p.date, { weekday: "long", year: undefined })} · {p.name}
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div className="font-medium">
+                    {formatDate(p.date, { weekday: "long", year: undefined })} · {p.name}
+                  </div>
+                  <div className="muted text-xs">{WEEKDAY_NAMES[p.follows - 1]}&apos;s classes to make up</div>
+                </div>
+                <form action={setHolidayMakeup}>
+                  <input type="hidden" name="date" value={p.date} />
+                  <input type="hidden" name="name" value={p.name} />
+                  <input type="hidden" name="needed" value="0" />
+                  <input type="hidden" name="back" value={back} />
+                  <SubmitButton
+                    className="btn-secondary py-1 text-xs"
+                    pendingText="Saving…"
+                    message="Saving…"
+                    confirm={`No make-up day for ${p.name}? It leaves these suggestions; ${WEEKDAY_NAMES[p.follows - 1]}'s classes that day are simply not run.`}
+                  >
+                    <IconX className="h-3.5 w-3.5" /> No make-up day
+                  </SubmitButton>
+                </form>
               </div>
-              <div className="muted text-xs">{WEEKDAY_NAMES[p.follows - 1]}&apos;s classes to make up</div>
               <ul className="mt-3 space-y-2">
                 {options.map((c, i) => {
                   const blocked = c.checks.some((x) => x.tone === "bad");
@@ -148,6 +202,7 @@ export default async function MakeupPlanner({ holidays, orders, today, back }: {
           );
         })}
       </div>
+      {skippedList}
     </div>
   );
 }
