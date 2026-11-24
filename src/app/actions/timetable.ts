@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { addDays, DATE_RE, formatDate, todayIST } from "@/lib/time";
 import { createClient } from "@/lib/supabase/server";
 import { getEditorTimetable } from "@/lib/data";
+import { getPerson } from "@/lib/auth";
 import { applyFacultyAliases, type ParsedEntry } from "@/lib/timetableDocx";
 import { back, withParam, run, s, slotRange, refreshPages } from "./shared";
 
@@ -195,4 +196,9 @@ export async function deleteTimetablePdf(form: FormData) {
   refreshPages();
   const to = back(form, "/admin/timetable-pdfs");
   redirect(withParam(to, error ? "error" : "msg", error ? error.message : "Timetable PDF removed."));
+}
+
+/** After PDFs are uploaded from the browser: shows them to students at once instead of after the cache expires. */
+export async function timetablePdfsUploaded() {
+  if ((await getPerson())?.role === "admin") refreshPages();
 }

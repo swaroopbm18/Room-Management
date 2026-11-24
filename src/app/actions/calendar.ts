@@ -5,7 +5,7 @@
 import { redirect } from "next/navigation";
 import { DATE_RE, formatDate, weekdayOf } from "@/lib/time";
 import { createClient } from "@/lib/supabase/server";
-import { back, withParam, undoToken, refreshPages, run, s, run25 } from "./shared";
+import { back, withParam, undoToken, refreshPages, run, s } from "./shared";
 
 export async function addHoliday(form: FormData) {
   await run(form, "/admin/holidays", "admin_add_holiday", { p_date: s(form, "date"), p_name: s(form, "name") }, "Holiday added.");
@@ -66,9 +66,9 @@ export async function copyHolidays(form: FormData) {
 }
 
 export async function updateHoliday(form: FormData) {
-  await run25(form, "/admin/holidays", "admin_update_holiday", { p_date: s(form, "date"), p_new_date: s(form, "new_date") || s(form, "date"), p_name: s(form, "name") }, "Holiday updated.");
+  await run(form, "/admin/holidays", "admin_update_holiday", { p_date: s(form, "date"), p_new_date: s(form, "new_date") || s(form, "date"), p_name: s(form, "name") }, "Holiday updated.");
 }
 
 export async function updateNotice(form: FormData) {
-  await run25(form, "/admin/holidays", "admin_update_notice", { p_id: Number(s(form, "id")), p_message: s(form, "message"), p_starts: s(form, "starts"), p_ends: s(form, "ends") }, "Notice updated.");
+  await run(form, "/admin/holidays", "admin_update_notice", { p_id: Number(s(form, "id")), p_message: s(form, "message"), p_starts: s(form, "starts"), p_ends: s(form, "ends") }, "Notice updated.");
 }

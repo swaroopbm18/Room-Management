@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { getSlots } from "@/lib/data";
 import { addDays, formatDate, todayIST } from "@/lib/time";
 import { createClient } from "@/lib/supabase/server";
-import { back, withParam, undoToken, run, s, slotRange, run25, refreshPages } from "./shared";
+import { back, withParam, undoToken, run, s, slotRange, refreshPages } from "./shared";
 
 export async function saveFaculty(form: FormData) {
   const old = s(form, "old_initials");
@@ -34,6 +34,8 @@ export async function saveFacultyProfile(form: FormData) {
     p_full_name: s(form, "full_name"),
   });
   if (saved.error) redirect(withParam(back(form, "/admin/faculty"), "error", saved.error.message));
+  // The name is saved even if the sign-in step below fails, so every page shows it now
+  refreshPages();
   if (s(form, "email")) {
     const { error } = await supabase.rpc("admin_upsert_person", {
       p_email: s(form, "email"),
@@ -44,13 +46,9 @@ export async function saveFacultyProfile(form: FormData) {
       p_active: s(form, "active") !== "false",
     });
     if (error) redirect(withParam(to, "error", error.message));
+    refreshPages();
   }
-  refreshPages();
   redirect(withParam(to, "msg", "Profile saved."));
-}
-
-export async function removeFaculty(form: FormData) {
-  await run(form, "/admin/people", "admin_remove_faculty", { p_initials: s(form, "initials") }, "Faculty member removed from the directory.");
 }
 
 /**
@@ -278,18 +276,18 @@ export async function removeLeave(form: FormData) {
 
 export async function updateLeave(form: FormData) {
   const from = s(form, "from");
-  await run25(form, "/admin/leave", "admin_update_leave", { p_id: Number(s(form, "id")), p_from: from || null, p_to: s(form, "to") || from || null, p_reason: s(form, "reason") }, "Leave updated.");
+  await run(form, "/admin/leave", "admin_update_leave", { p_id: Number(s(form, "id")), p_from: from || null, p_to: s(form, "to") || from || null, p_reason: s(form, "reason") }, "Leave updated.");
 }
 
 /** Removes someone from the sign-in list; anyone with requests on record keeps a row without access. */
 export async function deletePerson(form: FormData) {
-  await run25(form, "/admin/people", "admin_delete_person", { p_email: s(form, "email") }, (r) =>
+  await run(form, "/admin/people", "admin_delete_person", { p_email: s(form, "email") }, (r) =>
     r === "kept_history" ? `${s(form, "email")} can no longer sign in. Their past requests still show their name.` : `${s(form, "email")} deleted.`,
   );
 }
 
 export async function renameSubject(form: FormData) {
-  await run25(form, "/admin/subjects", "admin_rename_subject", { p_email: s(form, "email"), p_old: s(form, "old"), p_new: s(form, "subject") }, "Subject renamed. Past requests keep the old name.");
+  await run(form, "/admin/subjects", "admin_rename_subject", { p_email: s(form, "email"), p_old: s(form, "old"), p_new: s(form, "subject") }, "Subject renamed. Past requests keep the old name.");
 }
 
 /** Clears every duty of one faculty member. */

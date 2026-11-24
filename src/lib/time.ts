@@ -63,18 +63,9 @@ export function setMakeupSundays(days: Iterable<[string, number]>): void {
   makeupSundays = new Map([...days].filter(([d]) => isSunday(d)));
 }
 
-export function isMakeupSunday(date: string): boolean {
-  return makeupSundays.has(date);
-}
-
 /** Make-up Sundays, to hand to a date field in the browser. */
 export function makeupSundayList(): string[] {
   return [...makeupSundays.keys()];
-}
-
-/** The weekday a make-up Sunday runs (1 = Monday), or undefined for any other day. */
-export function makeupFollows(date: string): number | undefined {
-  return makeupSundays.get(date);
 }
 
 /** A Sunday with no classes: every Sunday except a make-up day. */

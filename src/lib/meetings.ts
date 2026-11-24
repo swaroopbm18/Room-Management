@@ -1,4 +1,4 @@
-import { getFacultyStatus, type FacultySlotStatus } from "./data";
+import { getFacultyStatuses, type FacultySlotStatus } from "./data";
 import type { ClusterKey } from "./faculty";
 import { addDays, isClosedSunday, slotStarted, todayIST } from "./time";
 import type { Slot } from "./types";
@@ -18,7 +18,7 @@ export async function upcomingStatus(days = 6): Promise<{ dates: string[]; byDat
     const d = addDays(todayIST(), i);
     if (!isClosedSunday(d)) dates.push(d);
   }
-  const rows = await Promise.all(dates.map((d) => getFacultyStatus(d)));
+  const rows = await getFacultyStatuses(dates);
   const byDate = new Map(dates.map((d, i) => [d, rows[i] ?? []]));
   const people = new Map<string, Person>();
   for (const r of rows.flat()) if (r && !people.has(r.initials)) people.set(r.initials, { initials: r.initials, name: r.name, cluster: r.cluster ?? undefined });

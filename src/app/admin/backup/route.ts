@@ -38,7 +38,7 @@ export async function GET() {
   if (person?.role !== "admin") return new Response("Admins only", { status: 403 });
   const supabase = await createClient();
   const tomorrow = addDays(todayIST(), 1);
-  const [slots, tt, rooms, people, directory, clusters, duties, subjects, requests, allotments, holidays, notices, swaps, leave, equipment, eqBookings, supplies, resourceRequests, activity] = await Promise.all([
+  const [slots, tt, rooms, people, directory, clusters, duties, subjects, requests, allotments, holidays, notices, swaps, leave, activity] = await Promise.all([
     getSlots(),
     getEditorTimetable(supabase, "get_timetable_all", tomorrow),
     all(supabase, "rooms", "sort_order"),
@@ -53,16 +53,10 @@ export async function GET() {
     all(supabase, "notices", "starts_on"),
     all(supabase, "day_orders", "date"),
     all(supabase, "faculty_leave", "starts_on"),
-    all(supabase, "equipment", "name"),
-    all(supabase, "equipment_bookings", "id"),
-    // The old Equipment & supplies data, until migration 0043 drops it (then these come back empty)
-    all(supabase, "supplies", "name"),
-    all(supabase, "resource_requests", "id"),
     all(supabase, "activity_log", "id", false, 20000),
   ]);
   const slot = new Map(slots.map((s) => [s.id, s.label]));
   const day = (w: unknown) => DAY_NAMES[Number(w) - 1] ?? "";
-  const eqName = new Map(equipment.map((e) => [e.id, e.name]));
   const timetable = ((tt.data ?? []) as Row[]).sort(
     (a, b) => String(a.room_id).localeCompare(String(b.room_id)) || Number(a.weekday) - Number(b.weekday) || Number(a.slot_id) - Number(b.slot_id),
   );
@@ -80,10 +74,6 @@ export async function GET() {
     sheet("Day swaps", swaps, [["Date", "date", 12], ["Follows", (r) => day(r.follows), 12], ["Note", "note", 30]]),
     sheet("Notices", notices, [["From", "starts_on", 12], ["To", "ends_on", 12], ["Message", "message", 60], ["By", "created_by", 26]]),
     sheet("Leave", leave, [["Initials", "initials", 10], ["From", "starts_on", 12], ["To", "ends_on", 12], ["Reason", "reason", 30], ["Added by", "created_by", 26]]),
-    // The old Equipment & supplies sheets, only while that data is still in the database
-    ...(eqBookings.length ? [sheet("Equipment bookings", eqBookings, [["Equipment", (r) => eqName.get(r.equipment_id), 22], ["Date", "date", 12], ["Time", (r) => slot.get(Number(r.slot_id)), 22], ["Room", "room_id", 12], ["Booked by", "booked_name", 24], ["Purpose", "purpose", 30], ["Cancelled", (r) => time(r.cancelled_at), 20]])] : []),
-    ...(supplies.length ? [sheet("Supplies", supplies, [["Item", "name", 26], ["Stock", "stock", 8], ["Unit", "unit", 10], ["In use", "active", 8]])] : []),
-    ...(resourceRequests.length ? [sheet("Resource requests", resourceRequests, [["Needed on", "needed_on", 12], ["Item", "item", 26], ["Quantity", "quantity", 9], ["Room", "room_id", 12], ["Asked by", "requester_name", 24], ["Purpose", "purpose", 30], ["Status", "status", 10], ["Note", "decision_note", 30]])] : []),
     sheet("Activity log", activity, [["When", (r) => time(r.at), 20], ["Who", "actor", 28], ["Table", "tbl", 18], ["Change", "op", 9], ["Before", "old", 60], ["After", "new", 60]]),
   ];
   return new Response(Buffer.from(buildWorkbook(sheets)), {

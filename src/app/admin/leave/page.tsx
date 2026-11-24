@@ -4,11 +4,10 @@ import EmptyState from "@/components/EmptyState";
 import PageHeader from "@/components/PageHeader";
 import SubmitButton from "@/components/SubmitButton";
 import Substitutes from "@/components/Substitutes";
-import { getHolidays, getSlots } from "@/lib/data";
+import { getDaySchedules, getHolidays, getSlots, getTimetables } from "@/lib/data";
 import { findSubstitutes } from "@/lib/substitutes";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDate, isClosedSunday, todayIST } from "@/lib/time";
-import type { ScheduleRow } from "@/lib/types";
 import { addLeave, removeLeave, updateLeave } from "../../actions/faculty";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +17,6 @@ const BACK = "/admin/leave";
 const AHEAD = 14;
 
 type Leave = { id: number; initials: string; starts_on: string; ends_on: string; reason: string; created_by: string };
-type Cell = { room_id: string; slot_id: number; subject: string; faculty_initials: string[]; is_department: boolean };
 type Class = { room_id: string; date: string; slot_id: number; subject: string; coveredBy?: string };
 
 /** Faculty on leave, and for each day they're away, their classes and who is free to take them. */
@@ -50,8 +48,8 @@ export default async function LeavePage() {
   };
   const dates = [...new Set(leave.flatMap(daysOf))].sort();
   const [schedules, timetables] = await Promise.all([
-    Promise.all(dates.map((d) => supabase.rpc("get_day_schedule", { p_date: d }))),
-    Promise.all(dates.map((d) => supabase.rpc("get_timetable", { p_date: d }))),
+    getDaySchedules(dates),
+    getTimetables(dates),
   ]);
   /**
    * The classes `ini` has on `date`: in the timetable and not dropped or booked over, or already
@@ -59,12 +57,12 @@ export default async function LeavePage() {
    */
   const classesOf = (ini: string, date: string): Class[] => {
     const i = dates.indexOf(date);
-    const rows = (schedules[i].data ?? []) as ScheduleRow[];
+    const rows = schedules[i];
     const held = new Set(rows.filter((r) => r.status === "class").map((r) => `${r.room_id}|${r.slot_id}`));
     const covered = new Map(
       rows.filter((r) => r.status === "booked" && r.reason?.startsWith("Substitute for ") && r.reason.includes(`(${ini})`)).map((r) => [`${r.room_id}|${r.slot_id}`, r.faculty_name ?? "a substitute"]),
     );
-    return ((timetables[i].data ?? []) as Cell[])
+    return timetables[i]
       .filter((c) => !c.is_department && c.faculty_initials.includes(ini) && (held.has(`${c.room_id}|${c.slot_id}`) || covered.has(`${c.room_id}|${c.slot_id}`)))
       .map((c) => ({ room_id: c.room_id, date, slot_id: c.slot_id, subject: c.subject, coveredBy: covered.get(`${c.room_id}|${c.slot_id}`) }))
       .sort((a, b) => (slotLabel.get(a.slot_id) ?? "").localeCompare(slotLabel.get(b.slot_id) ?? "") || a.slot_id - b.slot_id);

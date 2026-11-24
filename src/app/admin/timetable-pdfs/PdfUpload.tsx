@@ -6,6 +6,7 @@ import { IconAlert, IconCheck, IconFile, IconUpload } from "@/components/Icons";
 import LoadingOverlay from "@/components/LoadingOverlay";
 import Spinner from "@/components/Spinner";
 import { createClient } from "@/lib/supabase/client";
+import { timetablePdfsUploaded } from "@/app/actions/timetable";
 import { guessPdfKey, KEY_RE, MAX_PDF_BYTES, PDF_BUCKET, pdfLabel, sizeLabel } from "@/lib/timetablePdfs";
 
 /** Upload one PDF for a semester or section; returns an error message, or nothing when saved. */
@@ -67,6 +68,7 @@ export function BulkPdfUpload({ options, uploaded }: { options: string[]; upload
     }
     setBusy(false);
     if (failed) setError(`${failed} of ${pending.length} PDFs could not be uploaded. Fix them below and upload again.`);
+    if (failed < pending.length) await timetablePdfsUploaded();
     router.refresh();
   }
 
@@ -187,7 +189,10 @@ export function PdfSlotUpload({ pdfKey, replace }: { pdfKey: string; replace: bo
     const err = await uploadPdf(file, pdfKey);
     setBusy(false);
     if (err) setError(err);
-    else router.refresh();
+    else {
+      await timetablePdfsUploaded();
+      router.refresh();
+    }
   }
 
   return (
