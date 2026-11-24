@@ -1,5 +1,5 @@
 import { getPerson } from "@/lib/auth";
-import { getSlots } from "@/lib/data";
+import { getEditorTimetable, getSlots } from "@/lib/data";
 import { DAY_NAMES } from "@/lib/faculty";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, todayIST } from "@/lib/time";
@@ -40,7 +40,7 @@ export async function GET() {
   const tomorrow = addDays(todayIST(), 1);
   const [slots, tt, rooms, people, directory, clusters, duties, subjects, requests, allotments, holidays, notices, swaps, leave, equipment, eqBookings, supplies, resourceRequests, activity] = await Promise.all([
     getSlots(),
-    supabase.rpc("get_timetable_all", { p_date: tomorrow }),
+    getEditorTimetable(supabase, "get_timetable_all", tomorrow),
     all(supabase, "rooms", "sort_order"),
     all(supabase, "people", "email"),
     all(supabase, "faculty_directory", "initials"),

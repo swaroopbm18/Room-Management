@@ -37,6 +37,20 @@
   }
 }
 
+/* A manual section reached from the contents lights up for a moment */
+.manual-flash {
+  animation: manual-flash 1.6s ease-out;
+}
+@keyframes manual-flash {
+  0%,
+  30% {
+    box-shadow: 0 0 0 3px var(--color-brand-400);
+  }
+  100% {
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+
 /* Colour themes picked from the navbar (ColorPicker). Blue is the default above.
    Same shade mapping as blue: brand-600 is the family's 700, brand-950 a darker 950. */
 html[data-color="violet"] {

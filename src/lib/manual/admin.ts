@@ -288,6 +288,20 @@ export const PARTS: ManualPart[] = [
         tips: ["A class taught to two semesters together stays until both have ended."],
       },
       {
+        id: "semesters",
+        title: "Active semesters",
+        where: "Admin → Timetables → Semester → Active semesters",
+        href: "/admin/semesters",
+        intro:
+          "Semesters 3 to 8 are listed, each Active or Off. Only the classes of active semesters show on the site: home, room week, class timetables, free rooms, faculty free and busy, and everyone's My classes. A semester that is off keeps its timetable, hidden, and its rooms show as free.",
+        steps: ["Find the semester's row.", "Press Switch off and confirm, or Make active to bring its classes back at once."],
+        tips: [
+          "Every semester starts active, so nothing is hidden until you switch one off.",
+          "The room and class timetable editors still show every class, so a semester can be prepared before it is switched on.",
+          "A class taught to two semesters together shows while either is active. Classes that name no semester and department slots always show.",
+        ],
+      },
+      {
         id: "rollover",
         title: "Starting a new semester",
         where: "Admin → Timetables → Semester → Start a new semester",

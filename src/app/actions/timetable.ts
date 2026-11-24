@@ -5,6 +5,7 @@
 import { redirect } from "next/navigation";
 import { addDays, DATE_RE, formatDate, todayIST } from "@/lib/time";
 import { createClient } from "@/lib/supabase/server";
+import { getEditorTimetable } from "@/lib/data";
 import { applyFacultyAliases, type ParsedEntry } from "@/lib/timetableDocx";
 import { back, withParam, run, s, slotRange, refreshPages } from "./shared";
 
@@ -46,7 +47,7 @@ export async function saveClassEntry(form: FormData) {
 
   if (room !== oldRoom) {
     // Never write over another class: the new room must be free in every slot
-    const { data } = await supabase.rpc("get_timetable_all", { p_date: addDays(todayIST(), 1) });
+    const { data } = await getEditorTimetable(supabase, "get_timetable_all", addDays(todayIST(), 1));
     const clash = ((data ?? []) as { room_id: string; weekday: number; slot_id: number; subject: string }[]).find(
       (t) => t.room_id === room && t.weekday === weekday && slotIds.includes(t.slot_id),
     );
@@ -106,7 +107,7 @@ export async function previewTimetableUpload(_prev: UploadPreview, form: FormDat
   }
   const supabase = await createClient();
   const [currentRes, aliasRes] = await Promise.all([
-    supabase.rpc("get_timetable_all", { p_date: addDays(todayIST(), 1) }),
+    getEditorTimetable(supabase, "get_timetable_all", addDays(todayIST(), 1)),
     supabase.from("faculty_aliases").select("alias, initials"),
   ]);
   if (currentRes.error) return { error: currentRes.error.message };
@@ -171,6 +172,19 @@ export async function endSemester(form: FormData) {
 export async function undoSemesterEnd(form: FormData) {
   const sem = s(form, "semester");
   await run(form, "/admin/semester-end", "admin_undo_semester_end", { p_semester: sem }, `Semester ${sem} classes are back in the timetable.`);
+}
+
+/** Switches a semester's timetable on or off: the classes of a semester that is off are not shown anywhere. */
+export async function setSemesterActive(form: FormData) {
+  const sem = s(form, "semester");
+  const active = s(form, "active") === "true";
+  await run(
+    form,
+    "/admin/semesters",
+    "admin_set_semester_active",
+    { p_semester: sem, p_active: active },
+    active ? `Semester ${sem} is active: its classes show everywhere again.` : `Semester ${sem} is switched off: its classes are hidden and their rooms show as free.`,
+  );
 }
 
 /** Remove a semester's or section's timetable PDF, and its file. */
