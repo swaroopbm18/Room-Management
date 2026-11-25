@@ -2,7 +2,8 @@ import SubmitButton from "./SubmitButton";
 import Link from "next/link";
 import { displayName } from "@/lib/auth";
 import type { Person } from "@/lib/types";
-import { IconBuilding, IconCalendar, IconCalendarCheck, IconHome, IconLogin, IconLogout } from "./Icons";
+import AppLogo from "./AppLogo";
+import { IconCalendar, IconCalendarCheck, IconHome, IconLogin, IconLogout } from "./Icons";
 import PendingLink from "./PendingLink";
 import ColorPicker from "./ColorPicker";
 import MenuButton from "./MenuButton";
@@ -25,9 +26,7 @@ export default function Navbar({ person }: { person: Person | null }) {
       <nav className={`flex items-center gap-x-3 gap-y-2 px-3 sm:px-5 ${person ? "h-14" : "mx-auto max-w-7xl flex-wrap py-2.5 sm:px-6"}`}>
         {person && <MenuButton className={`${TOOL} lg:hidden`} />}
         <Link href="/" className="mr-1 flex min-w-0 items-center gap-2.5 font-semibold tracking-tight text-brand-950 dark:text-white">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-800 text-white shadow-sm shadow-brand-900/20">
-            <IconBuilding className="h-5 w-5" />
-          </span>
+          <AppLogo className="h-9 w-9" />
           <span className="min-w-0 leading-tight">
             <span className="block truncate">
               <span className="sm:hidden">Room Management</span>
