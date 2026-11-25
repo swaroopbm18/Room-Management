@@ -1,1 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="t" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2f7bd6"/><stop offset="1" stop-color="#0f2d4a"/></linearGradient></defs><rect width="64" height="64" rx="14" fill="url(#t)"/><rect x="0.75" y="0.75" width="62.5" height="62.5" rx="13.3" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="1.5"/><g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round"><path d="M10 26 Q16 23 20.5 13 Q32 26.5 43.5 13 Q48 23 54 26" stroke-width="2.2"/><path d="M20.5 11.5 V27 M43.5 11.5 V27" stroke-width="2.6"/><path d="M26 19.6 V26.5 M32 21.6 V26.5 M38 19.6 V26.5" stroke-width="1.3" stroke-opacity="0.85"/><path d="M8 27.2 H56" stroke-width="2.4"/></g><rect x="9" y="33" width="14" height="8.5" rx="2" fill="#ffffff" fill-opacity="0.92"/><rect x="25" y="33" width="14" height="8.5" rx="2" fill="#d7262f"/><rect x="41" y="33" width="14" height="8.5" rx="2" fill="#ffffff" fill-opacity="0.92"/><rect x="9" y="44" width="14" height="8.5" rx="2" fill="#ffffff" fill-opacity="0.92"/><rect x="25" y="44" width="14" height="8.5" rx="2" fill="#ffffff" fill-opacity="0.92"/><rect x="41" y="44" width="14" height="8.5" rx="2" fill="#ffffff" fill-opacity="0.92"/><path d="M33.9 34.4 L29.9 38.6 L32.1 38.8 L30.6 41.3 L34.9 37.0 L32.7 36.8 Z" fill="#ffffff"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+<defs>
+<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f93e0"/><stop offset="1" stop-color="#1d4f9a"/></linearGradient>
+<path id="top" d="M 46 128 A 82 82 0 0 1 210 128"/>
+<path id="bot" d="M 40 128 A 88 88 0 0 0 216 128"/>
+</defs>
+<path d="M119.28,20.35 L121.22,2.18 L134.78,2.18 L136.72,20.35 L143.46,21.11 L149.38,3.83 L162.61,6.85 L160.45,24.99 L166.85,27.23 L176.48,11.70 L188.70,17.59 L182.56,34.79 L188.30,38.40 L201.14,25.40 L211.75,33.86 L201.93,49.27 L206.73,54.07 L222.14,44.25 L230.60,54.86 L217.60,67.70 L221.21,73.44 L238.41,67.30 L244.30,79.52 L228.77,89.15 L231.01,95.55 L249.15,93.39 L252.17,106.62 L234.89,112.54 L235.65,119.28 L253.82,121.22 L253.82,134.78 L235.65,136.72 L234.89,143.46 L252.17,149.38 L249.15,162.61 L231.01,160.45 L228.77,166.85 L244.30,176.48 L238.41,188.70 L221.21,182.56 L217.60,188.30 L230.60,201.14 L222.14,211.75 L206.73,201.93 L201.93,206.73 L211.75,222.14 L201.14,230.60 L188.30,217.60 L182.56,221.21 L188.70,238.41 L176.48,244.30 L166.85,228.77 L160.45,231.01 L162.61,249.15 L149.38,252.17 L143.46,234.89 L136.72,235.65 L134.78,253.82 L121.22,253.82 L119.28,235.65 L112.54,234.89 L106.62,252.17 L93.39,249.15 L95.55,231.01 L89.15,228.77 L79.52,244.30 L67.30,238.41 L73.44,221.21 L67.70,217.60 L54.86,230.60 L44.25,222.14 L54.07,206.73 L49.27,201.93 L33.86,211.75 L25.40,201.14 L38.40,188.30 L34.79,182.56 L17.59,188.70 L11.70,176.48 L27.23,166.85 L24.99,160.45 L6.85,162.61 L3.83,149.38 L21.11,143.46 L20.35,136.72 L2.18,134.78 L2.18,121.22 L20.35,119.28 L21.11,112.54 L3.83,106.62 L6.85,93.39 L24.99,95.55 L27.23,89.15 L11.70,79.52 L17.59,67.30 L34.79,73.44 L38.40,67.70 L25.40,54.86 L33.86,44.25 L49.27,54.07 L54.07,49.27 L44.25,33.86 L54.86,25.40 L67.70,38.40 L73.44,34.79 L67.30,17.59 L79.52,11.70 L89.15,27.23 L95.55,24.99 L93.39,6.85 L106.62,3.83 L112.54,21.11Z" fill="#e5e7eb"/>
+<circle cx="128" cy="128" r="108" fill="#e5e7eb"/>
+<circle cx="128" cy="128" r="101" fill="#ffffff"/>
+<circle cx="128" cy="128" r="66" fill="url(#sky)" stroke="#0f2d4a" stroke-width="2.5"/>
+<text font-family="Rubik, Arial, sans-serif" font-weight="700" font-size="14" fill="#0f2d4a"><textPath href="#top" startOffset="50%" text-anchor="middle" textLength="222" lengthAdjust="spacingAndGlyphs">B.M.S. COLLEGE OF ENGINEERING</textPath></text>
+<text font-family="Rubik, Arial, sans-serif" font-weight="700" font-size="15" fill="#0f2d4a" letter-spacing="1.6"><textPath href="#bot" startOffset="50%" text-anchor="middle" dominant-baseline="hanging">ROOM MANAGEMENT</textPath></text>
+<circle cx="47" cy="128" r="3.2" fill="#d62a2a"/><circle cx="209" cy="128" r="3.2" fill="#d62a2a"/>
+<g>
+ <clipPath id="c"><circle cx="128" cy="128" r="64"/></clipPath>
+ <g clip-path="url(#c)"><polygon points="128.00,74.00 130.00,79.25 135.61,79.53 131.23,83.05 132.70,88.47 128.00,85.40 123.30,88.47 124.77,83.05 120.39,79.53 126.00,79.25" fill="#ffffff"/><g transform="translate(0 -4)">
+  <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+   <path d="M64 124 Q84 118 96 97 Q128 128 160 97 Q172 118 192 124" stroke-width="2.6"/>
+   <path d="M96 94 V126 M160 94 V126" stroke-width="3.4"/>
+   <path d="M112 111 V126 M128 114 V126 M144 111 V126" stroke-width="1.6" stroke-opacity=".85"/>
+   <path d="M60 127 H196" stroke-width="3"/>
+  </g>
+  <g fill="#ffffff" fill-opacity=".92">
+   <rect x="88" y="138" width="22" height="12" rx="3"/><rect x="117" y="138" width="22" height="12" rx="3" fill="#d62a2a" fill-opacity="1"/><rect x="146" y="138" width="22" height="12" rx="3"/>
+   <rect x="88" y="155" width="22" height="12" rx="3"/><rect x="117" y="155" width="22" height="12" rx="3"/><rect x="146" y="155" width="22" height="12" rx="3"/>
+  </g>
+  <path d="M131 139.5 L124.5 145 H128.5 L125.5 149 L132.5 143.5 H128.5 Z" fill="#fff"/>
+ </g></g>
+</g>
+</svg>
