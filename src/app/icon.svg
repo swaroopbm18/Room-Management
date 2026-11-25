@@ -13,7 +13,7 @@
 <circle cx="47" cy="128" r="3.2" fill="#d62a2a"/><circle cx="209" cy="128" r="3.2" fill="#d62a2a"/>
 <g>
  <clipPath id="c"><circle cx="128" cy="128" r="64"/></clipPath>
- <g clip-path="url(#c)"><g transform="translate(0 -8)">
+ <g clip-path="url(#c)"><polygon points="128.00,74.00 130.00,79.25 135.61,79.53 131.23,83.05 132.70,88.47 128.00,85.40 123.30,88.47 124.77,83.05 120.39,79.53 126.00,79.25" fill="#ffffff"/><g transform="translate(0 -4)">
   <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
    <path d="M64 124 Q84 118 96 97 Q128 128 160 97 Q172 118 192 124" stroke-width="2.6"/>
    <path d="M96 94 V126 M160 94 V126" stroke-width="3.4"/>
