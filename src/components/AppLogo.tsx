@@ -1,4 +1,4 @@
-/** The app logo, drawn from the BMSCE seal. A lighter variant is shown in dark mode. */
+/** The app badge, in the style of the BMSCE seal. The cog ring turns light in dark mode. */
 export default function AppLogo({ className = "h-9 w-9" }: { className?: string }) {
   return (
     <span className={`relative inline-block shrink-0 ${className}`} aria-hidden>
